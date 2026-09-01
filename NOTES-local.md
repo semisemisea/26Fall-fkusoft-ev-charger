@@ -65,13 +65,15 @@ PM（专职）、TL/PRL/SCML（兼职模块担当）、PE1..n；五人小组对�
 - 说明书正文明确"可自行增加额外功能进行加分"
 
 ## 已确认的决策（2026-09-01 第二轮 grill 后冻结，详见 docs-local/adr/）
-- ADR-0001 通信架构：biz-core 常驻服务端唯一写库；socket 客户端 = user-app/ops-app/simulator；大屏走 HTTP 快照接口；协议 4B 长度头+JSON
-- ADR-0002 数据库：**SQLite（WAL 模式）**——与说明书 1.6 一致；项目无数据库扩展需求（单写者、应用层算距离/聚合、ML 走 CSV），PG/MySQL 属功能冗余
-- ADR-0003 计费策略依赖注入：平价默认，峰谷为加分策略；电量=功率×时长，加速因子全局配置
+- ADR-0001 通信架构：biz-core 常驻服务端唯一写库；socket 客户端 = user-app/ops-app/simulator；大屏走 HTTP 快照接口；协议 4B 长度头+JSON；**ML 也经 biz-core 内部 ingest 端点入库，全系统唯一写者**
+- ADR-0002 数据库：**SQLite（WAL 模式）**——与说明书 1.6 一致；项目无数据库扩展需求（单写者、应用层算距离/聚合、ML 走导出端点），PG/MySQL 属功能冗余
+- ADR-0003 计费策略依赖注入：平价默认，峰谷为加分策略；电量=功率×时长，加速因子全局配置；**金额全链路 *_c 分整数，只在最终金额舍入一次**
 - ADR-0004 仓库：monorepo + feature/名字-模块 + PR + **Rebase merge**；新增目录（common/simulator/dashboard/ml）待组员结构分支合入后对齐，不抢建
-- ADR-0005 ML：Python 离线批处理，CSV 进 → ml_prediction 表出，模型可换契约冻结
-- 订单状态机：预约中/充电中/待结算/已结算/已取消/已超时；余额不足停"待结算"并拦截新充电；管理员可代结算
-- simulator：虚拟站点表（真实坐标+虚构桩位），上线注册/心跳/状态翻转/执行重启/按加速时长生成电量 —— 已与组员讨论确定
+- ADR-0005 ML：Python 离线批处理，HTTP 导出端点 in → predictions.json → POST ingest（token）→ biz-core 校验整批入库；LightGBM+外生特征（节假日/天气），契约冻结
+- 订单状态机：预约中/充电中/待结算/已结算/已取消/已超时；充电正常结束三路径（手动停/target达成/桩报done）；余额不足一律停"待结算"（含充电中取消，不产生负余额）；管理员代结算记 settle_actor_type/actor_id
+- simulator：虚拟站点表按 code 认领 ops 下发的桩（ops=主数据来源，sim=活性来源）；心跳只带 hw_ok 硬件健康位；push.pile.reserve/start/stop/release 指令 + session_id 贯穿 + sim.report 幂等 seq + sim.resume 断线校准
+- 身份：hello 只声明端类型，登录后绑定身份（两段式）；归属校验 2006；未完成订单三重拦截（登录后查/进充电页查/pile.reserve 事务内原子校验）
+- 大屏：同源部署（biz-core 伺服静态文件）；砍"用户行为分层"；智能风控不做（预测+故障诊断+调度推荐覆盖 ML 章节）
 - 分工：A=biz-core（用户+Agent 扛关键路径）、B=user-app、C=ops-app、D=simulator+dashboard+ML（ML 视情况切给 E）、E=造数/测试/联调+SCML+PRL（职责五人均可兼职）
 - 周期：9/1 启动 → 9/11 验收，10 天；里程碑：D2 协议冻结、D5 用户端走通、D7 后台齐、D8 大屏+峰谷、D9 ML、D9/D10 联调彩排（检查点 9/5、9/8 晚）
 
@@ -84,8 +86,10 @@ PM（专职）、TL/PRL/SCML（兼职模块担当）、PE1..n；五人小组对�
 
 ## 系统设计（2026-09-01 完成初稿，DRAFT 待评审）
 - spec/protocol-v1-draft.md：信封格式、hello/心跳、user-app 12 消息、ops-app 12 消息、simulator 4 消息、HTTP 快照接口、错误码 0/1xxx/2xxx/3xxx、重连策略
-- spec/db-schema-draft.md：9 张表（user/admin/station/pile/order/wallet_txn/alert/ml_prediction/pricing/config），金额存分、时间存 unix 秒、并发预约靠原子 UPDATE
-- spec/module-design-draft.md：biz-core 线程模型（业务队列单写者+TimeService）、订单状态机唯一落点、计费注入点、simulator 状态机、各端页面/模块清单、错误处理演练项
+- spec/data-model-draft.md（原 db-schema-draft.md）：**自然语言数据模型草案，非冻结、非 DDL**——定位=证明协议 API 可实现的内部设计参考，biz-core 实现期可随时改，其他线不依赖；含实体标识/关键不变量（单活动订单唯一索引兜底、桩单同事务、余额非负三方一致、唯一写者）/演示数据约定/实现提示
+- spec/module-design-draft.md：biz-core 线程模型（业务队列单写者+TimeService+不可变快照）、订单状态机唯一落点、计费注入点、simulator 状态机、各端页面/模块清单、错误处理演练项
+- spec/verification-strategy.md：verifier 四层金字塔（L1 编译/L2 控件清单/L3 状态机+fake 服务/L4 offscreen 截图自看）、verify.sh 一条命令、状态机用例清单；切票时每票验收标准引用此文件
+- spec/trace-matrix.md：说明书 23 条需求 × 页面/协议/表/验收用例四列追踪矩阵（用例编号 U/B/A/S/D/M/E 与验证策略对应）
 
 ## 环境备忘（本轮对话约定，未入 AGENTS.md，AGENTS.md 留给正式开发）
 - 本仓库：五位大三学生小学期 coop 仓库，人工辅助 + Agent 主开发
