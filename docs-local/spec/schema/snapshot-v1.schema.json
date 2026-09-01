@@ -1,0 +1,113 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "snapshot-v1.schema.json",
+  "title": "biz-core dashboard snapshot v1（协议 §1.3，D1 验收校验依据）",
+  "type": "object",
+  "required": ["totals", "load_24h", "prediction", "station_rank", "revenue_mix", "alerts"],
+  "additionalProperties": false,
+  "properties": {
+    "totals": {
+      "type": "object",
+      "required": ["users", "kwh_today", "revenue_today_c", "piles_online"],
+      "additionalProperties": false,
+      "properties": {
+        "users": { "type": "integer", "minimum": 0 },
+        "kwh_today": { "type": "number", "minimum": 0 },
+        "revenue_today_c": { "type": "integer", "minimum": 0, "description": "今日营收，分" },
+        "piles_online": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "load_24h": {
+      "type": "array",
+      "minItems": 24,
+      "maxItems": 24,
+      "items": {
+        "type": "object",
+        "required": ["hour", "load"],
+        "additionalProperties": false,
+        "properties": {
+          "hour": { "type": "integer", "minimum": 0, "maximum": 23 },
+          "load": { "type": "number", "minimum": 0, "description": "该小时并发充电桩数" }
+        }
+      }
+    },
+    "prediction": {
+      "type": "object",
+      "required": ["h1", "h6", "h24", "forecast_at", "model_version"],
+      "additionalProperties": false,
+      "properties": {
+        "h1": { "$ref": "#/$defs/predList" },
+        "h6": { "$ref": "#/$defs/predList" },
+        "h24": { "$ref": "#/$defs/predList" },
+        "forecast_at": { "type": "integer", "description": "批跑时间，unix 秒" },
+        "model_version": { "type": "string", "minLength": 1 }
+      }
+    },
+    "station_rank": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["sid", "name", "revenue_c"],
+        "additionalProperties": false,
+        "properties": {
+          "sid": { "type": "integer" },
+          "name": { "type": "string" },
+          "revenue_c": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "revenue_mix": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["slot", "amount_c"],
+        "additionalProperties": false,
+        "properties": {
+          "slot": { "type": "string", "description": "时段标签（峰/平/谷或 HH:MM-HH:MM）" },
+          "amount_c": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "alerts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["kind", "msg", "at"],
+        "additionalProperties": false,
+        "properties": {
+          "kind": { "type": "integer", "minimum": 1, "maximum": 4, "description": "1桩故障/2心跳超时离线/3负荷预警/4待结算超时" },
+          "msg": { "type": "string" },
+          "at": { "type": "integer", "description": "unix 秒" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "predList": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["sid", "load", "free_piles", "peak_hours"],
+        "additionalProperties": false,
+        "properties": {
+          "sid": { "type": "integer" },
+          "load": { "type": "number", "minimum": 0, "description": "预测并发充电桩数" },
+          "free_piles": { "type": "integer", "minimum": 0 },
+          "peak_hours": {
+            "type": "array",
+            "description": "高峰充电时段（说明书 ML 章节要求），模拟时钟 HH:MM",
+            "items": {
+              "type": "object",
+              "required": ["start", "end"],
+              "additionalProperties": false,
+              "properties": {
+                "start": { "type": "string", "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$" },
+                "end": { "type": "string", "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

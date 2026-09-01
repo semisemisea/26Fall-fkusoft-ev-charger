@@ -30,10 +30,11 @@ Reserved --5min 超时--> Expired（桩释放 push.pile.release）
 Reserved --cancel--> Cancelled（桩释放）
 Charging --cancel--> 余额足：Settled（kind=2 折算扣款）
                      余额不足：PendingSettle（不产生负余额，照常拦截新充电）
+（第七状态 Failed：仅 stop/cancel 兜底写库失败等内部原因产生，桩侧失败一律兜底转 PendingSettle；不拦截新订单，管理员处理——协议 §2.5）
 ```
 
 - 迁移全部在业务线程内，桩/订单状态同事务（见 data-model 不变量 6-8）
-- 充电结束三路径统一 PendingSettle；REST 侧无推送，用户端轮询感知；结算出路径仅两条（本人/管理员代结算，settle_actor_type/actor_id 落库）
+- 充电结束三路径统一 PendingSettle；REST 侧无推送，用户端轮询感知；stop/cancel 返回 202 仅受理、最终值经轮询（协议 §2.5）；结算出路径仅两条（本人/管理员代结算，settle_actor_type/actor_id 落库）
 - 拦截：reserve 原子校验无活动订单（2004）；进充电页前 GET /users/me/orders/active
 
 ### 计费策略（依赖注入）
@@ -51,14 +52,14 @@ server/     http/（路由+鉴权+参数校验）net/（simulator socket）biz/�
 ## simulator
 
 - 无 UI 控制台进程；虚拟站点表 JSON 引用桩 code → sim.register 按 code 认领（ops=主数据来源）
-- TCP 长连接 + 自定义帧（4B 长度+JSON）；心跳 10s 只带 hw_ok；指令驱动 reserve/start/stop/release/reboot；sim.report 5s 带 seq（服务端幂等）；重连退避 + sim.resume 校准
+- TCP 长连接 + 自定义帧（4B 长度+JSON）；心跳 10s 只带 hw_ok（服务端 30s 超时判离线）；指令驱动 reserve/start/stop/release/reboot（reboot=主动断连离线 10s 后重连）；sim.report 5s 带 seq（服务端幂等）；重连退避 + sim.resume 校准（est_kwh 单调校验，协议 §2.2）
 - 随机低概率 hw_ok=false → 服务端置故障+告警
 
 ## user-app（Qt Widgets）
 
 - 网络：**QNetworkAccessManager** + Bearer token；GET 失败自动重试 1 次，POST 不自动重试；统一错误对象（HTTP 状态码 + 业务 code）映射到 UI 提示
-- 页面：登录 →（active 订单分流：待结算→结算页；充电中→充电页）→ 站列表（Tab：首页/充电/我的）→ 站详情 → 充电页（**2s 轮询 GET /orders/{oid}**；按钮：停止充电/取消）→ 结算页；我的（资料/余额/订单）
-- 地图细则已补进协议 §7（geocoder/routeplan URL、GCJ-02、失败码、离线降级、mock 区域表；key 在 config.ini，真实 key 不入 git）；导航双入口：站列表"距离"可点（正文）+ 站详情按钮（UI 图）
+- 页面：登录 →（active 订单分流：待结算→结算页；充电中→充电页）→ 站列表（Tab：首页/充电/我的）→ 站详情 → 充电页（**2s 轮询 GET /orders/{oid}**；按钮：停止充电/取消；stop/cancel 提交后界面进"受理中"态，轮询见 status 跳变再切页——协议 §2.5）→ 结算页；我的（资料/余额/订单）
+- 地图细则已补进协议 §7（geocoder/routeplan URL、GCJ-02、失败码统一降级 mock 区域表坐标、离线降级、mock 区域表；key 在 config.ini，真实 key 不入 git；routeplan 参数为 from/fromcoord/to/tocoord 分离——修正见 TODO）；导航双入口：站列表"距离"可点（正文）+ 站详情按钮（UI 图）
 
 ## ops-app（Qt Widgets）
 
@@ -74,12 +75,12 @@ server/     http/（路由+鉴权+参数校验）net/（simulator socket）biz/�
 
 ## ml/（独立 Python，不触业务库）
 
-- 守护循环：GET /api/internal/ml/export（token）→ CSV → pandas 聚合（站×小时+星期/节假日/天气）→ LightGBM（基线 Holt-Winters 对照）→ predictions.json → POST /api/internal/ml/ingest → biz-core 校验整批入库
-- 定时重跑（现实每 2 分钟≈模拟一天，准实时刷新）；亦可手动触发
+- 守护循环：GET /api/internal/ml/export（token）→ CSV → pandas 聚合（站×小时+星期/节假日/天气）→ LightGBM（基线 Holt-Winters 对照）→ predictions.json（**含 peak_hours 高峰时段，协议 §1.4**）→ POST /api/internal/ml/ingest → biz-core 校验整批入库
+- 定时重跑（现实每 2 分钟 ≈ **模拟 2 小时**刷新一轮（time_factor=60），非模拟一天；全日训练节奏口径与 ML 阈值专题一并定）；亦可手动触发
 
 ## 错误处理横切面（说明书 2.3）
 
 - REST：HTTP 状态码 + 业务错误码双轨（协议 §4 映射表）；token 失效 → 401 → 客户端重登录
 - Socket：指令 ack 超时重发、sim.report 幂等、断线退避重连+resume 校准
 - biz-core 文件日志（http/biz/socket 三类，按天滚动）；未捕获异常 → t_alert + 继续运行
-- 演练项（D10）：杀 biz-core 看三端错误提示与恢复；杀 simulator 看心跳超时告警、桩离线、兜底计量；断 sim.report 看幂等与校准；非法 token/参数走 401/400 路径
+- 演练项（D10）：杀 biz-core 看三端错误提示与恢复；杀 simulator 看心跳超时告警（30s 阈值，协议 §2.2）、桩离线、兜底计量；断 sim.report 看幂等与校准（sim.resume 单调校验）；非法 token/参数走 401/400 路径

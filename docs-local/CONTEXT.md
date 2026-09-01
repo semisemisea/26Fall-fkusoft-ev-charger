@@ -61,7 +61,7 @@
 **离线 (Offline)**:
 simulator 连接断开或心跳超时。_Avoid_: 失联、不在线
 
-（后台"电桩状态"四指标汇总口径：在用=充电中、闲置=空闲+预约锁、故障=故障、离线单列——见 env-freeze 与协议 pile.summary）
+（后台"电桩状态"四指标汇总口径：在用=充电中、闲置=空闲+预约锁、故障=故障、离线单列——见 env-freeze 与协议 pile.summary。**注意与用户端 station.list 的 `free` 字段区分：`free` 只数 Idle（可预约口径），后台 `idle` 是汇总口径含预约锁**）
 
 ### 机制
 
@@ -75,7 +75,7 @@ simulator 连接断开或心跳超时。_Avoid_: 失联、不在线
 ops-app 经 biz-core 向电桩下发重启指令；simulator 模拟离线数秒后恢复。_Avoid_: 重启设备（含本机含义）
 
 **心跳 (Heartbeat)**:
-simulator 周期上报在线与桩状态；超时未上报视桩为离线。_Avoid_: 保活
+simulator 周期上报硬件健康位 hw_ok（不携带占用状态，桩占用状态的权威是订单状态机）；服务端 30s 未收到心跳视桩为离线。_Avoid_: 保活、状态上报（心跳不报桩状态）
 
 **快照接口 (Snapshot API)**:
 biz-core 提供的 HTTP 接口，一次返回大屏全部指标 JSON，前端 5s 轮询。_Avoid_: 实时推送（大屏不用 WebSocket）

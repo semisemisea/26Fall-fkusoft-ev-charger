@@ -17,7 +17,7 @@
 2. **控件清单写进各端 spec**（哪页有哪些控件/列/按钮），是从 UI 参考图转录的，评审时一并确认
 3. **L2/L3 不起真服务**：客户端测试用 fake biz-core（固定 JSON 回放）；数据用 E 线 seed.py 固定 fixture，保证确定性
 4. **L4 流程**：QT_QPA_PLATFORM=offscreen + QWidget::grab() 存 PNG → Agent 读图与参考图对比 → 迭代；不做像素级基线回归，人只终审
-5. **dashboard 验证**：Playwright 无头截图 + /api/v1/dashboard/snapshot JSON schema 校验
+5. **dashboard 验证**：Playwright 无头截图 + /api/v1/dashboard/snapshot 按 spec/schema/snapshot-v1.schema.json 校验
 6. **verify.sh 一条命令**：build + format check + test + 截图到 docs-local/screenshots/<端>/<页>.png；每轮改动必跑，绿了才算完成
 
 ## 状态机用例清单（L3 核心，biz-core）
@@ -33,6 +33,8 @@
 - 冻结用户登录 → 2005；待结算存在时进充电页 → 2004 + pending_oid
 - 计费：Flat 与 TimeOfUse 同一 kwh 输入金额正确（峰/平/谷边界时刻）
 - 远程重启：桩离线 → 心跳超时告警入 t_alert → 恢复
+- stop/cancel：202 受理（无最终值）→ 轮询见 PendingSettle + 最终金额；5s 超时重发→兜底读数路径同效（协议 §2.5）
+- sim.resume 校准：est_kwh ≥ 服务端读数→按 est_kwh 补记账；est_kwh 回退→拒绝并维持服务端读数（协议 §2.2）
 
 ## 投入边界（10 天约束）
 
