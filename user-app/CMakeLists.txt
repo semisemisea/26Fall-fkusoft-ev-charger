@@ -7,7 +7,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(Qt6 REQUIRED COMPONENTS Widgets)
 
-qt_standard_project_setup()
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTOUIC ON)
+include(GNUInstallDirs)
 
 qt_add_executable(user-app
     main.cpp
@@ -25,7 +27,6 @@ set_target_properties(user-app PROPERTIES
     WIN32_EXECUTABLE TRUE
 )
 
-include(GNUInstallDirs)
 install(TARGETS user-app
     BUNDLE DESTINATION .
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
