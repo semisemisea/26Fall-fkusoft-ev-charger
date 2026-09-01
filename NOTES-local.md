@@ -65,7 +65,10 @@ PM（专职）、TL/PRL/SCML（兼职模块担当）、PE1..n；五人小组对�
 - 说明书正文明确"可自行增加额外功能进行加分"
 
 ## 已确认的决策（2026-09-02 RESTful 化后更新，详见 docs-local/adr/）
-- ADR-0001 通信架构（DRAFT-3 已改）：biz-core 常驻服务端唯一写库；**对外统一 RESTful HTTP+JSON（user-app/ops-app/dashboard，QNetworkAccessManager+Bearer token），仅 biz-core↔simulator 保留裸 TCP Socket 自定义帧（命中说明书 1.2/1.6 socket 考核点）**；ML 经内部 REST ingest 入库，全系统唯一写者；REST 无推送→用户端充电进度 2s 轮询
+- ADR-0001 通信架构（DRAFT-3 已改）：biz-core 常驻服务端唯一写库；**对外统一 RESTful HTTP+JSON（user-app/ops-app/dashboard，QNetworkAccessManager+Bearer token），仅 biz-core↔simulator 保留裸 TCP Socket 自定义帧（命中说明书 1.2/1.6 socket 考核点，用户已确认一条链路足够）**；ML 经内部 REST ingest 入库，全系统唯一写者；REST 无推送→用户端充电进度 2s 轮询
+- **环境冻结（env-freeze.md，2026-09-02）**：Qt==6.2.4 精确锁版（VM Ubuntu22.04 apt 原生）；组件七件套 base/Network/Sql/Charts/WebEngine/Test；**排除 QtHttpServer（需≥6.4），biz-core HTTP 服务=QTcpServer 手写 HTTP/1.1（用户选 B，+1~2 天）**；Creator≥6.2 独立约束；WSL 用 Online Installer 装 6.2.4 使 Agent 自测=验收同版，禁止 Arch 原生 Qt(6.11) 编译交付代码；错误码双层（HTTP 状态码+body.code 业务码）确认保留
+- 导航入口：点列表"距离"触发（正文为准）+ 站详情导航按钮冗余入口（UI 图）
+- 桩状态汇总口径：在用=充电中、闲置=空闲+预约锁、故障=故障、离线单列（DB 五态→后台四指标）
 - ADR-0002 数据库：**SQLite（WAL 模式）**——与说明书 1.6 一致；项目无数据库扩展需求（单写者、应用层算距离/聚合、ML 走导出端点），PG/MySQL 属功能冗余
 - ADR-0003 计费策略依赖注入：平价默认，峰谷为加分策略；电量=功率×时长，加速因子全局配置；**金额全链路 *_c 分整数，只在最终金额舍入一次**
 - ADR-0004 仓库：monorepo + feature/名字-模块 + PR + **Rebase merge**；新增目录（common/simulator/dashboard/ml）待组员结构分支合入后对齐，不抢建

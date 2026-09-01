@@ -8,7 +8,7 @@
 
 ```
 主线程：Qt event loop
-  - HTTP 服务（Qt6 HttpServer）：REST 请求接入（user-app/ops-app/dashboard/ML 内部端点）
+  - HTTP 服务（QTcpServer 手写 HTTP/1.1，见 env-freeze）：REST 请求接入（user-app/ops-app/dashboard/ML 内部端点）
   - TCP Socket 服务：simulator 接入
   - 定时器：预约超时扫描 / 心跳超时扫描 / TimeService tick（加速因子时钟）
 HTTP 工作线程池：请求解析/鉴权/参数校验（只读快照可即时回）

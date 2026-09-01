@@ -120,7 +120,7 @@ dashboard ─┼─ HTTP/JSON(RESTful) ── biz-core ── TCP Socket(自定�
 
 ## 5. 多线程模型影响（module-design 同步修订）
 
-- biz-core 内置 HTTP 服务（QtHttpServer 或 QNetworkAccessManager 对等端）：请求处理线程池 → 业务队列（单写者不变）
+- biz-core 内置 HTTP 服务（**QTcpServer 手写 HTTP/1.1 解析**——QtHttpServer 需 ≥6.4 与冻结的 6.2.4 冲突，QNAM 仅是客户端；见 env-freeze.md）：请求处理线程池 → 业务队列（单写者不变）
 - 快照读取经不可变快照发布；HTTP handler 无共享可变状态
 - 断线重连语义仅剩 simulator 链路（指数退避不变）；客户端 HTTP 失败重试：GET 可自动重试，POST 不自动重试（幂等性见 §1）
 
