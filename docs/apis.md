@@ -11,6 +11,7 @@
 - 金额统一使用整数分（amountFen），避免浮点误差；功率、能量和距离使用小数。
 - 时间使用 ISO 8601 UTC，例如 2026-09-01T08:30:00Z。服务端生成 createdAt、updatedAt 等审计时间。
 - 当前不要求 WebSocket。订单和电桩状态采用短轮询，建议间隔 5 秒；后续可增加 SSE/WebSocket 而不改变资源模型。
+- 认证主体与客户端类型分离：人的权限由角色控制，机器学习等后台进程使用独立服务主体。接口根据主体类型和角色判断权限，不信任 User-Agent 等客户端标识。
 
 ### 调用方和权限
 
@@ -18,8 +19,8 @@
 | --- | --- | --- | --- |
 | 用户端 | user-app（Linux + Qt） | USER | 找站、查看电桩、预约、充电、结算、维护个人信息 |
 | 管理端 | ops-app（Linux + Qt） | ADMIN | 销售看板、电站/电桩管理、远程重启、用户管理 |
-| Web 大屏（预留） | 浏览器/ECharts | ADMIN_READONLY 或 ADMIN | 复用统计接口显示运营指标 |
-| 机器学习（预留） | 定时任务或独立服务 | SERVICE | 读取脱敏数据、写入预测结果 |
+| Web 大屏（预留） | 浏览器/ECharts | ADMIN_READONLY | 只读查看统计和运营数据 |
+| 机器学习（预留） | 定时任务或独立服务 | SERVICE（serviceName=ml） | 读取分析数据、写入预测结果 |
 
 ## 基础约定
 
@@ -87,7 +88,12 @@ X-Request-Id 会原样出现在响应中；未提供时由服务端生成。创�
 
 ## 认证和会话
 
-令牌采用服务端生成的随机不透明字符串，服务端只在 SQLite 保存令牌哈希、身份、过期时间和撤销时间。默认有效期 7 天，退出登录立即撤销。这样无需引入 JWT，同时保留后续替换实现的空间。
+令牌采用服务端生成的随机不透明字符串，服务端只在 SQLite 保存令牌哈希、主体、角色、过期时间和撤销时间。用户和管理员令牌默认有效期 7 天；服务令牌由配置注入并按服务需要轮换。这样无需引入 JWT 或独立身份平台，同时保留后续替换实现的空间。
+
+认证主体分为两类：
+
+- user：手机号用户或管理员账号。管理员账号的 role 为 ADMIN（完整管理）或 ADMIN_READONLY（只读看板）。
+- service：后台服务。当前只定义 role=SERVICE、serviceName=ml，使用独立服务令牌，不通过管理员登录接口获取令牌。
 
 ### 用户免密登录
 
@@ -141,12 +147,27 @@ POST /auth/admin/login
 }
 ```
 
+同一接口也可登录 role 为 ADMIN_READONLY 的管理员账号。后端根据该角色只允许读取看板和设备数据，不能创建或修改电站、电桩、用户和订单。
+
 ### 当前身份和退出
 
 | 方法 | 路径 | 权限 | 说明 |
 | --- | --- | --- | --- |
-| GET | /auth/me | USER/ADMIN | 返回当前令牌对应的身份 |
-| POST | /auth/logout | USER/ADMIN | 撤销当前令牌，成功返回 204 |
+| GET | /auth/me | USER/ADMIN/ADMIN_READONLY/SERVICE | 返回当前令牌对应的主体、角色和服务名称（如适用） |
+| POST | /auth/logout | USER/ADMIN/ADMIN_READONLY | 撤销当前用户令牌，成功返回 204；服务令牌通过配置轮换 |
+
+### 角色权限
+
+权限由后端权限模块根据主体类型和角色集中判断：
+
+| 主体 | 后端允许的操作 |
+| --- | --- |
+| USER | 当前用户的资料、钱包、预约和订单操作 |
+| ADMIN | 看板查询、电站/电桩管理、远程指令和用户管理 |
+| ADMIN_READONLY | 只读查看看板和设备数据 |
+| SERVICE（serviceName=ml） | 读取分析数据、写入和读取预测结果 |
+
+接口拒绝权限不足时返回 403 FORBIDDEN。不要根据客户端名称、User-Agent 或请求来源推断权限。
 
 ## 资源和业务接口
 
@@ -439,7 +460,7 @@ amountFen = round(energyKwh * unitPriceFenPerKwh)
 
 ### 管理端看板
 
-以下接口均需要 ADMIN 令牌。
+summary、revenue-series 和 charger-status 允许 ADMIN 或 ADMIN_READONLY 读取；订单查询只允许 ADMIN。ADMIN_READONLY 只可读取看板和设备状态所需的非敏感数据，不能访问用户管理或进行写入操作。
 
 | 方法 | 路径 | 查询参数 | 说明 |
 | --- | --- | --- | --- |
@@ -482,6 +503,8 @@ amountFen = round(energyKwh * unitPriceFenPerKwh)
 ```
 
 ### 管理端电桩和电站
+
+电桩和电站的查询接口允许 ADMIN 或 ADMIN_READONLY 读取；修改、创建和远程指令接口只允许 ADMIN。ADMIN_READONLY 不具备修改权限。
 
 #### 电桩
 
@@ -531,6 +554,8 @@ chargers 可以为空；若界面只收集数量，可由客户端生成清单�
 
 ### 管理端用户
 
+用户列表、详情、钱包流水以及冻结/解冻操作只允许 ADMIN。ADMIN_READONLY 不具备用户管理权限。
+
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
 | GET | /admin/users | 按 phone 模糊搜索，按 status 筛选并分页 |
@@ -555,9 +580,9 @@ chargers 可以为空；若界面只收集数量，可由客户端生成清单�
 
 ## 机器学习和 Web 大屏预留接口
 
-Web 大屏优先复用 `/admin/dashboard/*`；如需只读账号，可使用 ADMIN_READONLY 角色，只允许 GET 看板和分析资源。
+Web 大屏是给人员使用的浏览器客户端，不定义 web 专用登录接口。交互式大屏通过 `POST /auth/admin/login` 获取 ADMIN_READONLY 令牌，只允许读取看板和设备摘要；不要把管理员或服务令牌写入浏览器代码。如果以后要公开展示，应另设只返回脱敏聚合数据的公开看板接口。
 
-机器学习服务使用独立服务令牌访问：
+机器学习使用独立的机器身份：principalType=service、role=SERVICE、serviceName=ml。令牌由 ML_SERVICE_TOKEN 配置注入，不通过管理员登录接口获取；课程作业阶段使用环境变量中的固定令牌即可。下列 internal 接口只允许 role=SERVICE 且 serviceName=ml 的主体调用，后端根据角色判断其可读取分析数据、写入和读取预测结果，serviceName 只用于识别具体服务，管理员令牌默认不能调用。该身份不能访问用户、钱包、站点/电桩写操作或远程指令：
 
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
