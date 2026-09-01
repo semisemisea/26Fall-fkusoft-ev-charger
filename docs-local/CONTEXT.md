@@ -44,10 +44,29 @@
 **已超时 (Expired)**:
 预约 5 分钟未开始被系统释放。_Avoid_: 失效
 
+### 桩状态
+
+**空闲 (Idle)**:
+在线且未被预约占用，可被预约。_Avoid_: 可用、在线
+
+**预约锁 (Reserved)**:
+已被订单锁定（预约中状态对应），5 分钟超时自动回空闲。_Avoid_: 锁定、占用
+
+**充电中 (Charging)**:
+正在输出电量，session 计量中。_Avoid_: 使用中、在用（"在用"是后台汇总口径=充电中）
+
+**故障 (Faulty)**:
+心跳 hw_ok=false 或指令 NAK 标记的硬件异常。_Avoid_: 坏、异常
+
+**离线 (Offline)**:
+simulator 连接断开或心跳超时。_Avoid_: 失联、不在线
+
+（后台"电桩状态"四指标汇总口径：在用=充电中、闲置=空闲+预约锁、故障=故障、离线单列——见 env-freeze 与协议 pile.summary）
+
 ### 机制
 
-**加速因子 (TimeFactor)**:
-模拟时间与现实时间比例（如 1秒=1分钟），用于压缩充电时长便于演示，全局配置。_Avoid_: 快进
+**加速因子 (time_factor)**:
+模拟时间与现实时间比例（配置键 `time_factor`，如 60=1秒=1分钟），用于压缩充电时长便于演示，全局配置。_Avoid_: 快进、TimeFactor（英文驼峰不再用）
 
 **计费策略 (PricingStrategy)**:
 可注入的金额计算策略：FlatPricing（平价）默认；TimeOfUsePricing（峰谷）加分项。_Avoid_: 价格规则

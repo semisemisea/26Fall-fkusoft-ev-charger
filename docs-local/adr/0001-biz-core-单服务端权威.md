@@ -1,5 +1,8 @@
 # 常驻服务端进程作为唯一数据权威（biz-core）
 
+Status: Accepted
+Date: 2026-09-01
+
 ## 背景
 充电桩平台包含用户端(user-app)、后台管理端(ops-app)、Web大屏(dashboard)、模拟电桩(simulator)、ML(ml) 多个消费方，需要数据一致性和"预约-充电-计费-结算"状态机的中立裁判。曾考虑：a) 用户端↔后台点对点；b) 各进程直读共享 SQLite 文件。
 
@@ -18,5 +21,9 @@
 
 ## 后果
 - biz-core 是关键路径，协议 v1 必须最早冻结（D2）
-- 各客户端依赖协议定义（common/），协议变更需同步
+- 所有客户端依赖协议定义（common/），协议变更需同步
 - REST 无服务端推送：用户端充电进度用 2s 轮询（演示可接受）
+
+## Considered Options
+- 全量 RESTful（simulator 也走 HTTP 轮询）：偏离说明书 socket 考核点（1.2/1.6），且指令/上报语义别扭——已否决
+- 全量裸 TCP 自定义协议：放弃 REST 标准化收益（curl 调试、语义清晰），客户端手写协议成本高——已否决

@@ -17,7 +17,7 @@
 2. **控件清单写进各端 spec**（哪页有哪些控件/列/按钮），是从 UI 参考图转录的，评审时一并确认
 3. **L2/L3 不起真服务**：客户端测试用 fake biz-core（固定 JSON 回放）；数据用 E 线 seed.py 固定 fixture，保证确定性
 4. **L4 流程**：QT_QPA_PLATFORM=offscreen + QWidget::grab() 存 PNG → Agent 读图与参考图对比 → 迭代；不做像素级基线回归，人只终审
-5. **dashboard 验证**：Playwright 无头截图 + /api/snapshot JSON schema 校验
+5. **dashboard 验证**：Playwright 无头截图 + /api/v1/dashboard/snapshot JSON schema 校验
 6. **verify.sh 一条命令**：build + format check + test + 截图到 docs-local/screenshots/<端>/<页>.png；每轮改动必跑，绿了才算完成
 
 ## 状态机用例清单（L3 核心，biz-core）
@@ -26,7 +26,7 @@
 - Reserved +5min 无 start → Expired，桩回空闲
 - 并发预约同一空闲桩：一成一败（2002）
 - Charging cancel：按已耗电量折算扣款 → Settled（txn kind=2）
-- Charging 正常结束三路径：charging.stop / target_kwh 达成 / sim.report state=done → 均 PendingSettle；用户端收 push.order.state 引导结算
+- Charging 正常结束三路径：charging.stop / target_kwh 达成 / sim.report state=done → 均 PendingSettle；用户端 2s 轮询感知 status=PendingSettle 后跳结算页（REST 无推送）
 - 预约链路：push.pile.reserve → start（session 贯穿）→ sim.report 计量；无 session 桩不计量
 - simulator 心跳只带 hw_ok：hw_ok=false → 桩置故障 + t_alert；重启后 sim.resume 校准兜底读数
 - PendingSettle 余额不足：停留、拦截新充电（2003/2004）

@@ -83,7 +83,7 @@ PM（专职）、TL/PRL/SCML（兼职模块担当）、PE1..n；五人小组对�
 
 ## 待讨论遗留
 - 五人实际名单与水平评估（B/C/D/E 四条线是否能独立扛）
-- 协议 v1 草案评审：docs-local/spec/protocol-v1-draft.md §8 三个未决点（头像 base64、status 轮询+推送、seq 不去重）+ 组员反馈
+- 协议 v1 评审：原三项未决已决（见协议 §8 已决清单）；真未决=ML 口径/阈值、snapshot schema、spec 是否入 git
 - 大屏"用户行为分层"等噱头指标是否砍（我方建议砍）
 - ML 四能力落点已定：预测全做/故障诊断=告警白嫖/需求调度=推荐排序覆盖/智能风控明确不做（待组员确认）
 - 腾讯地图 key 申请与配置文件格式（做的时候定）
@@ -100,4 +100,4 @@ PM（专职）、TL/PRL/SCML（兼职模块担当）、PE1..n；五人小组对�
 - 用户设备：macOS（ssh mac，~/.ssh/config 有 user@ip 写法）、WSL（Agent 工作处）、Windows 宿主（/mnt/）
 - mac 操控 agent 的路径：ssh win → wsl
 - Win 资料暂存：/mnt/e/01.开发环境/（含 资源/Ubuntu2204Bit.zip.001/.002、vmware17.5.2.rar——即说明书要求的 VMWare17+Ubuntu2204 镜像）
-- 阶段：当前为需求审查/理解/扩展阶段，未到具体设计；暂不用 grill-with-docs 等 skills
+- 阶段：需求审查完成，系统设计评审中（docs/review 分支，评审报告 c7a807a-review.md 等）；AGENTS.md 留给正式开发

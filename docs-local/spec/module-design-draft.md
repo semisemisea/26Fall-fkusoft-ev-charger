@@ -58,7 +58,7 @@ server/     http/（路由+鉴权+参数校验）net/（simulator socket）biz/�
 
 - 网络：**QNetworkAccessManager** + Bearer token；GET 失败自动重试 1 次，POST 不自动重试；统一错误对象（HTTP 状态码 + 业务 code）映射到 UI 提示
 - 页面：登录 →（active 订单分流：待结算→结算页；充电中→充电页）→ 站列表（Tab：首页/充电/我的）→ 站详情 → 充电页（**2s 轮询 GET /orders/{oid}**；按钮：停止充电/取消）→ 结算页；我的（资料/余额/订单）
-- 地图细则见协议 §7 相关约定（geocoder、routeplan URL、离线降级、mock 区域表；key 在 config.ini，真实 key 不入 git）
+- 地图细则已补进协议 §7（geocoder/routeplan URL、GCJ-02、失败码、离线降级、mock 区域表；key 在 config.ini，真实 key 不入 git）；导航双入口：站列表"距离"可点（正文）+ 站详情按钮（UI 图）
 
 ## ops-app（Qt Widgets）
 
