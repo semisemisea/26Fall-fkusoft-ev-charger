@@ -64,16 +64,17 @@ PM（专职）、TL/PRL/SCML（兼职模块担当）、PE1..n；五人小组对�
 - ML 子系统与 Web 大屏在 1.4 中属于"基本功能+加分"弹性范围，五人四周的工作量划分需讨论
 - 说明书正文明确"可自行增加额外功能进行加分"
 
-## 已确认的决策（2026-09-01 第二轮 grill 后冻结，详见 docs-local/adr/）
-- ADR-0001 通信架构：biz-core 常驻服务端唯一写库；socket 客户端 = user-app/ops-app/simulator；大屏走 HTTP 快照接口；协议 4B 长度头+JSON；**ML 也经 biz-core 内部 ingest 端点入库，全系统唯一写者**
+## 已确认的决策（2026-09-02 RESTful 化后更新，详见 docs-local/adr/）
+- ADR-0001 通信架构（DRAFT-3 已改）：biz-core 常驻服务端唯一写库；**对外统一 RESTful HTTP+JSON（user-app/ops-app/dashboard，QNetworkAccessManager+Bearer token），仅 biz-core↔simulator 保留裸 TCP Socket 自定义帧（命中说明书 1.2/1.6 socket 考核点）**；ML 经内部 REST ingest 入库，全系统唯一写者；REST 无推送→用户端充电进度 2s 轮询
 - ADR-0002 数据库：**SQLite（WAL 模式）**——与说明书 1.6 一致；项目无数据库扩展需求（单写者、应用层算距离/聚合、ML 走导出端点），PG/MySQL 属功能冗余
 - ADR-0003 计费策略依赖注入：平价默认，峰谷为加分策略；电量=功率×时长，加速因子全局配置；**金额全链路 *_c 分整数，只在最终金额舍入一次**
 - ADR-0004 仓库：monorepo + feature/名字-模块 + PR + **Rebase merge**；新增目录（common/simulator/dashboard/ml）待组员结构分支合入后对齐，不抢建
 - ADR-0005 ML：Python 离线批处理，HTTP 导出端点 in → predictions.json → POST ingest（token）→ biz-core 校验整批入库；LightGBM+外生特征（节假日/天气），契约冻结
 - 订单状态机：预约中/充电中/待结算/已结算/已取消/已超时；充电正常结束三路径（手动停/target达成/桩报done）；余额不足一律停"待结算"（含充电中取消，不产生负余额）；管理员代结算记 settle_actor_type/actor_id
-- simulator：虚拟站点表按 code 认领 ops 下发的桩（ops=主数据来源，sim=活性来源）；心跳只带 hw_ok 硬件健康位；push.pile.reserve/start/stop/release 指令 + session_id 贯穿 + sim.report 幂等 seq + sim.resume 断线校准
-- 身份：hello 只声明端类型，登录后绑定身份（两段式）；归属校验 2006；未完成订单三重拦截（登录后查/进充电页查/pile.reserve 事务内原子校验）
+- simulator：虚拟站点表按 code 认领 ops 下发的桩（ops=主数据来源，sim=活性来源）；Socket 心跳只带 hw_ok 硬件健康位；push.pile.reserve/start/stop/release 指令 + session_id 贯穿 + sim.report 幂等 seq + sim.resume 断线校准
+- 身份与安全：HTTP 侧 login 发 token（内存表），归属校验 2006，ops 接口 admin token；Socket 侧 register 后绑定 pid 集合；未完成订单三重拦截（登录后查/进充电页查/reserve 事务内原子校验）
 - 大屏：同源部署（biz-core 伺服静态文件）；砍"用户行为分层"；智能风控不做（预测+故障诊断+调度推荐覆盖 ML 章节）
+- **spec 文档定位**：protocol-v1 = 对外合同（冻结级）；data-model = 自然语言内部草案（非冻结非 DDL，biz-core 实现期可随时改，其他线不依赖，防评审 Agent 误判 frozen）；module-design = biz-core 内部设计；verification-strategy = verifier 四层金字塔；trace-matrix = 23 条需求四列追踪矩阵
 - 分工：A=biz-core（用户+Agent 扛关键路径）、B=user-app、C=ops-app、D=simulator+dashboard+ML（ML 视情况切给 E）、E=造数/测试/联调+SCML+PRL（职责五人均可兼职）
 - 周期：9/1 启动 → 9/11 验收，10 天；里程碑：D2 协议冻结、D5 用户端走通、D7 后台齐、D8 大屏+峰谷、D9 ML、D9/D10 联调彩排（检查点 9/5、9/8 晚）
 
