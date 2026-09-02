@@ -12,11 +12,13 @@ set(CMAKE_AUTOUIC ON)
 include(GNUInstallDirs)
 
 qt_add_executable(user-app
-    main.cpp
-    mainwindow.cpp
-    mainwindow.h
-    mainwindow.ui
+    src/main.cpp
+    src/views/mainwindow.cpp
+    src/views/mainwindow.h
+    src/views/mainwindow.ui
 )
+
+target_include_directories(user-app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 target_link_libraries(user-app PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
 
