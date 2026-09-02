@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理员登录 - 充电桩大屏</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js">
+    </script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: radial-gradient(ellipse at 50% 50%, #141b3d 0%, #0a0e27 100%);
+            overflow: hidden;
+        }
+
+        /* 背景装饰光晕 */
+        body::before {
+            content: '';
+            position: fixed;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(ellipse at 30% 50%, rgba(64, 169, 255, 0.06) 0%, transparent 60%),
+                radial-gradient(ellipse at 70% 50%, rgba(54, 207, 201, 0.06) 0%, transparent 60%);
+            animation: rotate 30s linear infinite;
+            z-index: 0;
+        }
+
+        @keyframes rotate {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .login-container {
+            position: relative;
+            z-index: 1;
+            background: rgba(20, 30, 70, 0.7);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 48px 44px 40px 44px;
+            width: 400px;
+            border: 1px solid rgba(64, 169, 255, 0.15);
+            box-shadow: 0 25px 80px rgba(0, 0, 0, 0.6);
+        }
+
+        .login-logo {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .login-logo h1 {
+            font-size: 24px;
+            font-weight: 700;
+            background: linear-gradient(90deg, #40a9ff, #36cfc9);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: 3px;
+        }
+
+        .login-logo p {
+            color: rgba(255, 255, 255, 0.3);
+            font-size: 13px;
+            margin-top: 6px;
+            letter-spacing: 2px;
+        }
+
+        .login-logo .icon {
+            font-size: 48px;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 13px;
+            margin-bottom: 6px;
+            letter-spacing: 1px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 10px;
+            color: #fff;
+            font-size: 15px;
+            outline: none;
+            transition: border-color 0.3s, box-shadow 0.3s;
+            font-family: inherit;
+        }
+
+        .form-group input:focus {
+            border-color: rgba(64, 169, 255, 0.4);
+            box-shadow: 0 0 20px rgba(64, 169, 255, 0.06);
+        }
+
+        .form-group input::placeholder {
+            color: rgba(255, 255, 255, 0.2);
+        }
+
+        .form-group .hint {
+            color: rgba(255, 255, 255, 0.2);
+            font-size: 12px;
+            margin-top: 4px;
+        }
+
+        .btn-login {
+            width: 100%;
+            padding: 13px;
+            background: linear-gradient(90deg, #40a9ff, #36cfc9);
+            border: none;
+            border-radius: 10px;
+            color: #fff;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            letter-spacing: 2px;
+            font-family: inherit;
+            margin-top: 4px;
+        }
+
+        .btn-login:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(64, 169, 255, 0.25);
+        }
+
+        .btn-login:active {
+            transform: translateY(0);
+        }
+
+        .btn-login:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .msg-error {
+            color: #ff4d4f;
+            font-size: 13px;
+            margin-top: 12px;
+            text-align: center;
+            min-height: 20px;
+        }
+
+        .msg-success {
+            color: #52c41a;
+            font-size: 13px;
+            margin-top: 12px;
+            text-align: center;
+            min-height: 20px;
+        }
+
+        .login-footer {
+            text-align: center;
+            margin-top: 24px;
+            color: rgba(255, 255, 255, 0.15);
+            font-size: 12px;
+            letter-spacing: 1px;
+        }
+
+        /* loading 动画 */
+        .spinner {
+            display: inline-block;
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-top: 2px solid #fff;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            vertical-align: middle;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* 响应式 */
+        @media (max-width: 480px) {
+            .login-container {
+                margin: 20px;
+                padding: 32px 24px;
+                width: auto;
+            }
+            .login-logo h1 {
+                font-size: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="login-container">
+        <div class="login-logo">
+            <span class="icon">⚡</span>
+            <h1>充电桩运营管理大屏</h1>
+            <p>管理员登录</p>
+        </div>
+
+        <form id="loginForm" autocomplete="off">
+            <div class="form-group">
+                <label>👤 用户名</label>
+                <input type="text" id="username" value="admin" placeholder="请输入用户名">
+            </div>
+            <div class="form-group">
+                <label>🔒 密码</label>
+                <input type="password" id="password" value="123456" placeholder="请输入密码">
+                <div class="hint">默认账号 admin / 密码 123456</div>
+            </div>
+
+            <button type="submit" class="btn-login" id="loginBtn">登 录</button>
+
+            <div id="msg" class="msg-error"></div>
+        </form>
+
+        <div class="login-footer">Neusoft EV Charging Dashboard v1.0</div>
+    </div>
+
+    <script>
+        // ================================================================
+        //  配置
+        // ================================================================
+
+        // ⚠️ 联调时改成后端实际地址
+        const API_BASE_URL = 'http://localhost:8080/api/v1';
+        const TOKEN_KEY = 'admin_access_token';
+        const DASHBOARD_URL = 'dashboard.html';
+
+
+        // ================================================================
+        //  登录逻辑
+        // ================================================================
+
+        const form = document.getElementById('loginForm');
+        const usernameInput = document.getElementById('username');
+        const passwordInput = document.getElementById('password');
+        const loginBtn = document.getElementById('loginBtn');
+        const msgEl = document.getElementById('msg');
+
+        // 检查是否已登录，如果有 Token 直接跳转
+        if (localStorage.getItem(TOKEN_KEY)) {
+            // 简单验证：尝试跳转，如果大屏能正常访问就走
+            window.location.href = DASHBOARD_URL;
+        }
+
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const username = usernameInput.value.trim();
+            const password = passwordInput.value.trim();
+
+            if (!username || !password) {
+                showMsg('请填写用户名和密码', 'error');
+                return;
+            }
+
+            // 禁用按钮，显示加载状态
+            loginBtn.disabled = true;
+            loginBtn.innerHTML = '<span class="spinner"></span> 登录中...';
+            hideMsg();
+
+            try {
+                const response = await axios.post(`${API_BASE_URL}/auth/admin/login`, {
+                    username: username,
+                    password: password
+                });
+
+                // 登录成功
+                const token = response.data.data.accessToken;
+                localStorage.setItem(TOKEN_KEY, token);
+
+                showMsg('✅ 登录成功，正在跳转...', 'success');
+
+                // 延迟 0.5 秒跳转
+                setTimeout(() => {
+                    window.location.href = DASHBOARD_URL;
+                }, 500);
+
+            } catch (error) {
+                // 登录失败
+                let message = '登录失败，请检查账号密码';
+
+                if (error.response) {
+                    if (error.response.status === 403) {
+                        message = '账号已被禁用，请联系管理员';
+                    } else if (error.response.status === 401) {
+                        message = '用户名或密码错误';
+                    } else if (error.response.status === 500) {
+                        message = '服务器内部错误，请稍后重试';
+                    }
+                } else if (error.request) {
+                    message = '⚠️ 无法连接到后端服务，请检查后端是否启动';
+                }
+
+                showMsg(message, 'error');
+
+                // 恢复按钮
+                loginBtn.disabled = false;
+                loginBtn.textContent = '登 录';
+            }
+        });
+
+        // ================================================================
+        //  工具函数
+        // ================================================================
+
+        function showMsg(text, type) {
+            msgEl.textContent = text;
+            msgEl.className = type === 'error' ? 'msg-error' : 'msg-success';
+        }
+
+        function hideMsg() {
+            msgEl.textContent = '';
+            msgEl.className = '';
+        }
+
+        // 回车键触发表单提交
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                form.dispatchEvent(new Event('submit'));
+            }
+        });
+
+        console.log('🔐 登录页已加载');
+        console.log(`🌐 API 地址: ${API_BASE_URL}`);
+        console.log('👤 默认账号: admin / 123456');
+    </script>
+
+</body>
+</html>

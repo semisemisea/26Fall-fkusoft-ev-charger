@@ -1,0 +1,1307 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>东软充电桩运营管理大屏</title>
+    <!-- 引入 ECharts -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js">
+    </script>
+    <!-- 引入 axios（联调用） -->
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js">
+    </script>
+    <style>
+        /* ===== 全局重置 & 深色背景 ===== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+            background: #0a0e27;
+            color: #fff;
+            height: 100vh;
+            overflow: hidden;
+            /* 禁止滚动，一屏显示 */
+        }
+
+        /* ===== 大屏容器 ===== */
+        .dashboard {
+            height: 100vh;
+            width: 100vw;
+            padding: 20px 30px 30px 30px;
+            display: flex;
+            flex-direction: column;
+            background: radial-gradient(ellipse at 50% 0%, #141b3d 0%, #0a0e27 70%);
+        }
+
+        /* ===== 顶部标题栏 ===== */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 16px;
+            border-bottom: 1px solid rgba(64, 169, 255, 0.2);
+            flex-shrink: 0;
+        }
+
+        .header-title {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .header-title h1 {
+            font-size: 26px;
+            font-weight: 700;
+            background: linear-gradient(90deg, #40a9ff, #36cfc9);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: 4px;
+        }
+
+        .header-title .sub {
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.4);
+            letter-spacing: 2px;
+        }
+
+        .header-time {
+            font-size: 18px;
+            color: rgba(255, 255, 255, 0.7);
+            font-weight: 300;
+            letter-spacing: 2px;
+            background: rgba(64, 169, 255, 0.08);
+            padding: 6px 20px;
+            border-radius: 20px;
+            border: 1px solid rgba(64, 169, 255, 0.15);
+        }
+
+        /* ===== 模式指示器 ===== */
+        .mode-indicator {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            padding: 4px 14px;
+            border-radius: 12px;
+            font-size: 12px;
+            z-index: 9999;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+        }
+        .mode-indicator.mock {
+            background: rgba(255, 165, 0, 0.85);
+            color: #000;
+        }
+        .mode-indicator.real {
+            background: rgba(0, 200, 100, 0.85);
+            color: #000;
+        }
+        .mode-indicator.error {
+            background: rgba(255, 50, 50, 0.85);
+            color: #fff;
+        }
+
+        /* ===== KPI 指标卡行 ===== */
+        .kpi-row {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 16px;
+            padding: 18px 0 16px 0;
+            flex-shrink: 0;
+        }
+
+        .kpi-card {
+            background: rgba(20, 30, 70, 0.6);
+            border-radius: 12px;
+            padding: 16px 20px;
+            border: 1px solid rgba(64, 169, 255, 0.12);
+            backdrop-filter: blur(4px);
+            transition: border-color 0.3s;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .kpi-card:hover {
+            border-color: rgba(64, 169, 255, 0.4);
+        }
+
+        .kpi-label {
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.5);
+            letter-spacing: 1px;
+            margin-bottom: 6px;
+        }
+
+        .kpi-value {
+            font-size: 30px;
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+
+        .kpi-value .unit {
+            font-size: 14px;
+            font-weight: 400;
+            color: rgba(255, 255, 255, 0.4);
+            margin-left: 4px;
+        }
+
+        .kpi-value.gold {
+            color: #fadb14;
+        }
+        .kpi-value.cyan {
+            color: #36cfc9;
+        }
+        .kpi-value.blue {
+            color: #40a9ff;
+        }
+        .kpi-value.purple {
+            color: #b37feb;
+        }
+        .kpi-value.green {
+            color: #52c41a;
+        }
+        .kpi-value.pink {
+            color: #ff85c0;
+        }
+
+        .kpi-sub {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.3);
+            margin-top: 4px;
+        }
+
+        /* ===== 图表主体区域（flex 撑满剩余高度） ===== */
+        .charts-main {
+            flex: 1;
+            display: flex;
+            gap: 18px;
+            min-height: 0;
+            /* 防止flex溢出 */;
+        }
+
+        /* ===== 左侧图表容器（折线图） ===== */
+        .chart-left {
+            flex: 1.6;
+            background: rgba(20, 30, 70, 0.4);
+            border-radius: 12px;
+            border: 1px solid rgba(64, 169, 255, 0.08);
+            padding: 16px 18px 10px 18px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+            margin-bottom: 10px;
+        }
+
+        .chart-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.8);
+            letter-spacing: 1px;
+        }
+
+        .chart-title .tag {
+            font-size: 11px;
+            font-weight: 400;
+            color: rgba(255, 255, 255, 0.25);
+            margin-left: 10px;
+        }
+
+        .chart-tabs {
+            display: flex;
+            gap: 4px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 6px;
+            padding: 3px;
+        }
+
+        .chart-tabs button {
+            background: transparent;
+            border: none;
+            color: rgba(255, 255, 255, 0.4);
+            padding: 4px 14px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: inherit;
+        }
+
+        .chart-tabs button.active {
+            background: rgba(64, 169, 255, 0.25);
+            color: #40a9ff;
+        }
+
+        .chart-tabs button:hover {
+            color: #fff;
+        }
+
+        .chart-box {
+            flex: 1;
+            min-height: 0;
+            width: 100%;
+        }
+
+        /* ===== 右侧面板（饼图 + 列表） ===== */
+        .chart-right {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            min-width: 0;
+        }
+
+        .chart-right-top {
+            flex: 1.2;
+            background: rgba(20, 30, 70, 0.4);
+            border-radius: 12px;
+            border: 1px solid rgba(64, 169, 255, 0.08);
+            padding: 16px 18px 10px 18px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chart-right-bottom {
+            flex: 1;
+            background: rgba(20, 30, 70, 0.4);
+            border-radius: 12px;
+            border: 1px solid rgba(64, 169, 255, 0.08);
+            padding: 16px 18px 10px 18px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .station-list {
+            flex: 1;
+            overflow-y: auto;
+            margin-top: 6px;
+        }
+
+        .station-list::-webkit-scrollbar {
+            width: 3px;
+        }
+
+        .station-list::-webkit-scrollbar-thumb {
+            background: rgba(64, 169, 255, 0.3);
+            border-radius: 10px;
+        }
+
+        .station-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            font-size: 13px;
+            cursor: pointer;
+            transition: background 0.2s;
+            border-radius: 4px;
+        }
+
+        .station-item:hover {
+            background: rgba(64, 169, 255, 0.06);
+        }
+
+        .station-name {
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .station-name .badge {
+            font-size: 10px;
+            background: rgba(64, 169, 255, 0.15);
+            color: #40a9ff;
+            padding: 1px 8px;
+            border-radius: 10px;
+            margin-left: 8px;
+        }
+
+        .station-info {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 12px;
+        }
+
+        .station-info .online {
+            color: #52c41a;
+        }
+        .station-info .offline {
+            color: #ff4d4f;
+        }
+
+        .station-info .count {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        /* ===== 通用工具 ===== */
+        .flex-1 {
+            flex: 1;
+        }
+        .min-h-0 {
+            min-height: 0;
+        }
+
+        /* ===== 加载/占位动画 ===== */
+        @keyframes pulse {
+            0%,
+            100% {
+                opacity: 0.4;
+            }
+            50% {
+                opacity: 0.8;
+            }
+        }
+
+        /* ===== 响应式微调 ===== */
+        @media (max-width: 1400px) {
+            .kpi-row {
+                grid-template-columns: repeat(3, 1fr);
+            }
+            .charts-main {
+                flex-direction: column;
+            }
+            .chart-right {
+                flex-direction: row;
+            }
+            .chart-right-top,
+            .chart-right-bottom {
+                flex: 1;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .dashboard {
+                padding: 10px;
+            }
+            .kpi-row {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 8px;
+            }
+            .kpi-value {
+                font-size: 20px;
+            }
+            .header-title h1 {
+                font-size: 18px;
+            }
+            .header-time {
+                font-size: 12px;
+                padding: 4px 12px;
+            }
+            .charts-main {
+                flex-direction: column;
+            }
+            .chart-right {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="dashboard" id="app">
+
+        <!-- ===== 顶部标题栏 ===== -->
+        <header class="header">
+            <div class="header-title">
+                <h1>⚡ 东软充电桩运营管理大屏</h1>
+                <span class="sub">Neusoft EV Charging Dashboard</span>
+            </div>
+            <div class="header-time" id="clock">--:--:--</div>
+        </header>
+
+        <!-- ===== KPI 指标卡 ===== -->
+        <section class="kpi-row" id="kpiRow">
+            <div class="kpi-card">
+                <span class="kpi-label">📊 今日营收</span>
+                <span class="kpi-value gold" id="kpiToday">-- <span class="unit">元</span></span>
+                <span class="kpi-sub">较昨日 +12.5%</span>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-label">📈 本月营收</span>
+                <span class="kpi-value cyan" id="kpiMonth">-- <span class="unit">元</span></span>
+                <span class="kpi-sub">较上月 +8.3%</span>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-label">💰 总营收</span>
+                <span class="kpi-value blue" id="kpiTotal">-- <span class="unit">元</span></span>
+                <span class="kpi-sub">累计营收</span>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-label">👤 用户总数</span>
+                <span class="kpi-value purple" id="kpiUsers">--</span>
+                <span class="kpi-sub">注册用户</span>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-label">🏠 充电站</span>
+                <span class="kpi-value green" id="kpiStations">--</span>
+                <span class="kpi-sub">在线率 <span id="kpiOnlineRate">--</span>%</span>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-label">🔌 电桩总数</span>
+                <span class="kpi-value pink" id="kpiChargers">--</span>
+                <span class="kpi-sub">快充 <span id="kpiFastCount">--</span> 台</span>
+            </div>
+        </section>
+
+        <!-- ===== 图表主体 ===== -->
+        <section class="charts-main">
+
+            <!-- 左：营收趋势图 -->
+            <div class="chart-left">
+                <div class="chart-header">
+                    <span class="chart-title">
+                        📉 营收趋势
+                        <span class="tag">近7日</span>
+                    </span>
+                    <div class="chart-tabs" id="rangeTabs">
+                        <button class="active" data-range="7d">7日</button>
+                        <button data-range="30d">30日</button>
+                    </div>
+                </div>
+                <div class="chart-box" id="revenueChart"></div>
+            </div>
+
+            <!-- 右：电桩状态 + 站点列表 -->
+            <div class="chart-right">
+
+                <!-- 上：电桩状态饼图 -->
+                <div class="chart-right-top">
+                    <div class="chart-header">
+                        <span class="chart-title">🔋 电桩状态分布</span>
+                        <span style="font-size:12px;color:rgba(255,255,255,0.25);">实时</span>
+                    </div>
+                    <div class="chart-box" id="chargerStatusChart"></div>
+                </div>
+
+                <!-- 下：充电站列表 -->
+                <div class="chart-right-bottom">
+                    <div class="chart-header">
+                        <span class="chart-title">📍 充电站列表</span>
+                        <span style="font-size:12px;color:rgba(255,255,255,0.25);">点击查看详情</span>
+                    </div>
+                    <div class="station-list" id="stationList">
+                        <!-- 由 JS 动态渲染 -->
+                    </div>
+                </div>
+
+            </div>
+
+        </section>
+
+    </div>
+
+    <script>
+        // ================================================================
+        //  0. ⭐⭐⭐ 全局配置（联调时只改这里！）⭐⭐⭐
+        // ================================================================
+
+        // 🔑 数据开关：true = 使用 Mock 假数据，false = 调用真实后端接口
+        const USE_MOCK = true;
+
+        // 🌐 后端 API 地址（联调时改成后端同学的 IP 和端口）
+        const API_BASE_URL = 'http://localhost:8080/api/v1';
+
+        // 📦 本地存储 Token 的 key（和 login.html 保持一致）
+        const TOKEN_KEY = 'admin_access_token';
+
+
+        // ================================================================
+        //  1. MOCK 数据（完全符合 apis.md 格式）
+        // ================================================================
+
+        const MOCK = {
+
+            // -------- 1. /admin/dashboard/summary --------
+            summary: {
+                todayRevenueFen: 128600,
+                monthRevenueFen: 2987600,
+                totalRevenueFen: 48652000,
+                userCount: 1234,
+                stationCount: 18,
+                chargerCount: 260,
+                onlineRate: 0.96,
+                fastChargerCount: 120,
+                slowChargerCount: 140,
+            },
+
+            // -------- 2. /admin/dashboard/revenue-series (7d) --------
+            revenue7d: {
+                range: '7d',
+                unit: 'day',
+                points: [
+                    { bucketStart: '2026-08-26', revenueFen: 345000, orderCount: 83 },
+                    { bucketStart: '2026-08-27', revenueFen: 412000, orderCount: 92 },
+                    { bucketStart: '2026-08-28', revenueFen: 380000, orderCount: 78 },
+                    { bucketStart: '2026-08-29', revenueFen: 560000, orderCount: 120 },
+                    { bucketStart: '2026-08-30', revenueFen: 490000, orderCount: 105 },
+                    { bucketStart: '2026-08-31', revenueFen: 430000, orderCount: 95 },
+                    { bucketStart: '2026-09-01', revenueFen: 510000, orderCount: 110 }
+                ]
+            },
+
+            // -------- 2b. /admin/dashboard/revenue-series (30d) --------
+            revenue30d: {
+                range: '30d',
+                unit: 'day',
+                points: (() => {
+                    const pts = [];
+                    const now = new Date();
+                    for (let i = 29; i >= 0; i--) {
+                        const d = new Date(now);
+                        d.setDate(d.getDate() - i);
+                        const label = String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2,
+                        '0');
+                        pts.push({
+                            bucketStart: label,
+                            revenueFen: Math.floor(300000 + Math.random() * 400000),
+                            orderCount: Math.floor(60 + Math.random() * 80)
+                        });
+                    }
+                    return pts;
+                })()
+            },
+
+            // -------- 3. /admin/dashboard/charger-status --------
+            chargerStatus: {
+                available: 65,
+                reserved: 10,
+                charging: 25,
+                fault: 8,
+                offline: 2
+            },
+
+            // -------- 4. /admin/stations --------
+            stations: {
+                data: [
+                    { id: 1, name: '软件园充电站', address: '大连市甘井子区软件园', latitude: 38.889, longitude: 121.537,
+                        chargerCount: 20, onlineRate: 0.95, status: 'active' },
+                    { id: 2, name: '星海广场充电站', address: '大连市沙河口区星海广场', latitude: 38.883, longitude: 121.564,
+                        chargerCount: 15, onlineRate: 0.92, status: 'active' },
+                    { id: 3, name: '高新园区充电站', address: '大连市甘井子区高新园区', latitude: 38.857, longitude: 121.528,
+                        chargerCount: 25, onlineRate: 0.98, status: 'active' },
+                    { id: 4, name: '大连北站充电站', address: '大连市甘井子区大连北站', latitude: 38.997, longitude: 121.621,
+                        chargerCount: 12, onlineRate: 0.88, status: 'active' },
+                    { id: 5, name: '旅顺口区充电站', address: '大连市旅顺口区黄河路', latitude: 38.851, longitude: 121.264,
+                        chargerCount: 8, onlineRate: 0.75, status: 'inactive' },
+                    { id: 6, name: '金州新区充电站', address: '大连市金州区金马路', latitude: 39.052, longitude: 121.728,
+                        chargerCount: 18, onlineRate: 0.94, status: 'active' },
+                ],
+                meta: { page: 1, pageSize: 20, total: 6, hasNext: false }
+            }
+        };
+
+        // 当前选中的时间范围
+        let currentRange = '7d';
+
+        // ================================================================
+        //  2. Token 管理
+        // ================================================================
+
+        function getToken() {
+            return localStorage.getItem(TOKEN_KEY);
+        }
+
+        function clearToken() {
+            localStorage.removeItem(TOKEN_KEY);
+        }
+
+        // ================================================================
+        //  3. 通用 API 请求函数（自动携带 Token）
+        // ================================================================
+
+        async function apiRequest(url, options = {}) {
+            if (USE_MOCK) {
+                console.warn('⚠️ 当前处于 Mock 模式，不会发送真实请求');
+                return null;
+            }
+
+            const token = getToken();
+            if (!token) {
+                console.warn('⚠️ 未找到 Token，请先登录');
+                alert('请先登录');
+                window.location.href = 'login.html';
+                return null;
+            }
+
+            try {
+                const response = await axios({
+                    url: `${API_BASE_URL}${url}`,
+                    method: options.method || 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                        ...options.headers
+                    },
+                    params: options.params,
+                    data: options.data,
+                    timeout: 10000,
+                });
+                return response.data.data;
+            } catch (error) {
+                if (error.response) {
+                    if (error.response.status === 401) {
+                        console.error('🔒 Token 已过期或无效，请重新登录');
+                        clearToken();
+                        alert('登录已过期，请重新登录');
+                        window.location.href = 'login.html';
+                    } else {
+                        console.error('API 请求失败:', error.response.status, error.response.data);
+                        alert(`请求失败 (${error.response.status})，请查看控制台`);
+                    }
+                } else if (error.request) {
+                    console.error('🌐 网络请求失败，请检查后端服务是否启动:', error.message);
+                    alert('⚠️ 无法连接到后端服务，请确保后端已启动');
+                } else {
+                    console.error('❌ 请求配置错误:', error.message);
+                }
+                throw error;
+            }
+        }
+
+        // ================================================================
+        //  4. 业务 API 函数（✅ 完全符合 apis.md）
+        // ================================================================
+
+        async function fetchSummary() {
+            if (USE_MOCK) {
+                return MOCK.summary;
+            }
+            return await apiRequest('/admin/dashboard/summary');
+        }
+
+        async function fetchRevenueSeries(range = '7d') {
+            if (USE_MOCK) {
+                return range === '7d' ? MOCK.revenue7d : MOCK.revenue30d;
+            }
+            return await apiRequest('/admin/dashboard/revenue-series', {
+                params: { range: range }
+            });
+        }
+
+        async function fetchChargerStatus() {
+            if (USE_MOCK) {
+                return MOCK.chargerStatus;
+            }
+            return await apiRequest('/admin/dashboard/charger-status');
+        }
+
+        async function fetchStations(page = 1, pageSize = 20) {
+            if (USE_MOCK) {
+                return MOCK.stations;
+            }
+            return await apiRequest('/admin/stations', {
+                params: { page: page, pageSize: pageSize }
+            });
+        }
+
+        async function fetchStationChargers(stationId) {
+            if (USE_MOCK) {
+                return [
+                    { id: 101, code: `S${String(stationId).padStart(2, '0')}-001`, type: 'fast', powerKw: 120,
+                        status: 'available' },
+                    { id: 102, code: `S${String(stationId).padStart(2, '0')}-002`, type: 'slow', powerKw: 7,
+                        status: 'charging' },
+                ];
+            }
+            return await apiRequest(`/admin/stations/${stationId}/chargers`);
+        }
+
+        // ================================================================
+        //  5. 工具函数
+        // ================================================================
+
+        function formatMoney(fen) {
+            return (fen / 100).toFixed(2);
+        }
+
+        function formatPercent(val) {
+            return (val * 100).toFixed(1);
+        }
+
+        function getStatusText(status) {
+            const map = {
+                'active': '正常',
+                'inactive': '已停用'
+            };
+            return map[status] || status;
+        }
+
+        function getStatusColor(status) {
+            const map = {
+                'active': 'online',
+                'inactive': 'offline'
+            };
+            return map[status] || '';
+        }
+
+        // ================================================================
+        //  6. 渲染 KPI
+        // ================================================================
+
+        function renderKPI(data) {
+            document.getElementById('kpiToday').innerHTML = formatMoney(data.todayRevenueFen) + ' <span class="unit">元</span>';
+            document.getElementById('kpiMonth').innerHTML = formatMoney(data.monthRevenueFen) + ' <span class="unit">元</span>';
+            document.getElementById('kpiTotal').innerHTML = formatMoney(data.totalRevenueFen) + ' <span class="unit">元</span>';
+            document.getElementById('kpiUsers').textContent = data.userCount;
+            document.getElementById('kpiStations').textContent = data.stationCount;
+            document.getElementById('kpiOnlineRate').textContent = formatPercent(data.onlineRate);
+            document.getElementById('kpiChargers').textContent = data.chargerCount;
+
+            if (data.fastChargerCount) {
+                document.getElementById('kpiFastCount').textContent = data.fastChargerCount;
+            }
+        }
+
+        // ================================================================
+        //  7. 渲染营收趋势图（ECharts）
+        // ================================================================
+
+        let revenueChartInstance = null;
+
+        function renderRevenueChart(range) {
+            const data = range === '7d' ? MOCK.revenue7d : MOCK.revenue30d;
+            const points = data.points;
+
+            const dates = points.map(p => p.bucketStart);
+            const revenues = points.map(p => (p.revenueFen / 100));
+            const orders = points.map(p => p.orderCount);
+
+            const dom = document.getElementById('revenueChart');
+            if (!revenueChartInstance) {
+                revenueChartInstance = echarts.init(dom);
+            }
+
+            const option = {
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: { type: 'cross' },
+                    formatter: function(params) {
+                        let html = `<strong>${params[0].axisValue}</strong><br/>`;
+                        params.forEach(p => {
+                            if (p.seriesName === '营收') {
+                                html += `${p.marker} ${p.seriesName}: ¥${p.value.toFixed(2)}<br/>`;
+                            } else {
+                                html += `${p.marker} ${p.seriesName}: ${p.value} 单<br/>`;
+                            }
+                        });
+                        return html;
+                    }
+                },
+                legend: {
+                    data: ['营收', '订单数'],
+                    textStyle: { color: 'rgba(255,255,255,0.6)', fontSize: 12 },
+                    top: 0,
+                    right: 0,
+                },
+                grid: {
+                    left: 60,
+                    right: 60,
+                    top: 40,
+                    bottom: 30
+                },
+                xAxis: {
+                    type: 'category',
+                    data: dates,
+                    axisLine: { lineStyle: { color: 'rgba(255,255,255,0.08)' } },
+                    axisLabel: { color: 'rgba(255,255,255,0.4)', fontSize: 11 },
+                    axisTick: { show: false }
+                },
+                yAxis: [{
+                    type: 'value',
+                    name: '营收 (元)',
+                    nameTextStyle: { color: 'rgba(255,255,255,0.3)', fontSize: 11 },
+                    axisLabel: {
+                        color: 'rgba(255,255,255,0.3)',
+                        fontSize: 11,
+                        formatter: (v) => '¥' + v
+                    },
+                    splitLine: { lineStyle: { color: 'rgba(255,255,255,0.04)', type: 'dashed' } },
+                }, {
+                    type: 'value',
+                    name: '订单数',
+                    nameTextStyle: { color: 'rgba(255,255,255,0.3)', fontSize: 11 },
+                    axisLabel: { color: 'rgba(255,255,255,0.3)', fontSize: 11 },
+                    splitLine: { show: false },
+                }],
+                series: [{
+                    name: '营收',
+                    type: 'line',
+                    data: revenues,
+                    smooth: true,
+                    symbol: 'circle',
+                    symbolSize: 6,
+                    lineStyle: {
+                        color: '#40a9ff',
+                        width: 3
+                    },
+                    itemStyle: { color: '#40a9ff' },
+                    areaStyle: {
+                        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                            { offset: 0, color: 'rgba(64, 169, 255, 0.3)' },
+                            { offset: 1, color: 'rgba(64, 169, 255, 0.02)' }
+                        ])
+                    }
+                }, {
+                    name: '订单数',
+                    type: 'bar',
+                    yAxisIndex: 1,
+                    data: orders,
+                    barWidth: '35%',
+                    itemStyle: {
+                        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                            { offset: 0, color: 'rgba(54, 207, 201, 0.8)' },
+                            { offset: 1, color: 'rgba(54, 207, 201, 0.2)' }
+                        ]),
+                        borderRadius: [4, 4, 0, 0]
+                    }
+                }]
+            };
+
+            revenueChartInstance.setOption(option, true);
+            revenueChartInstance.resize();
+        }
+
+        // 外部更新营收图（联调时用）
+        function updateRevenueChart(data) {
+            const points = data.points;
+            const dates = points.map(p => p.bucketStart);
+            const revenues = points.map(p => (p.revenueFen / 100));
+            const orders = points.map(p => p.orderCount);
+
+            const dom = document.getElementById('revenueChart');
+            if (!revenueChartInstance) {
+                revenueChartInstance = echarts.init(dom);
+            }
+
+            const option = {
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: { type: 'cross' },
+                    formatter: function(params) {
+                        let html = `<strong>${params[0].axisValue}</strong><br/>`;
+                        params.forEach(p => {
+                            if (p.seriesName === '营收') {
+                                html += `${p.marker} ${p.seriesName}: ¥${p.value.toFixed(2)}<br/>`;
+                            } else {
+                                html += `${p.marker} ${p.seriesName}: ${p.value} 单<br/>`;
+                            }
+                        });
+                        return html;
+                    }
+                },
+                legend: {
+                    data: ['营收', '订单数'],
+                    textStyle: { color: 'rgba(255,255,255,0.6)', fontSize: 12 },
+                    top: 0,
+                    right: 0,
+                },
+                grid: {
+                    left: 60,
+                    right: 60,
+                    top: 40,
+                    bottom: 30
+                },
+                xAxis: {
+                    type: 'category',
+                    data: dates,
+                    axisLine: { lineStyle: { color: 'rgba(255,255,255,0.08)' } },
+                    axisLabel: { color: 'rgba(255,255,255,0.4)', fontSize: 11 },
+                    axisTick: { show: false }
+                },
+                yAxis: [{
+                    type: 'value',
+                    name: '营收 (元)',
+                    nameTextStyle: { color: 'rgba(255,255,255,0.3)', fontSize: 11 },
+                    axisLabel: {
+                        color: 'rgba(255,255,255,0.3)',
+                        fontSize: 11,
+                        formatter: (v) => '¥' + v
+                    },
+                    splitLine: { lineStyle: { color: 'rgba(255,255,255,0.04)', type: 'dashed' } },
+                }, {
+                    type: 'value',
+                    name: '订单数',
+                    nameTextStyle: { color: 'rgba(255,255,255,0.3)', fontSize: 11 },
+                    axisLabel: { color: 'rgba(255,255,255,0.3)', fontSize: 11 },
+                    splitLine: { show: false },
+                }],
+                series: [{
+                    name: '营收',
+                    type: 'line',
+                    data: revenues,
+                    smooth: true,
+                    symbol: 'circle',
+                    symbolSize: 6,
+                    lineStyle: {
+                        color: '#40a9ff',
+                        width: 3
+                    },
+                    itemStyle: { color: '#40a9ff' },
+                    areaStyle: {
+                        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                            { offset: 0, color: 'rgba(64, 169, 255, 0.3)' },
+                            { offset: 1, color: 'rgba(64, 169, 255, 0.02)' }
+                        ])
+                    }
+                }, {
+                    name: '订单数',
+                    type: 'bar',
+                    yAxisIndex: 1,
+                    data: orders,
+                    barWidth: '35%',
+                    itemStyle: {
+                        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                            { offset: 0, color: 'rgba(54, 207, 201, 0.8)' },
+                            { offset: 1, color: 'rgba(54, 207, 201, 0.2)' }
+                        ]),
+                        borderRadius: [4, 4, 0, 0]
+                    }
+                }]
+            };
+
+            revenueChartInstance.setOption(option, true);
+            revenueChartInstance.resize();
+        }
+
+        // ================================================================
+        //  8. 渲染电桩状态饼图（ECharts）
+        // ================================================================
+
+        let chargerChartInstance = null;
+
+        function renderChargerStatus(data) {
+            const dom = document.getElementById('chargerStatusChart');
+            if (!chargerChartInstance) {
+                chargerChartInstance = echarts.init(dom);
+            }
+
+            const total = data.available + data.reserved + data.charging + data.fault + data.offline;
+
+            const pieData = [
+                { name: '可用', value: data.available, itemStyle: { color: '#52c41a' } },
+                { name: '已预约', value: data.reserved, itemStyle: { color: '#faad14' } },
+                { name: '充电中', value: data.charging, itemStyle: { color: '#40a9ff' } },
+                { name: '故障', value: data.fault, itemStyle: { color: '#ff4d4f' } },
+                { name: '离线', value: data.offline, itemStyle: { color: 'rgba(255,255,255,0.2)' } },
+            ];
+
+            const option = {
+                tooltip: {
+                    trigger: 'item',
+                    formatter: (params) => {
+                        const percent = ((params.value / total) * 100).toFixed(1);
+                        return `${params.name}: ${params.value} 台 (${percent}%)`;
+                    }
+                },
+                legend: {
+                    orient: 'vertical',
+                    right: 10,
+                    top: 'center',
+                    textStyle: { color: 'rgba(255,255,255,0.6)', fontSize: 12 },
+                    itemWidth: 12,
+                    itemHeight: 12,
+                    itemGap: 14,
+                },
+                series: [{
+                    type: 'pie',
+                    radius: ['45%', '72%'],
+                    avoidLabelOverlap: false,
+                    padAngle: 2,
+                    itemStyle: {
+                        borderRadius: 6,
+                        borderColor: 'rgba(10,14,39,0.8)',
+                        borderWidth: 2
+                    },
+                    label: {
+                        show: true,
+                        formatter: '{d}%',
+                        color: 'rgba(255,255,255,0.5)',
+                        fontSize: 11,
+                    },
+                    labelLine: {
+                        lineStyle: { color: 'rgba(255,255,255,0.1)' }
+                    },
+                    emphasis: {
+                        label: { show: true, fontSize: 14, fontWeight: 'bold', color: '#fff' },
+                        scale: true,
+                        scaleSize: 6
+                    },
+                    data: pieData,
+                    // 环形中心显示总数
+                    graphic: [{
+                        type: 'text',
+                        left: 'center',
+                        top: 'center',
+                        style: {
+                            text: `${total}`,
+                            fill: '#fff',
+                            fontSize: 28,
+                            fontWeight: 700,
+                            textAlign: 'center'
+                        },
+                        z: 100
+                    }, {
+                        type: 'text',
+                        left: 'center',
+                        top: 'center',
+                        style: {
+                            text: '电桩总数',
+                            fill: 'rgba(255,255,255,0.25)',
+                            fontSize: 12,
+                            textAlign: 'center',
+                            y: 20
+                        },
+                        z: 100
+                    }]
+                }]
+            };
+
+            chargerChartInstance.setOption(option, true);
+            chargerChartInstance.resize();
+        }
+
+        // ================================================================
+        //  9. 渲染站点列表
+        // ================================================================
+
+        function renderStations(data) {
+            const container = document.getElementById('stationList');
+            if (!data || data.length === 0) {
+                container.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.2);padding:20px;">暂无充电站</div>';
+                return;
+            }
+
+            let html = '';
+            data.forEach(station => {
+                const statusCls = getStatusColor(station.status);
+                const statusText = getStatusText(station.status);
+                const onlinePercent = formatPercent(station.onlineRate);
+                html += `
+                        <div class="station-item" data-id="${station.id}">
+                            <span class="station-name">
+                                ${station.name}
+                                <span class="badge">${station.chargerCount}桩</span>
+                            </span>
+                            <span class="station-info">
+                                <span class="${statusCls}">● ${statusText}</span>
+                                <span class="count">在线率 ${onlinePercent}%</span>
+                                <span style="color:rgba(255,255,255,0.2);font-size:11px;">${station.address}</span>
+                            </span>
+                        </div>
+                    `;
+            });
+
+            container.innerHTML = html;
+
+            // 点击事件：调用真实接口或 Mock
+            container.querySelectorAll('.station-item').forEach(el => {
+                el.addEventListener('click', async function() {
+                    const name = this.querySelector('.station-name').textContent.trim();
+                    const id = this.dataset.id;
+                    try {
+                        const chargers = await fetchStationChargers(id);
+                        let msg = `📍 ${name}\n电桩详情：\n`;
+                        chargers.forEach(c => {
+                            msg +=
+                                `  ${c.code} | ${c.type === 'fast' ? '快充' : '慢充'} | ${c.powerKw}kW | 状态: ${c.status}\n`;
+                        });
+                        alert(msg);
+                    } catch (e) {
+                        alert(`📍 ${name}\n(加载电桩详情失败)`);
+                    }
+                });
+            });
+        }
+
+        // ================================================================
+        //  10. 时钟
+        // ================================================================
+
+        function updateClock() {
+            const now = new Date();
+            const s = now.getFullYear() + '-' +
+                String(now.getMonth() + 1).padStart(2, '0') + '-' +
+                String(now.getDate()).padStart(2, '0') + ' ' +
+                String(now.getHours()).padStart(2, '0') + ':' +
+                String(now.getMinutes()).padStart(2, '0') + ':' +
+                String(now.getSeconds()).padStart(2, '0');
+            document.getElementById('clock').textContent = s;
+        }
+
+        // ================================================================
+        //  11. 切换时间范围
+        // ================================================================
+
+        function setupTabs() {
+            const tabs = document.querySelectorAll('#rangeTabs button');
+            tabs.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    tabs.forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    currentRange = this.dataset.range;
+                    const label = currentRange === '7d' ? '近7日' : '近30日';
+                    document.querySelector('.chart-title .tag').textContent = label;
+                    // 重新加载数据
+                    reloadRevenueChart();
+                });
+            });
+        }
+
+        async function reloadRevenueChart() {
+            const data = await fetchRevenueSeries(currentRange);
+            if (data && data.points) {
+                updateRevenueChart(data);
+            }
+        }
+
+        // ================================================================
+        //  12. 窗口自适应
+        // ================================================================
+
+        function handleResize() {
+            if (revenueChartInstance) revenueChartInstance.resize();
+            if (chargerChartInstance) chargerChartInstance.resize();
+        }
+
+        // ================================================================
+        //  13. 模式指示器
+        // ================================================================
+
+        function showModeIndicator() {
+            const div = document.createElement('div');
+            div.className = `mode-indicator ${USE_MOCK ? 'mock' : 'real'}`;
+            div.textContent = USE_MOCK ? '🧪 Mock 模式 (假数据)' : '🔗 已联调 (真实接口)';
+            document.body.appendChild(div);
+        }
+
+        // ================================================================
+        //  14. 轮询刷新
+        // ================================================================
+
+        let pollingTimer = null;
+
+        function startPolling() {
+            if (pollingTimer) clearInterval(pollingTimer);
+            pollingTimer = setInterval(async () => {
+                try {
+                    if (USE_MOCK) {
+                        // Mock 模式：数据微变
+                        const base = MOCK.summary;
+                        const delta = Math.floor(Math.random() * 20 - 10);
+                        const newData = { ...base, todayRevenueFen: Math.max(0, base.todayRevenueFen + delta * 100) };
+                        renderKPI(newData);
+                        const status = MOCK.chargerStatus;
+                        const newStatus = {
+                            available: Math.max(0, status.available + Math.floor(Math.random() * 4 - 2)),
+                            reserved: Math.max(0, status.reserved + Math.floor(Math.random() * 3 - 1)),
+                            charging: Math.max(0, status.charging + Math.floor(Math.random() * 3 - 1)),
+                            fault: Math.max(0, status.fault + Math.floor(Math.random() * 2 - 1)),
+                            offline: Math.max(0, status.offline + Math.floor(Math.random() * 2 - 1)),
+                        };
+                        renderChargerStatus(newStatus);
+                    } else {
+                        // 真实模式：调接口刷新
+                        const summaryData = await fetchSummary();
+                        if (summaryData) renderKPI(summaryData);
+                        const statusData = await fetchChargerStatus();
+                        if (statusData) renderChargerStatus(statusData);
+                        console.log('🔄 数据已刷新 (真实接口)');
+                    }
+                } catch (error) {
+                    console.warn('⚠️ 轮询刷新失败:', error.message);
+                }
+            }, 5000);
+        }
+
+        // ================================================================
+        //  15. 登录拦截（联调模式检查 Token）
+        // ================================================================
+
+        function checkAuth() {
+            if (!USE_MOCK) {
+                const token = getToken();
+                if (!token) {
+                    console.warn('🔒 未登录，跳转到登录页');
+                    alert('请先登录');
+                    window.location.href = 'login.html';
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        // ================================================================
+        //  16. 启动大屏
+        // ================================================================
+
+        async function init() {
+            // 0. 登录拦截
+            if (!checkAuth()) return;
+
+            // 1. 显示模式指示器
+            showModeIndicator();
+
+            // 2. 打印当前模式
+            console.log(`📊 当前模式: ${USE_MOCK ? 'Mock 数据 (假数据)' : '真实接口 (需后端)'}`);
+            if (USE_MOCK) {
+                console.log('📋 数据来源: MOCK (假数据)');
+                console.log('🔧 联调时请将 USE_MOCK 改为 false');
+            } else {
+                console.log(`🌐 API 地址: ${API_BASE_URL}`);
+                console.log('✅ 已检测到 Token');
+            }
+
+            try {
+                // 3. KPI
+                const summaryData = await fetchSummary();
+                renderKPI(summaryData);
+
+                // 4. 营收趋势（默认7d）
+                const revenueData = await fetchRevenueSeries('7d');
+                if (revenueData && revenueData.points) {
+                    updateRevenueChart(revenueData);
+                }
+
+                // 5. 电桩状态
+                const statusData = await fetchChargerStatus();
+                renderChargerStatus(statusData);
+
+                // 6. 站点列表
+                const stationsData = await fetchStations();
+                renderStations(stationsData.data);
+
+                console.log('✅ 大屏初始化完成');
+            } catch (error) {
+                console.error('❌ 大屏初始化失败:', error);
+            }
+
+            // 7. 时钟
+            updateClock();
+            setInterval(updateClock, 1000);
+
+            // 8. Tab切换
+            setupTabs();
+
+            // 9. 自适应
+            window.addEventListener('resize', handleResize);
+
+            // 10. 轮询
+            startPolling();
+        }
+
+        // 页面加载完成后启动
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+
+</body>
+</html>
