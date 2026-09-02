@@ -1,6 +1,7 @@
 #pragma once
 
 #include "api/ApiClient.h"
+#include "models/Charger.h"
 #include "models/Station.h"
 
 #include <QWidget>
@@ -20,6 +21,7 @@ public:
 
 signals:
     void backRequested();
+    void chargeRequested(const Charger &charger);
 
 private:
     void loadChargers();

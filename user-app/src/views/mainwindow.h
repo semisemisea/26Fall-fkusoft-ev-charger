@@ -5,6 +5,9 @@
 
 #include <QMainWindow>
 
+class ChargingView;
+class SettleView;
+
 QT_BEGIN_NAMESPACE
 namespace Ui {
     class MainWindow;
@@ -20,7 +23,11 @@ public:
     ~MainWindow();
 
 private:
+    void checkActiveOrder();
+
     Ui::MainWindow *ui;
     Session *m_session = nullptr;
     ApiClient *m_api = nullptr;
+    ChargingView *m_chargingView = nullptr;
+    SettleView *m_settleView = nullptr;
 };

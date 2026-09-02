@@ -18,3 +18,9 @@ void Session::signOut()
     m_user = User{};
     emit signedOut();
 }
+
+void Session::updateBalance(qlonglong balanceFen)
+{
+    m_user.walletBalanceFen = balanceFen;
+    emit userChanged();
+}

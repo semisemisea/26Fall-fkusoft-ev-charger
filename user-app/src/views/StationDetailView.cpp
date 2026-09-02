@@ -100,6 +100,13 @@ void StationDetailView::loadChargers()
                       rowLayout->addWidget(new QLabel(QStringLiteral("%1 kW").arg(charger.powerKw, 0, 'f', 1), row));
                       rowLayout->addStretch();
                       rowLayout->addWidget(statusLabel);
+                      if (charger.status == QLatin1String("available")) {
+                          auto *chargeButton = new QPushButton(QStringLiteral("充电"), row);
+                          chargeButton->setStyleSheet(QStringLiteral("padding: 4px 14px;"));
+                          connect(chargeButton, &QPushButton::clicked, this,
+                                  [this, charger] { emit chargeRequested(charger); });
+                          rowLayout->addWidget(chargeButton);
+                      }
 
                       m_chargersLayout->insertWidget(m_chargersLayout->count() - 1, row);
                   }

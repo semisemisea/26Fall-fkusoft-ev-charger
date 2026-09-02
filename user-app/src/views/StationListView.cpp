@@ -1,5 +1,6 @@
 #include "StationListView.h"
 
+#include "common/Format.h"
 #include "widgets/StationCard.h"
 
 #include <QComboBox>
@@ -28,8 +29,9 @@ const LocationPreset kLocationPresets[] = {
 };
 }
 
-StationListView::StationListView(ApiClient &api, QWidget *parent)
+StationListView::StationListView(Session &session, ApiClient &api, QWidget *parent)
     : QWidget(parent)
+    , m_session(session)
     , m_api(api)
 {
     auto *title = new QLabel(QStringLiteral("附近充电站"), this);
@@ -44,11 +46,22 @@ StationListView::StationListView(ApiClient &api, QWidget *parent)
     auto *refreshButton = new QPushButton(QStringLiteral("刷新"), this);
     connect(refreshButton, &QPushButton::clicked, this, [this] { reload(); });
 
+    m_welcomeLabel = new QLabel(this);
+    m_welcomeLabel->setStyleSheet(QStringLiteral("color: #555;"));
+
+    auto *activeOrderButton = new QPushButton(QStringLiteral("进行中订单"), this);
+    connect(activeOrderButton, &QPushButton::clicked, this, &StationListView::checkActiveOrderRequested);
+
     auto *headerRow = new QHBoxLayout;
     headerRow->addWidget(title);
     headerRow->addStretch();
     headerRow->addWidget(m_locationCombo);
     headerRow->addWidget(refreshButton);
+
+    auto *userRow = new QHBoxLayout;
+    userRow->addWidget(m_welcomeLabel);
+    userRow->addStretch();
+    userRow->addWidget(activeOrderButton);
 
     m_statusLabel = new QLabel(this);
     m_statusLabel->setAlignment(Qt::AlignCenter);
@@ -67,8 +80,19 @@ StationListView::StationListView(ApiClient &api, QWidget *parent)
     auto *layout = new QVBoxLayout(this);
     layout->setContentsMargins(12, 12, 12, 12);
     layout->addLayout(headerRow);
+    layout->addLayout(userRow);
     layout->addWidget(m_statusLabel);
     layout->addWidget(scrollArea);
+
+    refreshWelcome();
+    connect(&m_session, &Session::userChanged, this, &StationListView::refreshWelcome);
+}
+
+void StationListView::refreshWelcome()
+{
+    m_welcomeLabel->setText(QStringLiteral("%1 · 余额 %2 元")
+                                .arg(m_session.user().nickname,
+                                     fenToYuan(m_session.user().walletBalanceFen)));
 }
 
 void StationListView::showEvent(QShowEvent *event)

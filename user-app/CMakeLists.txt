@@ -24,6 +24,8 @@ qt_add_executable(user-app
     src/models/Station.cpp
     src/models/Charger.h
     src/models/Charger.cpp
+    src/models/Order.h
+    src/models/Order.cpp
     src/widgets/StationCard.h
     src/widgets/StationCard.cpp
     src/views/mainwindow.cpp
@@ -35,6 +37,10 @@ qt_add_executable(user-app
     src/views/StationListView.h
     src/views/StationDetailView.cpp
     src/views/StationDetailView.h
+    src/views/ChargingView.cpp
+    src/views/ChargingView.h
+    src/views/SettleView.cpp
+    src/views/SettleView.h
 )
 
 target_include_directories(user-app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)

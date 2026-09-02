@@ -18,10 +18,12 @@ public:
 
     void signIn(User user, QString accessToken);
     void signOut();
+    void updateBalance(qlonglong balanceFen);
 
 signals:
     void signedIn();
     void signedOut();
+    void userChanged();
 
 private:
     User m_user;
