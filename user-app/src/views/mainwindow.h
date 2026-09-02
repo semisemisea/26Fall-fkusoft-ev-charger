@@ -6,6 +6,8 @@
 #include <QMainWindow>
 
 class ChargingView;
+class NavigationView;
+class ProfileView;
 class SettleView;
 
 QT_BEGIN_NAMESPACE
@@ -30,4 +32,5 @@ private:
     ApiClient *m_api = nullptr;
     ChargingView *m_chargingView = nullptr;
     SettleView *m_settleView = nullptr;
+    QWidget *m_navigationReturnPage = nullptr;
 };

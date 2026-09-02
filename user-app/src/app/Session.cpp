@@ -24,3 +24,15 @@ void Session::updateBalance(qlonglong balanceFen)
     m_user.walletBalanceFen = balanceFen;
     emit userChanged();
 }
+
+void Session::updateUser(const User &user)
+{
+    m_user = user;
+    emit userChanged();
+}
+
+void Session::setLocation(double latitude, double longitude)
+{
+    m_latitude = latitude;
+    m_longitude = longitude;
+}

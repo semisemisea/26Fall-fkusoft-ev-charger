@@ -22,6 +22,7 @@ public:
 signals:
     void backRequested();
     void chargeRequested(const Charger &charger);
+    void navigateRequested(const Station &station);
 
 private:
     void loadChargers();

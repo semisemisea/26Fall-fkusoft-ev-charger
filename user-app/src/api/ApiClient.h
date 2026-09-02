@@ -4,8 +4,10 @@
 #include <QString>
 #include <functional>
 
+class QHttpMultiPart;
 class QJsonObject;
 class QNetworkAccessManager;
+class QUrl;
 
 struct ApiError {
     QString code = QStringLiteral("NETWORK_ERROR");
@@ -21,6 +23,7 @@ class ApiClient : public QObject
 public:
     using Success = std::function<void(const QJsonValue &data, const QJsonObject &meta)>;
     using Failure = std::function<void(const ApiError &error)>;
+    using DownloadSuccess = std::function<void(const QByteArray &payload)>;
 
     explicit ApiClient(QString baseUrl, QObject *parent = nullptr);
 
@@ -29,9 +32,14 @@ public:
 
     void get(const QString &path, Success onSuccess, Failure onFailure);
     void post(const QString &path, const QJsonObject &body, Success onSuccess, Failure onFailure);
+    void patch(const QString &path, const QJsonObject &body, Success onSuccess, Failure onFailure);
+    void upload(const QString &path, QHttpMultiPart *multiPart, Success onSuccess, Failure onFailure);
+    void download(const QUrl &url, DownloadSuccess onSuccess, Failure onFailure);
 
 private:
-    void send(const QString &path, bool isPost, const QJsonObject *body, Success onSuccess, Failure onFailure);
+    enum class Verb { Get, Post, Patch };
+
+    void send(const QString &path, Verb verb, const QJsonObject *body, Success onSuccess, Failure onFailure);
 
     QString m_baseUrl;
     QString m_accessToken;

@@ -2,6 +2,7 @@
 
 #include "common/Format.h"
 
+#include <QEvent>
 #include <QLabel>
 #include <QMouseEvent>
 #include <QVBoxLayout>
@@ -35,7 +36,11 @@ StationCard::StationCard(const Station &station, QWidget *parent)
                                  : QStringLiteral("color: #d33; border: none;"));
 
     auto *distanceLabel = new QLabel(QStringLiteral("%1 km").arg(station.distanceKm, 0, 'f', 2), this);
-    distanceLabel->setStyleSheet(QStringLiteral("color: #777; border: none;"));
+    distanceLabel->setStyleSheet(QStringLiteral("color: #2a6fdb; text-decoration: underline; border: none;"));
+    distanceLabel->setCursor(Qt::PointingHandCursor);
+    distanceLabel->setToolTip(QStringLiteral("点击导航"));
+    distanceLabel->installEventFilter(this);
+    m_distanceLabel = distanceLabel;
 
     auto *topRow = new QHBoxLayout;
     topRow->addWidget(nameLabel);
@@ -60,4 +65,13 @@ void StationCard::mouseReleaseEvent(QMouseEvent *event)
         emit clicked(m_station);
     }
     QFrame::mouseReleaseEvent(event);
+}
+
+bool StationCard::eventFilter(QObject *watched, QEvent *event)
+{
+    if (watched == m_distanceLabel && event->type() == QEvent::MouseButtonRelease) {
+        emit navigateRequested(m_station);
+        return true;
+    }
+    return QFrame::eventFilter(watched, event);
 }

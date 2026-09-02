@@ -1,6 +1,8 @@
 #include "mainwindow.h"
 #include "ChargingView.h"
 #include "LoginView.h"
+#include "NavigationView.h"
+#include "ProfileView.h"
 #include "SettleView.h"
 #include "StationDetailView.h"
 #include "StationListView.h"
@@ -33,11 +35,21 @@ MainWindow::MainWindow(QWidget *parent)
     auto *stationDetailView = new StationDetailView(*m_api, this);
     m_chargingView = new ChargingView(*m_api, this);
     m_settleView = new SettleView(*m_session, *m_api, this);
+    auto *profileView = new ProfileView(*m_session, *m_api, this);
+    auto *navigationView = new NavigationView(*m_session, *m_api, this);
     ui->pages->addWidget(loginView);
     ui->pages->addWidget(stationListView);
     ui->pages->addWidget(stationDetailView);
     ui->pages->addWidget(m_chargingView);
     ui->pages->addWidget(m_settleView);
+    ui->pages->addWidget(profileView);
+    ui->pages->addWidget(navigationView);
+
+    const auto navigateTo = [this, navigationView](const Station &station, QWidget *returnPage) {
+        m_navigationReturnPage = returnPage;
+        navigationView->open(station);
+        ui->pages->setCurrentWidget(navigationView);
+    };
 
     connect(loginView, &LoginView::loginSucceeded, this, [this, stationListView] {
         ui->pages->setCurrentWidget(stationListView);
@@ -48,6 +60,22 @@ MainWindow::MainWindow(QWidget *parent)
                 ui->pages->setCurrentWidget(stationDetailView);
             });
     connect(stationListView, &StationListView::checkActiveOrderRequested, this, &MainWindow::checkActiveOrder);
+    connect(stationListView, &StationListView::profileRequested, this, [this, profileView] {
+        ui->pages->setCurrentWidget(profileView);
+    });
+    connect(stationListView, &StationListView::navigateRequested, this,
+            [this, stationListView, navigateTo](const Station &station) { navigateTo(station, stationListView); });
+    connect(stationDetailView, &StationDetailView::navigateRequested, this,
+            [this, stationDetailView, navigateTo](const Station &station) {
+                navigateTo(station, stationDetailView);
+            });
+    connect(navigationView, &NavigationView::backRequested, this, [this] {
+        ui->pages->setCurrentWidget(m_navigationReturnPage ? m_navigationReturnPage
+                                                           : static_cast<QWidget *>(ui->pages->widget(1)));
+    });
+    connect(profileView, &ProfileView::backRequested, this, [this, stationListView] {
+        ui->pages->setCurrentWidget(stationListView);
+    });
     connect(stationDetailView, &StationDetailView::backRequested, this, [this, stationListView] {
         ui->pages->setCurrentWidget(stationListView);
     });

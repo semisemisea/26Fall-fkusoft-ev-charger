@@ -41,7 +41,11 @@ StationListView::StationListView(Session &session, ApiClient &api, QWidget *pare
     for (const LocationPreset &preset : kLocationPresets) {
         m_locationCombo->addItem(QStringLiteral("📍 %1").arg(preset.name));
     }
-    connect(m_locationCombo, &QComboBox::activated, this, [this] { reload(); });
+    connect(m_locationCombo, &QComboBox::activated, this, [this] {
+        const LocationPreset &preset = kLocationPresets[m_locationCombo->currentIndex()];
+        m_session.setLocation(preset.latitude, preset.longitude);
+        reload();
+    });
 
     auto *refreshButton = new QPushButton(QStringLiteral("刷新"), this);
     connect(refreshButton, &QPushButton::clicked, this, [this] { reload(); });
@@ -51,6 +55,9 @@ StationListView::StationListView(Session &session, ApiClient &api, QWidget *pare
 
     auto *activeOrderButton = new QPushButton(QStringLiteral("进行中订单"), this);
     connect(activeOrderButton, &QPushButton::clicked, this, &StationListView::checkActiveOrderRequested);
+
+    auto *profileButton = new QPushButton(QStringLiteral("我的"), this);
+    connect(profileButton, &QPushButton::clicked, this, &StationListView::profileRequested);
 
     auto *headerRow = new QHBoxLayout;
     headerRow->addWidget(title);
@@ -62,6 +69,7 @@ StationListView::StationListView(Session &session, ApiClient &api, QWidget *pare
     userRow->addWidget(m_welcomeLabel);
     userRow->addStretch();
     userRow->addWidget(activeOrderButton);
+    userRow->addWidget(profileButton);
 
     m_statusLabel = new QLabel(this);
     m_statusLabel->setAlignment(Qt::AlignCenter);
@@ -124,6 +132,7 @@ void StationListView::reload()
                   for (const QJsonValue &value : stations) {
                       auto *card = new StationCard(Station::fromJson(value.toObject()), this);
                       connect(card, &StationCard::clicked, this, &StationListView::stationSelected);
+                      connect(card, &StationCard::navigateRequested, this, &StationListView::navigateRequested);
                       m_cardsLayout->insertWidget(m_cardsLayout->count() - 1, card);
                   }
                   if (stations.isEmpty()) {

@@ -21,6 +21,8 @@ public:
 signals:
     void stationSelected(const Station &station);
     void checkActiveOrderRequested();
+    void profileRequested();
+    void navigateRequested(const Station &station);
 
 protected:
     void showEvent(QShowEvent *event) override;

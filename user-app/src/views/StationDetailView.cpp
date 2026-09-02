@@ -28,6 +28,8 @@ StationDetailView::StationDetailView(ApiClient &api, QWidget *parent)
     m_statusLabel->setAlignment(Qt::AlignCenter);
     m_statusLabel->setStyleSheet(QStringLiteral("color: #d33;"));
 
+    auto *navigateButton = new QPushButton(QStringLiteral("🧭 导航到这里"), this);
+
     auto *chargersContainer = new QWidget(this);
     m_chargersLayout = new QVBoxLayout(chargersContainer);
     m_chargersLayout->setContentsMargins(0, 0, 0, 0);
@@ -47,10 +49,13 @@ StationDetailView::StationDetailView(ApiClient &api, QWidget *parent)
     layout->setContentsMargins(12, 12, 12, 12);
     layout->addLayout(headerRow);
     layout->addWidget(m_infoLabel);
+    layout->addWidget(navigateButton);
     layout->addWidget(m_statusLabel);
     layout->addWidget(scrollArea);
 
     connect(m_backButton, &QPushButton::clicked, this, &StationDetailView::backRequested);
+    connect(navigateButton, &QPushButton::clicked, this,
+            [this] { emit navigateRequested(m_station); });
 }
 
 void StationDetailView::open(const Station &station)

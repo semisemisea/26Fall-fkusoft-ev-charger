@@ -8,6 +8,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
+import urllib.parse
 
 HOST = "127.0.0.1"
 PORT = 8080
@@ -20,6 +21,7 @@ tokens = {}
 reservations = {}
 orders = {}
 wallet_transactions = {}
+media = {}
 next_reservation_id = 81
 next_order_id = 203
 next_transaction_id = 44
@@ -140,10 +142,19 @@ class Handler(BaseHTTPRequestHandler):
             self.send_error_code(401, "UNAUTHORIZED", "未登录或令牌已过期")
         return user
 
+    def do_PATCH(self):
+        path = urlparse(self.path).path
+        if path == f"{BASE}/me":
+            self.handle_update_me()
+        else:
+            self.send_error_code(404, "NOT_FOUND", "接口不存在")
+
     def do_POST(self):
         path = urlparse(self.path).path
         if path == f"{BASE}/auth/user/login":
             self.handle_login()
+        elif path == f"{BASE}/me/avatar":
+            self.handle_avatar()
         elif path == f"{BASE}/me/wallet/topups":
             self.handle_topup()
         elif path == f"{BASE}/reservations":
@@ -164,6 +175,12 @@ class Handler(BaseHTTPRequestHandler):
             self.handle_me()
         elif path == f"{BASE}/me/active-order":
             self.handle_active_order()
+        elif path == f"{BASE}/me/wallet/transactions":
+            self.handle_transactions()
+        elif path == f"{BASE}/locations/routes":
+            self.handle_routes(query)
+        elif path.startswith(f"{BASE}/media/"):
+            self.handle_media(path)
         elif match := re.fullmatch(rf"{BASE}/orders/(\d+)", path):
             self.handle_get_order(int(match.group(1)))
         elif path == f"{BASE}/stations/nearby":
@@ -204,6 +221,84 @@ class Handler(BaseHTTPRequestHandler):
         user = self.require_user()
         if user:
             self.send_json(200, user)
+
+    def handle_update_me(self):
+        user = self.require_user()
+        if not user:
+            return
+        body = self.read_body()
+        nickname = body.get("nickname")
+        if not isinstance(nickname, str) or not 1 <= len(nickname) <= 30:
+            self.send_error_code(400, "VALIDATION_ERROR", "昵称须为 1..30 个字符")
+            return
+        user["nickname"] = nickname
+        self.send_json(200, user)
+
+    def handle_avatar(self):
+        user = self.require_user()
+        if not user:
+            return
+        content_type = self.headers.get("Content-Type", "")
+        match = re.search(r'boundary="?([^;"]+)"?', content_type)
+        if not match:
+            self.send_error_code(400, "VALIDATION_ERROR", "需要 multipart/form-data")
+            return
+        body = self.rfile.read(int(self.headers.get("Content-Length", 0)))
+        payload = None
+        for part in body.split(match.group(1).encode()):
+            if b"filename" not in part or b"\r\n\r\n" not in part:
+                continue
+            payload = part.split(b"\r\n\r\n", 1)[1]
+            if payload.endswith(b"\r\n"):
+                payload = payload[:-2]
+            break
+        if not payload:
+            self.send_error_code(400, "VALIDATION_ERROR", "缺少头像文件")
+            return
+        media_type = "image/png" if payload.startswith(b"\x89PNG") else "image/jpeg"
+        avatar_path = f"{BASE}/media/avatars/{user['phone']}"
+        media[avatar_path] = (payload, media_type)
+        user["avatarUrl"] = avatar_path
+        self.send_json(200, {"avatarUrl": avatar_path})
+
+    def handle_media(self, path):
+        item = media.get(path)
+        if not item:
+            self.send_error_code(404, "NOT_FOUND", "媒体文件不存在")
+            return
+        payload, media_type = item
+        self.send_response(200)
+        self.send_header("Content-Type", media_type)
+        self.send_header("Content-Length", str(len(payload)))
+        self.end_headers()
+        self.wfile.write(payload)
+
+    def handle_transactions(self):
+        user = self.require_user()
+        if not user:
+            return
+        self.send_json(200, list(reversed(wallet_transactions.get(user["id"], []))))
+
+    def handle_routes(self, query):
+        try:
+            from_lat = float(query["fromLatitude"][0])
+            from_lng = float(query["fromLongitude"][0])
+            to_lat = float(query["toLatitude"][0])
+            to_lng = float(query["toLongitude"][0])
+        except (KeyError, ValueError):
+            self.send_error_code(400, "VALIDATION_ERROR", "缺少或非法的经纬度参数")
+            return
+        mode = query.get("mode", ["driving"])[0]
+        if mode not in ("driving", "walking"):
+            self.send_error_code(400, "VALIDATION_ERROR", "mode 仅支持 driving/walking")
+            return
+        from_name = urllib.parse.quote(query.get("fromName", ["我的位置"])[0])
+        to_name = urllib.parse.quote(query.get("toName", ["目的地"])[0])
+        map_url = (f"https://apis.map.qq.com/uri/v1/routeplan?from={from_name}&fromcoord={from_lat},{from_lng}"
+                   f"&to={to_name}&tocoord={to_lat},{to_lng}&coord_type=1&mode={mode}&policy=0&referer=ev-charger-mock")
+        data = {"mode": mode, "distanceM": int(distance_km(from_lat, from_lng, to_lat, to_lng) * 1000),
+                "durationSec": 780, "polyline": [], "provider": "tencent", "mapUrl": map_url}
+        self.send_json(200, data)
 
     def handle_active_order(self):
         user = self.require_user()
