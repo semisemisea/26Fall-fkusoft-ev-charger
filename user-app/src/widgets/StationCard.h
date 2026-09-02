@@ -13,6 +13,9 @@ class StationCard : public QFrame
 public:
     explicit StationCard(const Station &station, QWidget *parent = nullptr);
 
+    [[nodiscard]] const Station &station() const { return m_station; }
+    [[nodiscard]] bool matches(const QString &filter) const;
+
 signals:
     void clicked(const Station &station);
     void navigateRequested(const Station &station);

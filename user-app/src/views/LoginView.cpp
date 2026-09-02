@@ -5,6 +5,7 @@
 #include <QJsonObject>
 #include <QLabel>
 #include <QLineEdit>
+#include <QMessageBox>
 #include <QPushButton>
 #include <QRegularExpression>
 #include <QRegularExpressionValidator>
@@ -19,20 +20,25 @@ LoginView::LoginView(Session &session, ApiClient &api, QWidget *parent)
     , m_session(session)
     , m_api(api)
 {
-    auto *title = new QLabel(QStringLiteral("充电用户端"), this);
+    auto *logoLabel = new QLabel(QStringLiteral("⚡"), this);
+    logoLabel->setAlignment(Qt::AlignCenter);
+    logoLabel->setStyleSheet(QStringLiteral("font-size: 52px;"));
+
+    auto *title = new QLabel(QStringLiteral("欢迎使用智能充电系统"), this);
     title->setAlignment(Qt::AlignCenter);
-    title->setStyleSheet(QStringLiteral("font-size: 24px; font-weight: bold;"));
+    title->setStyleSheet(QStringLiteral("font-size: 22px; font-weight: bold;"));
 
     auto *hint = new QLabel(QStringLiteral("输入 11 位手机号，免密登录\n新手机号将自动注册"), this);
     hint->setAlignment(Qt::AlignCenter);
 
     m_phoneEdit = new QLineEdit(this);
-    m_phoneEdit->setPlaceholderText(QStringLiteral("手机号"));
+    m_phoneEdit->setPlaceholderText(QStringLiteral("请输入11位手机号码"));
     m_phoneEdit->setValidator(new QRegularExpressionValidator(kPhonePattern, this));
     m_phoneEdit->setMaxLength(11);
     m_phoneEdit->setClearButtonEnabled(true);
 
     m_loginButton = new QPushButton(QStringLiteral("登录 / 注册"), this);
+    m_loginButton->setObjectName(QStringLiteral("primaryButton"));
 
     m_messageLabel = new QLabel(this);
     m_messageLabel->setAlignment(Qt::AlignCenter);
@@ -40,7 +46,9 @@ LoginView::LoginView(Session &session, ApiClient &api, QWidget *parent)
     m_messageLabel->hide();
 
     auto *layout = new QVBoxLayout(this);
-    layout->addStretch(2);
+    layout->setContentsMargins(28, 12, 28, 12);
+    layout->addStretch(3);
+    layout->addWidget(logoLabel);
     layout->addWidget(title);
     layout->addSpacing(12);
     layout->addWidget(hint);
@@ -48,7 +56,7 @@ LoginView::LoginView(Session &session, ApiClient &api, QWidget *parent)
     layout->addWidget(m_phoneEdit);
     layout->addWidget(m_loginButton);
     layout->addWidget(m_messageLabel);
-    layout->addStretch(3);
+    layout->addStretch(4);
 
     connect(m_loginButton, &QPushButton::clicked, this, &LoginView::submit);
     connect(m_phoneEdit, &QLineEdit::returnPressed, this, &LoginView::submit);
@@ -71,8 +79,12 @@ void LoginView::submit()
     m_api.post(QStringLiteral("/auth/user/login"), body,
                [this](const QJsonValue &data, const QJsonObject &) {
                    const QJsonObject object = data.toObject();
-                   m_session.signIn(User::fromJson(object.value(QLatin1String("user")).toObject()),
-                                    object.value(QLatin1String("accessToken")).toString());
+                   const User user = User::fromJson(object.value(QLatin1String("user")).toObject());
+                   if (object.value(QLatin1String("isNewUser")).toBool()) {
+                       QMessageBox::information(this, QStringLiteral("注册成功"),
+                                                QStringLiteral("已自动注册，默认昵称：%1").arg(user.nickname));
+                   }
+                   m_session.signIn(user, object.value(QLatin1String("accessToken")).toString());
                    emit loginSucceeded();
                },
                [this](const ApiError &error) {

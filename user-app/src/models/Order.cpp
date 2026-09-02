@@ -12,10 +12,13 @@ Order Order::fromJson(const QJsonObject &object)
     order.chargerId = object.value(QLatin1String("chargerId")).toInt();
     order.status = object.value(QLatin1String("status")).toString();
     order.startedAt = object.value(QLatin1String("startedAt")).toString();
+    order.endedAt = object.value(QLatin1String("endedAt")).toString();
     order.energyKwh = object.value(QLatin1String("energyKwh")).toDouble();
     order.durationMinutes = object.value(QLatin1String("durationMinutes")).toInt();
     order.unitPriceFenPerKwh = object.value(QLatin1String("unitPriceFenPerKwh")).toInteger();
     order.amountFen = object.value(QLatin1String("amountFen")).toInteger();
+    order.stationName = object.value(QLatin1String("stationName")).toString();
+    order.chargerCode = object.value(QLatin1String("chargerCode")).toString();
     return order;
 }
 

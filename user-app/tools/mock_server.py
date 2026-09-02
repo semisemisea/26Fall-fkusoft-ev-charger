@@ -108,6 +108,40 @@ def active_reservation_for(user):
                  if r["userId"] == user["id"] and r["status"] == "active"), None)
 
 
+def order_view(order):
+    station = find_station(order["stationId"])
+    charger = find_charger(order["chargerId"])
+    view = dict(order)
+    view["stationName"] = station["name"] if station else ""
+    view["chargerCode"] = charger["code"] if charger else ""
+    return view
+
+
+def seed_order_history(user):
+    global next_order_id
+    station = STATIONS[1]
+    samples = [(9, 41.2, 55, 21), (16, 18.6, 24, 22)]
+    for days_ago, energy, minutes, charger_id in samples:
+        started = datetime.now(timezone.utc) - timedelta(days=days_ago)
+        ended = started + timedelta(minutes=minutes)
+        orders[next_order_id] = {
+            "id": next_order_id,
+            "orderNo": started.strftime("%Y%m%d") + f"{next_order_id:06d}",
+            "userId": user["id"],
+            "stationId": station["id"],
+            "chargerId": charger_id,
+            "status": "settled",
+            "startedAt": started.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "endedAt": ended.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "energyKwh": energy,
+            "durationMinutes": minutes,
+            "unitPriceFenPerKwh": station["pricePerKwhFen"],
+            "amountFen": round(energy * station["pricePerKwhFen"]),
+            "updatedAt": ended.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        }
+        next_order_id += 1
+
+
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):
         print(f"[mock] {args[0]}", flush=True)
@@ -177,6 +211,10 @@ class Handler(BaseHTTPRequestHandler):
             self.handle_active_order()
         elif path == f"{BASE}/me/wallet/transactions":
             self.handle_transactions()
+        elif path == f"{BASE}/orders":
+            self.handle_list_orders(query)
+        elif path == f"{BASE}/forecasts":
+            self.handle_forecasts(query)
         elif path == f"{BASE}/locations/routes":
             self.handle_routes(query)
         elif path.startswith(f"{BASE}/media/"):
@@ -202,6 +240,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_error_code(403, "USER_FROZEN", "用户已被冻结")
             return
         user = users.get(phone)
+        is_new_user = user is None
         if not user:
             user = {
                 "id": 100 + len(users),
@@ -213,9 +252,11 @@ class Handler(BaseHTTPRequestHandler):
                 "createdAt": "2026-09-01T08:30:00Z",
             }
             users[phone] = user
+            seed_order_history(user)
         token = uuid.uuid4().hex
         tokens[token] = phone
-        self.send_json(200, {"accessToken": token, "tokenType": "Bearer", "expiresIn": 604800, "user": user})
+        self.send_json(200, {"accessToken": token, "tokenType": "Bearer", "expiresIn": 604800,
+                             "isNewUser": is_new_user, "user": user})
 
     def handle_me(self):
         user = self.require_user()
@@ -307,7 +348,7 @@ class Handler(BaseHTTPRequestHandler):
         order = active_order_for(user)
         if order and order["status"] == "charging":
             update_order_meter(order)
-        self.send_json(200, order)
+        self.send_json(200, order_view(order) if order else None)
 
     def handle_get_order(self, order_id):
         user = self.require_user()
@@ -318,7 +359,53 @@ class Handler(BaseHTTPRequestHandler):
             self.send_error_code(404, "NOT_FOUND", "订单不存在")
             return
         update_order_meter(order)
-        self.send_json(200, order)
+        self.send_json(200, order_view(order))
+
+    def handle_list_orders(self, query):
+        user = self.require_user()
+        if not user:
+            return
+        items = [order_view(o) for o in orders.values() if o["userId"] == user["id"]]
+        status = query.get("status", [None])[0]
+        if status:
+            items = [o for o in items if o["status"] == status]
+        items.sort(key=lambda o: o["startedAt"], reverse=True)
+        try:
+            page = max(int(query.get("page", ["1"])[0]), 1)
+            page_size = min(max(int(query.get("pageSize", ["20"])[0]), 1), 50)
+        except ValueError:
+            self.send_error_code(400, "VALIDATION_ERROR", "分页参数不正确")
+            return
+        items = items[(page - 1) * page_size: page * page_size]
+        self.send_json(200, items)
+
+    def handle_forecasts(self, query):
+        user = self.require_user()
+        if not user:
+            return
+        horizon = query.get("horizon", ["1h"])[0]
+        if horizon not in ("1h", "6h", "24h"):
+            self.send_error_code(400, "VALIDATION_ERROR", "horizon 仅支持 1h/6h/24h")
+            return
+        station_id = query.get("stationId", [None])[0]
+        hours = {"1h": 1, "6h": 6, "24h": 24}[horizon]
+        forecast_at = (datetime.now(timezone.utc) + timedelta(hours=hours)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        points = []
+        for s in STATIONS:
+            if s["status"] != "active":
+                continue
+            if station_id and s["id"] != int(station_id):
+                continue
+            total, available = charger_summary(s)
+            points.append({
+                "stationId": s["id"],
+                "forecastAt": forecast_at,
+                "loadKw": round(total * 42.5 - available * 38.0, 1),
+                "availableChargerCount": available,
+                "confidence": round(0.72 + (s["id"] * 7 % 21) / 100.0, 2),
+            })
+        self.send_json(200, {"modelVersion": "baseline-v1", "generatedAt": now_iso(),
+                             "horizon": horizon, "points": points})
 
     def handle_topup(self):
         user = self.require_user()
@@ -409,6 +496,7 @@ class Handler(BaseHTTPRequestHandler):
             "chargerId": charger["id"],
             "status": "charging",
             "startedAt": now_iso(),
+            "endedAt": None,
             "energyKwh": 0.0,
             "durationMinutes": 0,
             "unitPriceFenPerKwh": station["pricePerKwhFen"],
@@ -433,9 +521,10 @@ class Handler(BaseHTTPRequestHandler):
             return
         update_order_meter(order)
         order["status"] = "awaiting_payment"
+        order["endedAt"] = now_iso()
         order["updatedAt"] = now_iso()
         find_charger(order["chargerId"])["status"] = "available"
-        self.send_json(200, order)
+        self.send_json(200, order_view(order))
 
     def handle_settle_order(self, order_id):
         user = self.require_user()
@@ -446,7 +535,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_error_code(404, "NOT_FOUND", "订单不存在")
             return
         if order["status"] == "settled":
-            self.send_json(200, order)
+            self.send_json(200, order_view(order))
             return
         if order["status"] != "awaiting_payment":
             self.send_error_code(409, "INVALID_STATE_TRANSITION", "订单当前不可结算")
@@ -467,7 +556,7 @@ class Handler(BaseHTTPRequestHandler):
         next_transaction_id += 1
         order["status"] = "settled"
         order["updatedAt"] = now_iso()
-        self.send_json(200, order)
+        self.send_json(200, order_view(order))
 
     def handle_nearby(self, query):
         try:

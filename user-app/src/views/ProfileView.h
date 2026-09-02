@@ -6,8 +6,6 @@
 #include <QWidget>
 
 class QLabel;
-class QListWidget;
-class QPushButton;
 
 class ProfileView : public QWidget
 {
@@ -17,7 +15,10 @@ public:
     explicit ProfileView(Session &session, ApiClient &api, QWidget *parent = nullptr);
 
 signals:
-    void backRequested();
+    void ordersRequested();
+    void transactionsRequested();
+    void carRequested();
+    void aboutRequested();
 
 protected:
     void showEvent(QShowEvent *event) override;
@@ -28,8 +29,8 @@ private:
     void loadAvatar();
     void changeAvatar();
     void changeNickname();
-    void topUp();
-    void loadTransactions();
+    void openRecharge();
+    void signOut();
 
     Session &m_session;
     ApiClient &m_api;
@@ -37,7 +38,5 @@ private:
     QLabel *m_nicknameLabel = nullptr;
     QLabel *m_phoneLabel = nullptr;
     QLabel *m_balanceLabel = nullptr;
-    QLabel *m_messageLabel = nullptr;
-    QListWidget *m_transactionList = nullptr;
     QString m_loadedAvatarUrl;
 };

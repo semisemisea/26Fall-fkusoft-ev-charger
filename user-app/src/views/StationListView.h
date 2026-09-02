@@ -5,11 +5,14 @@
 #include "models/Station.h"
 
 #include <QWidget>
+#include <QVector>
 
 class QComboBox;
 class QLabel;
+class QLineEdit;
 class QPushButton;
 class QVBoxLayout;
+class StationCard;
 
 class StationListView : public QWidget
 {
@@ -20,8 +23,6 @@ public:
 
 signals:
     void stationSelected(const Station &station);
-    void checkActiveOrderRequested();
-    void profileRequested();
     void navigateRequested(const Station &station);
 
 protected:
@@ -29,12 +30,17 @@ protected:
 
 private:
     void reload();
-    void refreshWelcome();
+    void applyFilter();
+    void loadRecommendation();
 
     Session &m_session;
     ApiClient &m_api;
     QComboBox *m_locationCombo = nullptr;
-    QLabel *m_welcomeLabel = nullptr;
+    QLineEdit *m_searchEdit = nullptr;
+    QPushButton *m_bannerButton = nullptr;
     QLabel *m_statusLabel = nullptr;
     QVBoxLayout *m_cardsLayout = nullptr;
+    QVector<StationCard *> m_cards;
+    Station m_recommendedStation;
+    bool m_hasRecommendation = false;
 };

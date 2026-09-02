@@ -3,14 +3,17 @@
 #include "common/Format.h"
 
 #include <QEvent>
+#include <QGraphicsDropShadowEffect>
+#include <QGridLayout>
 #include <QLabel>
 #include <QMouseEvent>
+#include <QPushButton>
 #include <QVBoxLayout>
 
 namespace {
 const QLatin1String kCardStyle{
-    "StationCard { background: white; border: 1px solid #ddd; border-radius: 10px; }"
-    "StationCard:hover { border-color: #2a6fdb; }"};
+    "StationCard { background: white; border: 1px solid #e8eaee; border-radius: 12px; }"
+    "StationCard:hover { border-color: #1d5cff; }"};
 }
 
 StationCard::StationCard(const Station &station, QWidget *parent)
@@ -19,44 +22,71 @@ StationCard::StationCard(const Station &station, QWidget *parent)
 {
     setStyleSheet(kCardStyle);
     setCursor(Qt::PointingHandCursor);
-    setMinimumHeight(84);
+    setMinimumHeight(96);
+
+    auto *shadow = new QGraphicsDropShadowEffect(this);
+    shadow->setBlurRadius(18);
+    shadow->setColor(QColor(0, 0, 0, 35));
+    shadow->setOffset(0, 3);
+    setGraphicsEffect(shadow);
 
     auto *nameLabel = new QLabel(station.name, this);
-    nameLabel->setStyleSheet(QStringLiteral("font-size: 16px; font-weight: bold; border: none;"));
+    nameLabel->setStyleSheet(QStringLiteral("font-size: 15px; font-weight: bold; border: none; background: transparent;"));
 
-    auto *priceLabel = new QLabel(QStringLiteral("%1 元/度").arg(fenToYuan(station.pricePerKwhFen)), this);
-    priceLabel->setStyleSheet(QStringLiteral("color: #2a6fdb; font-weight: bold; border: none;"));
+    m_distanceLabel = new QLabel(QStringLiteral("%1 km").arg(station.distanceKm, 0, 'f', 2), this);
+    m_distanceLabel->setStyleSheet(
+        QStringLiteral("color: #1d5cff; text-decoration: underline; border: none; background: transparent;"));
+    m_distanceLabel->setCursor(Qt::PointingHandCursor);
+    m_distanceLabel->setToolTip(QStringLiteral("点击导航"));
+    m_distanceLabel->installEventFilter(this);
+
+    auto *navButton = new QPushButton(QStringLiteral("↱"), this);
+    navButton->setStyleSheet(QStringLiteral(
+        "QPushButton { color: #1d5cff; background: #eaf1ff; border: none; border-radius: 6px;"
+        " padding: 3px 9px; font-weight: bold; }"));
+    navButton->setCursor(Qt::PointingHandCursor);
+    navButton->setToolTip(QStringLiteral("一键导航"));
+    connect(navButton, &QPushButton::clicked, this, [this] { emit navigateRequested(m_station); });
+
+    auto *distanceRow = new QHBoxLayout;
+    distanceRow->setSpacing(6);
+    distanceRow->addWidget(m_distanceLabel);
+    distanceRow->addWidget(navButton);
 
     auto *addressLabel = new QLabel(station.address, this);
-    addressLabel->setStyleSheet(QStringLiteral("color: #777; border: none;"));
+    addressLabel->setStyleSheet(QStringLiteral("color: #8a8f99; font-size: 12px; border: none; background: transparent;"));
 
-    auto *idleLabel = new QLabel(QStringLiteral("空闲 %1/%2").arg(station.availableChargerCount).arg(station.chargerCount), this);
-    idleLabel->setStyleSheet(station.availableChargerCount > 0
-                                 ? QStringLiteral("color: #2e9e5b; border: none;")
-                                 : QStringLiteral("color: #d33; border: none;"));
+    auto *priceLabel = new QLabel(QStringLiteral("￥%1/度").arg(fenToYuan(station.pricePerKwhFen)), this);
+    priceLabel->setStyleSheet(QStringLiteral("color: #e74c3c; font-weight: bold; border: none; background: transparent;"));
 
-    auto *distanceLabel = new QLabel(QStringLiteral("%1 km").arg(station.distanceKm, 0, 'f', 2), this);
-    distanceLabel->setStyleSheet(QStringLiteral("color: #2a6fdb; text-decoration: underline; border: none;"));
-    distanceLabel->setCursor(Qt::PointingHandCursor);
-    distanceLabel->setToolTip(QStringLiteral("点击导航"));
-    distanceLabel->installEventFilter(this);
-    m_distanceLabel = distanceLabel;
+    auto *idleLabel = new QLabel(QStringLiteral("空闲 %1 / %2")
+                                     .arg(station.availableChargerCount)
+                                     .arg(station.chargerCount),
+                                 this);
+    idleLabel->setStyleSheet(
+        station.availableChargerCount > 0
+            ? QStringLiteral("color: #2e9e5b; font-weight: bold; border: none; background: transparent;")
+            : QStringLiteral("color: #d33; font-weight: bold; border: none; background: transparent;"));
 
-    auto *topRow = new QHBoxLayout;
-    topRow->addWidget(nameLabel);
-    topRow->addStretch();
-    topRow->addWidget(priceLabel);
+    auto *grid = new QGridLayout(this);
+    grid->setContentsMargins(14, 12, 14, 12);
+    grid->setHorizontalSpacing(8);
+    grid->setVerticalSpacing(6);
+    grid->addWidget(nameLabel, 0, 0);
+    grid->addLayout(distanceRow, 0, 1, Qt::AlignRight);
+    grid->addWidget(addressLabel, 1, 0, 1, 2);
+    grid->addWidget(priceLabel, 2, 0);
+    grid->addWidget(idleLabel, 2, 1, Qt::AlignRight);
+    grid->setColumnStretch(0, 1);
+}
 
-    auto *bottomRow = new QHBoxLayout;
-    bottomRow->addWidget(idleLabel);
-    bottomRow->addStretch();
-    bottomRow->addWidget(distanceLabel);
-
-    auto *layout = new QVBoxLayout(this);
-    layout->setContentsMargins(12, 10, 12, 10);
-    layout->addLayout(topRow);
-    layout->addWidget(addressLabel);
-    layout->addLayout(bottomRow);
+bool StationCard::matches(const QString &filter) const
+{
+    if (filter.isEmpty()) {
+        return true;
+    }
+    return m_station.name.contains(filter, Qt::CaseInsensitive)
+        || m_station.address.contains(filter, Qt::CaseInsensitive);
 }
 
 void StationCard::mouseReleaseEvent(QMouseEvent *event)

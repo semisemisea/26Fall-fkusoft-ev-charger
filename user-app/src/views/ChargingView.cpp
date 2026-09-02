@@ -1,11 +1,13 @@
 #include "ChargingView.h"
 
 #include "common/Format.h"
+#include "widgets/ChargeRingWidget.h"
 
 #include <QJsonObject>
 #include <QLabel>
 #include <QMessageBox>
 #include <QPushButton>
+#include <QTime>
 #include <QTimer>
 #include <QVBoxLayout>
 
@@ -17,36 +19,40 @@ ChargingView::ChargingView(ApiClient &api, QWidget *parent)
     : QWidget(parent)
     , m_api(api)
 {
-    m_statusLabel = new QLabel(this);
-    m_statusLabel->setAlignment(Qt::AlignCenter);
-    m_statusLabel->setStyleSheet(QStringLiteral("font-size: 20px; font-weight: bold; color: #2e9e5b;"));
+    m_headerLabel = new QLabel(this);
+    m_headerLabel->setAlignment(Qt::AlignCenter);
+    m_headerLabel->setStyleSheet(QStringLiteral("font-size: 16px; font-weight: bold;"));
+
+    m_ringWidget = new ChargeRingWidget(this);
 
     m_energyLabel = new QLabel(this);
     m_energyLabel->setAlignment(Qt::AlignCenter);
-    m_energyLabel->setStyleSheet(QStringLiteral("font-size: 36px; font-weight: bold;"));
+    m_energyLabel->setStyleSheet(QStringLiteral("font-size: 34px; font-weight: bold;"));
 
     m_durationLabel = new QLabel(this);
     m_durationLabel->setAlignment(Qt::AlignCenter);
+    m_durationLabel->setStyleSheet(QStringLiteral("color: #555; font-size: 15px;"));
 
     m_amountLabel = new QLabel(this);
     m_amountLabel->setAlignment(Qt::AlignCenter);
-    m_amountLabel->setStyleSheet(QStringLiteral("color: #2a6fdb;"));
+    m_amountLabel->setStyleSheet(QStringLiteral("color: #e74c3c; font-size: 16px; font-weight: bold;"));
 
     m_orderLabel = new QLabel(this);
     m_orderLabel->setAlignment(Qt::AlignCenter);
     m_orderLabel->setStyleSheet(QStringLiteral("color: #aaa; font-size: 11px;"));
 
-    m_stopButton = new QPushButton(QStringLiteral("停止充电"), this);
-    m_stopButton->setStyleSheet(QStringLiteral("padding: 10px; font-size: 16px;"));
+    m_stopButton = new QPushButton(QStringLiteral("结束充电"), this);
+    m_stopButton->setObjectName(QStringLiteral("dangerButton"));
 
     auto *layout = new QVBoxLayout(this);
-    layout->setContentsMargins(12, 12, 12, 12);
+    layout->setContentsMargins(16, 24, 16, 16);
+    layout->addWidget(m_headerLabel);
     layout->addStretch(2);
-    layout->addWidget(m_statusLabel);
-    layout->addSpacing(16);
+    layout->addWidget(m_ringWidget, 0, Qt::AlignCenter);
+    layout->addSpacing(12);
     layout->addWidget(m_energyLabel);
     layout->addWidget(m_durationLabel);
-    layout->addSpacing(8);
+    layout->addSpacing(6);
     layout->addWidget(m_amountLabel);
     layout->addWidget(m_orderLabel);
     layout->addStretch(2);
@@ -86,10 +92,14 @@ void ChargingView::poll()
 
 void ChargingView::updateDisplay(const Order &order)
 {
-    m_statusLabel->setText(QStringLiteral("⚡ 充电中"));
+    m_headerLabel->setText(QStringLiteral("⚡ 充电中 · %1 · 电桩 %2")
+                               .arg(order.stationName.isEmpty() ? QStringLiteral("充电站") : order.stationName,
+                                    order.chargerCode.isEmpty() ? QStringLiteral("-") : order.chargerCode));
     m_energyLabel->setText(QStringLiteral("%1 度").arg(order.energyKwh, 0, 'f', 1));
-    m_durationLabel->setText(QStringLiteral("已充 %1 分钟 · 单价 %2 元/度").arg(order.durationMinutes).arg(fenToYuan(order.unitPriceFenPerKwh)));
-    m_amountLabel->setText(QStringLiteral("预计金额 %1 元").arg(fenToYuan(order.amountFen)));
+    m_durationLabel->setText(QStringLiteral("已充时长 %1 · 单价 ￥%2/度")
+                                 .arg(formatDuration(order.durationMinutes),
+                                      fenToYuan(order.unitPriceFenPerKwh)));
+    m_amountLabel->setText(QStringLiteral("预估费用 ￥%1").arg(fenToYuan(order.amountFen)));
     m_orderLabel->setText(QStringLiteral("订单号 %1").arg(order.orderNo));
 }
 
@@ -114,4 +124,10 @@ void ChargingView::stopCharging()
                    QMessageBox::warning(this, QStringLiteral("停止失败"),
                                         error.message.isEmpty() ? error.code : error.message);
                });
+}
+
+QString ChargingView::formatDuration(int minutes)
+{
+    const QTime duration = QTime(0, 0).addSecs(minutes * 60);
+    return duration.toString(QStringLiteral("HH:mm:ss"));
 }

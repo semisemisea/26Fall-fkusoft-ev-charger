@@ -2,26 +2,34 @@
 
 #include "common/Format.h"
 #include "models/User.h"
+#include "widgets/RechargeDialog.h"
 
 #include <QEvent>
+#include <QFile>
 #include <QFileDialog>
+#include <QFrame>
 #include <QHttpMultiPart>
 #include <QInputDialog>
-#include <QJsonArray>
 #include <QJsonObject>
 #include <QLabel>
 #include <QLineEdit>
-#include <QListWidget>
 #include <QMessageBox>
 #include <QMouseEvent>
-#include <QNetworkRequest>
 #include <QPushButton>
+#include <QUrl>
 #include <QVBoxLayout>
 
 namespace {
 const QLatin1String kDefaultAvatarStyle{
-    "QLabel { background: #ccc; border-radius: 40px; color: white; font-size: 40px; }"};
-const QLatin1String kAvatarPixmapStyle{"QLabel { border-radius: 40px; }"};
+    "QLabel { background: rgba(255,255,255,0.35); border-radius: 36px; color: white; font-size: 36px; }"};
+const QLatin1String kAvatarPixmapStyle{"QLabel { border-radius: 36px; }"};
+
+QString maskedPhone(const QString &phone)
+{
+    return phone.length() == 11
+               ? QStringLiteral("%1****%2").arg(phone.left(3), phone.right(4))
+               : phone;
+}
 }
 
 ProfileView::ProfileView(Session &session, ApiClient &api, QWidget *parent)
@@ -29,80 +37,113 @@ ProfileView::ProfileView(Session &session, ApiClient &api, QWidget *parent)
     , m_session(session)
     , m_api(api)
 {
-    auto *backButton = new QPushButton(QStringLiteral("← 返回"), this);
-    auto *title = new QLabel(QStringLiteral("个人中心"), this);
-    title->setStyleSheet(QStringLiteral("font-size: 20px; font-weight: bold;"));
+    auto *headerCard = new QFrame(this);
+    headerCard->setStyleSheet(QStringLiteral(
+        "QFrame { background: qlineargradient(x1:0, y1:0, x2:1, y2:1,"
+        " stop:0 #1d5cff, stop:1 #4ca1ff); border: none; border-radius: 16px; }"
+        "QLabel { border: none; background: transparent; }"));
 
-    m_avatarLabel = new QLabel(QStringLiteral("👤"), this);
+    m_avatarLabel = new QLabel(QStringLiteral("👤"), headerCard);
     m_avatarLabel->setAlignment(Qt::AlignCenter);
-    m_avatarLabel->setFixedSize(80, 80);
+    m_avatarLabel->setFixedSize(72, 72);
     m_avatarLabel->setStyleSheet(kDefaultAvatarStyle);
     m_avatarLabel->setCursor(Qt::PointingHandCursor);
     m_avatarLabel->installEventFilter(this);
+    m_avatarLabel->setToolTip(QStringLiteral("点击更换头像"));
 
-    auto *avatarHint = new QLabel(QStringLiteral("点击更换头像"), this);
-    avatarHint->setStyleSheet(QStringLiteral("color: #999; font-size: 11px;"));
-    avatarHint->setAlignment(Qt::AlignCenter);
+    m_nicknameLabel = new QLabel(headerCard);
+    m_nicknameLabel->setStyleSheet(QStringLiteral("font-size: 18px; font-weight: bold; color: white;"));
 
-    m_nicknameLabel = new QLabel(this);
-    m_nicknameLabel->setStyleSheet(QStringLiteral("font-size: 18px; font-weight: bold;"));
-    auto *nicknameButton = new QPushButton(QStringLiteral("修改昵称"), this);
+    auto *editButton = new QPushButton(QStringLiteral("✏️"), headerCard);
+    editButton->setStyleSheet(QStringLiteral(
+        "QPushButton { background: transparent; border: none; color: rgba(255,255,255,0.85); font-size: 13px; }"));
+    editButton->setCursor(Qt::PointingHandCursor);
+    editButton->setToolTip(QStringLiteral("修改昵称"));
+    editButton->setFixedSize(24, 24);
 
-    m_phoneLabel = new QLabel(this);
-    m_phoneLabel->setStyleSheet(QStringLiteral("color: #999;"));
+    m_phoneLabel = new QLabel(headerCard);
+    m_phoneLabel->setStyleSheet(QStringLiteral("color: rgba(255,255,255,0.8); font-size: 13px;"));
 
-    m_balanceLabel = new QLabel(this);
-    m_balanceLabel->setStyleSheet(QStringLiteral("font-size: 24px; font-weight: bold; color: #2a6fdb;"));
-    auto *topUpButton = new QPushButton(QStringLiteral("余额充值"), this);
+    auto *nicknameRow = new QHBoxLayout;
+    nicknameRow->setSpacing(4);
+    nicknameRow->addWidget(m_nicknameLabel);
+    nicknameRow->addWidget(editButton);
+    nicknameRow->addStretch();
 
-    m_messageLabel = new QLabel(this);
-    m_messageLabel->setAlignment(Qt::AlignCenter);
-    m_messageLabel->hide();
-
-    auto *transactionsTitle = new QLabel(QStringLiteral("钱包流水"), this);
-    transactionsTitle->setStyleSheet(QStringLiteral("font-size: 15px; font-weight: bold;"));
-    m_transactionList = new QListWidget(this);
-    m_transactionList->setStyleSheet(QStringLiteral("QListWidget { border: 1px solid #ddd; border-radius: 8px; }"));
-
-    auto *headerRow = new QHBoxLayout;
-    headerRow->addWidget(backButton);
-    headerRow->addStretch();
-    headerRow->addWidget(title);
-    headerRow->addStretch();
-
-    auto *profileRow = new QHBoxLayout;
-    auto *avatarColumn = new QVBoxLayout;
-    avatarColumn->addWidget(m_avatarLabel);
-    avatarColumn->addWidget(avatarHint);
     auto *infoColumn = new QVBoxLayout;
-    infoColumn->addWidget(m_nicknameLabel);
-    infoColumn->addWidget(nicknameButton);
+    infoColumn->addStretch();
+    infoColumn->addLayout(nicknameRow);
     infoColumn->addWidget(m_phoneLabel);
     infoColumn->addStretch();
-    profileRow->addLayout(avatarColumn);
-    profileRow->addSpacing(16);
-    profileRow->addLayout(infoColumn, 1);
 
-    auto *balanceRow = new QHBoxLayout;
-    balanceRow->addWidget(m_balanceLabel);
-    balanceRow->addStretch();
-    balanceRow->addWidget(topUpButton);
+    auto *headerLayout = new QHBoxLayout(headerCard);
+    headerLayout->setContentsMargins(18, 18, 18, 18);
+    headerLayout->setSpacing(14);
+    headerLayout->addWidget(m_avatarLabel);
+    headerLayout->addLayout(infoColumn, 1);
+
+    auto *walletCard = new QFrame(this);
+    walletCard->setStyleSheet(QStringLiteral(
+        "QFrame { background: white; border: 1px solid #e8eaee; border-radius: 16px; }"
+        "QLabel { border: none; }"));
+    auto *balanceTitle = new QLabel(QStringLiteral("钱包余额"), walletCard);
+    balanceTitle->setStyleSheet(QStringLiteral("color: #8a8f99;"));
+    balanceTitle->setAlignment(Qt::AlignCenter);
+    m_balanceLabel = new QLabel(walletCard);
+    m_balanceLabel->setAlignment(Qt::AlignCenter);
+    m_balanceLabel->setStyleSheet(QStringLiteral("font-size: 28px; font-weight: bold; color: #1d5cff;"));
+    auto *topUpButton = new QPushButton(QStringLiteral("立即充值"), walletCard);
+    topUpButton->setObjectName(QStringLiteral("primaryButton"));
+
+    auto *walletLayout = new QVBoxLayout(walletCard);
+    walletLayout->setContentsMargins(16, 16, 16, 16);
+    walletLayout->setSpacing(8);
+    walletLayout->addWidget(balanceTitle);
+    walletLayout->addWidget(m_balanceLabel);
+    walletLayout->addSpacing(4);
+    walletLayout->addWidget(topUpButton);
+
+    const struct
+    {
+        const char *text;
+        void (ProfileView::*signal)();
+    } menuItems[] = {
+        {"📋  历史充电订单", &ProfileView::ordersRequested},
+        {"💰  钱包流水", &ProfileView::transactionsRequested},
+        {"🚗  我的爱车", &ProfileView::carRequested},
+        {"ℹ️  关于系统", &ProfileView::aboutRequested},
+    };
+
+    auto *menuCard = new QFrame(this);
+    menuCard->setStyleSheet(QStringLiteral(
+        "QFrame { background: white; border: 1px solid #e8eaee; border-radius: 16px; }"
+        "QPushButton { background: transparent; border: none; border-radius: 0;"
+        " padding: 14px 16px; text-align: left; font-size: 14px; }"
+        "QPushButton:hover { background: #f5f7fa; }"));
+    auto *menuLayout = new QVBoxLayout(menuCard);
+    menuLayout->setContentsMargins(4, 4, 4, 4);
+    menuLayout->setSpacing(0);
+    for (const auto &item : menuItems) {
+        auto *row = new QPushButton(QString::fromUtf8(item.text) + QStringLiteral("   ›"), menuCard);
+        connect(row, &QPushButton::clicked, this, item.signal);
+        menuLayout->addWidget(row);
+    }
+
+    auto *logoutButton = new QPushButton(QStringLiteral("退出登录"), this);
+    logoutButton->setObjectName(QStringLiteral("outlineDangerButton"));
+    connect(logoutButton, &QPushButton::clicked, this, &ProfileView::signOut);
+    connect(editButton, &QPushButton::clicked, this, &ProfileView::changeNickname);
+    connect(topUpButton, &QPushButton::clicked, this, &ProfileView::openRecharge);
 
     auto *layout = new QVBoxLayout(this);
-    layout->setContentsMargins(12, 12, 12, 12);
-    layout->addLayout(headerRow);
-    layout->addSpacing(8);
-    layout->addLayout(profileRow);
-    layout->addSpacing(8);
-    layout->addLayout(balanceRow);
-    layout->addWidget(m_messageLabel);
-    layout->addSpacing(8);
-    layout->addWidget(transactionsTitle);
-    layout->addWidget(m_transactionList, 1);
+    layout->setContentsMargins(14, 14, 14, 14);
+    layout->setSpacing(12);
+    layout->addWidget(headerCard);
+    layout->addWidget(walletCard);
+    layout->addWidget(menuCard);
+    layout->addStretch();
+    layout->addWidget(logoutButton);
 
-    connect(backButton, &QPushButton::clicked, this, &ProfileView::backRequested);
-    connect(nicknameButton, &QPushButton::clicked, this, &ProfileView::changeNickname);
-    connect(topUpButton, &QPushButton::clicked, this, &ProfileView::topUp);
     connect(&m_session, &Session::userChanged, this, &ProfileView::refreshProfile);
 }
 
@@ -110,7 +151,6 @@ void ProfileView::showEvent(QShowEvent *event)
 {
     QWidget::showEvent(event);
     refreshProfile();
-    loadTransactions();
 }
 
 bool ProfileView::eventFilter(QObject *watched, QEvent *event)
@@ -126,8 +166,8 @@ void ProfileView::refreshProfile()
 {
     const User &user = m_session.user();
     m_nicknameLabel->setText(user.nickname);
-    m_phoneLabel->setText(user.phone);
-    m_balanceLabel->setText(QStringLiteral("余额 %1 元").arg(fenToYuan(user.walletBalanceFen)));
+    m_phoneLabel->setText(maskedPhone(user.phone));
+    m_balanceLabel->setText(QStringLiteral("￥ %1").arg(fenToYuan(user.walletBalanceFen)));
     if (user.avatarUrl != m_loadedAvatarUrl) {
         loadAvatar();
     }
@@ -214,58 +254,21 @@ void ProfileView::changeNickname()
                 });
 }
 
-void ProfileView::topUp()
+void ProfileView::openRecharge()
 {
-    bool ok = false;
-    const int yuan = QInputDialog::getInt(this, QStringLiteral("余额充值"), QStringLiteral("充值金额（元）"), 50, 1, 100000, 10, &ok);
-    if (!ok) {
-        return;
-    }
-
-    QJsonObject body;
-    body.insert(QLatin1String("amountFen"), qlonglong(yuan) * 100);
-    body.insert(QLatin1String("note"), QStringLiteral("余额充值"));
-    m_api.post(QStringLiteral("/me/wallet/topups"), body,
-               [this](const QJsonValue &data, const QJsonObject &) {
-                   m_session.updateBalance(data.toObject().value(QLatin1String("balanceAfterFen")).toInteger());
-                   loadTransactions();
-               },
-               [this](const ApiError &error) {
-                   QMessageBox::warning(this, QStringLiteral("充值失败"),
-                                        error.message.isEmpty() ? error.code : error.message);
-               });
+    auto *dialog = new RechargeDialog(m_api, this);
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+    connect(dialog, &RechargeDialog::succeeded, this, [this](qlonglong balance) {
+        m_session.updateBalance(balance);
+    });
+    dialog->open();
 }
 
-void ProfileView::loadTransactions()
+void ProfileView::signOut()
 {
-    m_api.get(QStringLiteral("/me/wallet/transactions"),
-              [this](const QJsonValue &data, const QJsonObject &) {
-                  m_transactionList->clear();
-                  const QJsonArray transactions = data.toArray();
-                  if (transactions.isEmpty()) {
-                      m_transactionList->addItem(QStringLiteral("暂无流水记录"));
-                      return;
-                  }
-                  for (const QJsonValue &value : transactions) {
-                      const QJsonObject object = value.toObject();
-                      QString type;
-                      if (object.value(QLatin1String("type")).toString() == QLatin1String("top_up")) {
-                          type = QStringLiteral("充值");
-                      } else if (object.value(QLatin1String("type")).toString() == QLatin1String("charge_debit")) {
-                          type = QStringLiteral("充电扣款");
-                      } else if (object.value(QLatin1String("type")).toString() == QLatin1String("refund")) {
-                          type = QStringLiteral("退款");
-                      } else {
-                          type = QStringLiteral("调整");
-                      }
-                      const qlonglong amount = object.value(QLatin1String("amountFen")).toInteger();
-                      const QString item = QStringLiteral("%1  %2%3 元　余额 %4 元")
-                                               .arg(type,
-                                                    amount >= 0 ? QStringLiteral("+") : QStringLiteral("-"),
-                                                    fenToYuan(qAbs(amount)))
-                                               .arg(fenToYuan(object.value(QLatin1String("balanceAfterFen")).toInteger()));
-                      m_transactionList->addItem(item);
-                  }
-              },
-              [](const ApiError &) {});
+    const auto choice = QMessageBox::question(this, QStringLiteral("退出登录"),
+                                              QStringLiteral("确定退出当前账号吗？"));
+    if (choice == QMessageBox::Yes) {
+        m_session.signOut();
+    }
 }
