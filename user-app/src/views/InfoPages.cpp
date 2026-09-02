@@ -234,6 +234,12 @@ void TransactionsView::load()
 CarView::CarView(QWidget *parent)
     : QWidget(parent)
 {
+    auto *backButton = new QPushButton(QStringLiteral("← 返回"), this);
+    connect(backButton, &QPushButton::clicked, this, &CarView::backRequested);
+    auto *headerRow = new QHBoxLayout;
+    headerRow->addWidget(backButton);
+    headerRow->addStretch();
+
     auto *iconLabel = new QLabel(QStringLiteral("🚗"), this);
     iconLabel->setAlignment(Qt::AlignCenter);
     iconLabel->setStyleSheet(QStringLiteral("font-size: 64px;"));
@@ -259,6 +265,7 @@ CarView::CarView(QWidget *parent)
 
     auto *layout = new QVBoxLayout(this);
     layout->setContentsMargins(12, 12, 12, 12);
+    layout->addLayout(headerRow);
     layout->addWidget(card);
     layout->addStretch();
 }
@@ -266,6 +273,12 @@ CarView::CarView(QWidget *parent)
 AboutView::AboutView(QWidget *parent)
     : QWidget(parent)
 {
+    auto *backButton = new QPushButton(QStringLiteral("← 返回"), this);
+    connect(backButton, &QPushButton::clicked, this, &AboutView::backRequested);
+    auto *headerRow = new QHBoxLayout;
+    headerRow->addWidget(backButton);
+    headerRow->addStretch();
+
     auto *iconLabel = new QLabel(QStringLiteral("⚡"), this);
     iconLabel->setAlignment(Qt::AlignCenter);
     iconLabel->setStyleSheet(QStringLiteral("font-size: 56px;"));
@@ -284,6 +297,7 @@ AboutView::AboutView(QWidget *parent)
 
     auto *layout = new QVBoxLayout(this);
     layout->setContentsMargins(12, 12, 12, 12);
+    layout->addLayout(headerRow);
     layout->addStretch(2);
     layout->addWidget(iconLabel);
     layout->addWidget(nameLabel);
