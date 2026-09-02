@@ -5,9 +5,6 @@
 
 #include <QMainWindow>
 
-class QLabel;
-class QStackedWidget;
-
 QT_BEGIN_NAMESPACE
 namespace Ui {
     class MainWindow;
@@ -23,8 +20,6 @@ public:
     ~MainWindow();
 
 private:
-    QWidget *buildHomePlaceholder();
-
     Ui::MainWindow *ui;
     Session *m_session = nullptr;
     ApiClient *m_api = nullptr;

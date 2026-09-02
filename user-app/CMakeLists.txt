@@ -13,17 +13,28 @@ include(GNUInstallDirs)
 
 qt_add_executable(user-app
     src/main.cpp
+    src/common/Format.h
     src/app/Session.h
     src/app/Session.cpp
     src/api/ApiClient.h
     src/api/ApiClient.cpp
     src/models/User.h
     src/models/User.cpp
+    src/models/Station.h
+    src/models/Station.cpp
+    src/models/Charger.h
+    src/models/Charger.cpp
+    src/widgets/StationCard.h
+    src/widgets/StationCard.cpp
     src/views/mainwindow.cpp
     src/views/mainwindow.h
     src/views/mainwindow.ui
     src/views/LoginView.cpp
     src/views/LoginView.h
+    src/views/StationListView.cpp
+    src/views/StationListView.h
+    src/views/StationDetailView.cpp
+    src/views/StationDetailView.h
 )
 
 target_include_directories(user-app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)

@@ -1,10 +1,8 @@
 #include "mainwindow.h"
 #include "LoginView.h"
+#include "StationDetailView.h"
+#include "StationListView.h"
 #include "ui_mainwindow.h"
-
-#include <QLabel>
-#include <QStackedWidget>
-#include <QVBoxLayout>
 
 namespace {
 constexpr int kPhoneWidth = 390;
@@ -22,15 +20,22 @@ MainWindow::MainWindow(QWidget *parent)
     setFixedSize(kPhoneWidth, kPhoneHeight);
 
     auto *loginView = new LoginView(*m_session, *m_api, this);
-    auto *homePlaceholder = buildHomePlaceholder();
+    auto *stationListView = new StationListView(*m_api, this);
+    auto *stationDetailView = new StationDetailView(*m_api, this);
     ui->pages->addWidget(loginView);
-    ui->pages->addWidget(homePlaceholder);
+    ui->pages->addWidget(stationListView);
+    ui->pages->addWidget(stationDetailView);
 
-    connect(loginView, &LoginView::loginSucceeded, this, [this, homePlaceholder] {
-        static_cast<QLabel *>(homePlaceholder->layout()->itemAt(0)->widget())
-            ->setText(QStringLiteral("欢迎，%1\n余额：%2 分").arg(
-                m_session->user().nickname, QString::number(m_session->user().walletBalanceFen)));
-        ui->pages->setCurrentWidget(homePlaceholder);
+    connect(loginView, &LoginView::loginSucceeded, this, [this, stationListView] {
+        ui->pages->setCurrentWidget(stationListView);
+    });
+    connect(stationListView, &StationListView::stationSelected, this,
+            [this, stationDetailView](const Station &station) {
+                stationDetailView->open(station);
+                ui->pages->setCurrentWidget(stationDetailView);
+            });
+    connect(stationDetailView, &StationDetailView::backRequested, this, [this, stationListView] {
+        ui->pages->setCurrentWidget(stationListView);
     });
 
     ui->pages->setCurrentWidget(loginView);
@@ -39,14 +44,4 @@ MainWindow::MainWindow(QWidget *parent)
 MainWindow::~MainWindow()
 {
     delete ui;
-}
-
-QWidget *MainWindow::buildHomePlaceholder()
-{
-    auto *placeholder = new QWidget(this);
-    auto *label = new QLabel(QStringLiteral("主页（M2 附近充电站）"), placeholder);
-    label->setAlignment(Qt::AlignCenter);
-    auto *layout = new QVBoxLayout(placeholder);
-    layout->addWidget(label);
-    return placeholder;
 }

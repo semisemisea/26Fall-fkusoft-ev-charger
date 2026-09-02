@@ -105,8 +105,8 @@ class Handler(BaseHTTPRequestHandler):
             self.handle_nearby(query)
         elif re.fullmatch(rf"{BASE}/stations/(\d+)", path):
             self.handle_station(int(path.rsplit("/", 1)[1]))
-        elif re.fullmatch(rf"{BASE}/stations/(\d+)/chargers", path):
-            self.handle_station_chargers(int(path.split("/")[3]))
+        elif match := re.fullmatch(rf"{BASE}/stations/(\d+)/chargers", path):
+            self.handle_station_chargers(int(match.group(1)))
         else:
             self.send_error_code(404, "NOT_FOUND", "接口不存在")
 
