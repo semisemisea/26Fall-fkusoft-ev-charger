@@ -13,8 +13,9 @@ namespace {
 constexpr qlonglong kQuickTopUpFen = 5000;
 }
 
-SettleView::SettleView(ApiClient &api, QWidget *parent)
+SettleView::SettleView(Session &session, ApiClient &api, QWidget *parent)
     : QWidget(parent)
+    , m_session(session)
     , m_api(api)
 {
     auto *title = new QLabel(QStringLiteral("订单结算"), this);
@@ -107,6 +108,7 @@ void SettleView::quickTopUp()
                [this](const QJsonValue &data, const QJsonObject &) {
                    m_topUpButton->setEnabled(true);
                    const qlonglong balance = data.toObject().value(QLatin1String("balanceAfterFen")).toInteger();
+                   m_session.updateBalance(balance);
                    m_messageLabel->setStyleSheet(QStringLiteral("color: #2e9e5b;"));
                    m_messageLabel->setText(QStringLiteral("充值成功，当前余额 %1 元").arg(fenToYuan(balance)));
                    m_topUpButton->hide();

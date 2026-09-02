@@ -32,7 +32,7 @@ MainWindow::MainWindow(QWidget *parent)
     auto *stationListView = new StationListView(*m_session, *m_api, this);
     auto *stationDetailView = new StationDetailView(*m_api, this);
     m_chargingView = new ChargingView(*m_api, this);
-    m_settleView = new SettleView(*m_api, this);
+    m_settleView = new SettleView(*m_session, *m_api, this);
     ui->pages->addWidget(loginView);
     ui->pages->addWidget(stationListView);
     ui->pages->addWidget(stationDetailView);
