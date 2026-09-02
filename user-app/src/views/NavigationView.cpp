@@ -66,7 +66,6 @@ NavigationView::NavigationView(Session &session, ApiClient &api, QWidget *parent
     m_layout->addLayout(modeRow);
     m_layout->addWidget(m_summaryLabel);
     m_layout->addWidget(m_statusLabel);
-    m_layout->addStretch(1);
 
     connect(backButton, &QPushButton::clicked, this, &NavigationView::backRequested);
     connect(m_navigateButton, &QPushButton::clicked, this, &NavigationView::requestRoute);
