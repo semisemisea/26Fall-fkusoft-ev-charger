@@ -19,7 +19,9 @@ qt_add_executable(ops-app
     api/types.h
     mainwindow.cpp
     mainwindow.h
-    mainwindow.ui
+    logindialog.cpp
+    logindialog.h
+    logindialog.ui
 )
 
 target_link_libraries(ops-app PRIVATE
