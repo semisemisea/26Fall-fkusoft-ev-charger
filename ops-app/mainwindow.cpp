@@ -1,5 +1,7 @@
 #include "mainwindow.h"
 
+#include "pages/salespage.h"
+
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QListWidget>

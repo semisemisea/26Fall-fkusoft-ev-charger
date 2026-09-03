@@ -22,6 +22,8 @@ qt_add_executable(ops-app
     logindialog.cpp
     logindialog.h
     logindialog.ui
+    pages/salespage.cpp
+    pages/salespage.h
 )
 
 target_link_libraries(ops-app PRIVATE
@@ -36,6 +38,9 @@ set_target_properties(ops-app PROPERTIES
     MACOSX_BUNDLE TRUE
     WIN32_EXECUTABLE TRUE
 )
+
+# 源码根目录作为 include 基准,子目录头文件以 "api/xxx.h" 形式引用
+target_include_directories(ops-app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 install(TARGETS ops-app
     BUNDLE DESTINATION .

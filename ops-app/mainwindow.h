@@ -10,6 +10,7 @@
 class QLabel;
 class QListWidget;
 class QStackedWidget;
+class SalesPage;
 
 class MainWindow : public QMainWindow {
 	Q_OBJECT
