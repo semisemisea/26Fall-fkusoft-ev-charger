@@ -10,11 +10,12 @@ LoginDialog::LoginDialog(ops::ApiClient *api, QWidget *parent)
 	setWindowTitle(tr("充电桩管理平台 - 管理员登录"));
 
 	connect(ui->loginButton, &QPushButton::clicked, this, &LoginDialog::accept);
-	connect(m_api, &ops::ApiClient::loginSucceeded, this, [this](const ops::AdminUser &admin) {
-		ui->messageLabel->setText(
-			tr("欢迎, %1 (%2)").arg(admin.displayName, admin.role));
-		emit loginSucceeded();
-	});
+	connect(m_api, &ops::ApiClient::loginSucceeded, this,
+			[this](const ops::AdminUser &admin) {
+				ui->messageLabel->setText(
+					tr("欢迎, %1 (%2)").arg(admin.displayName, admin.role));
+				QDialog::accept(); // 调用基类,绕过本类拦截登录的 accept()
+			});
 	connect(m_api, &ops::ApiClient::loginFailed, this,
 			[this](const QString &code, const QString &message) {
 				ui->messageLabel->setText(
