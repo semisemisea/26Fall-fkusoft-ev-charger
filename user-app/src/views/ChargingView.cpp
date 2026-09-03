@@ -1,5 +1,6 @@
 #include "ChargingView.h"
 
+#include "app/ChargePollThread.h"
 #include "common/Format.h"
 #include "widgets/ChargeRingWidget.h"
 
@@ -8,12 +9,7 @@
 #include <QMessageBox>
 #include <QPushButton>
 #include <QTime>
-#include <QTimer>
 #include <QVBoxLayout>
-
-namespace {
-constexpr int kPollIntervalMs = 5000;
-}
 
 ChargingView::ChargingView(ApiClient &api, QWidget *parent)
     : QWidget(parent)
@@ -58,9 +54,11 @@ ChargingView::ChargingView(ApiClient &api, QWidget *parent)
     layout->addStretch(2);
     layout->addWidget(m_stopButton);
 
-    m_pollTimer = new QTimer(this);
-    m_pollTimer->setInterval(kPollIntervalMs);
-    connect(m_pollTimer, &QTimer::timeout, this, &ChargingView::poll);
+    m_pollThread = new ChargePollThread(this);
+    connect(m_pollThread, &ChargePollThread::meterUpdated, this, [this](const QJsonObject &orderObject) {
+        m_order = Order::fromJson(orderObject);
+        updateDisplay(m_order);
+    });
     connect(m_stopButton, &QPushButton::clicked, this, &ChargingView::stopCharging);
 }
 
@@ -68,26 +66,14 @@ void ChargingView::open(const Order &order)
 {
     m_order = order;
     updateDisplay(order);
-    m_pollTimer->start();
+    m_pollThread->configure(order.id, m_api.baseUrl(), m_api.accessToken());
+    m_pollThread->start();
 }
 
 void ChargingView::hideEvent(QHideEvent *event)
 {
     QWidget::hideEvent(event);
-    m_pollTimer->stop();
-}
-
-void ChargingView::poll()
-{
-    m_api.get(QStringLiteral("/orders/%1").arg(m_order.id),
-              [this](const QJsonValue &data, const QJsonObject &) {
-                  const Order order = Order::fromJson(data.toObject());
-                  if (order.status == QLatin1String("charging")) {
-                      m_order = order;
-                      updateDisplay(order);
-                  }
-              },
-              [this](const ApiError &) { m_pollTimer->stop(); });
+    m_pollThread->requestStop();
 }
 
 void ChargingView::updateDisplay(const Order &order)
@@ -111,7 +97,7 @@ void ChargingView::stopCharging()
         return;
     }
 
-    m_pollTimer->stop();
+    m_pollThread->requestStop();
     m_stopButton->setEnabled(false);
     m_api.post(QStringLiteral("/orders/%1/stop").arg(m_order.id), {},
                [this](const QJsonValue &data, const QJsonObject &) {
@@ -120,7 +106,8 @@ void ChargingView::stopCharging()
                },
                [this](const ApiError &error) {
                    m_stopButton->setEnabled(true);
-                   m_pollTimer->start();
+                   m_pollThread->configure(m_order.id, m_api.baseUrl(), m_api.accessToken());
+                   m_pollThread->start();
                    QMessageBox::warning(this, QStringLiteral("停止失败"),
                                         error.message.isEmpty() ? error.code : error.message);
                });

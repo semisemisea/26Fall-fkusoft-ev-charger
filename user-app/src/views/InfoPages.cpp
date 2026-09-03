@@ -15,7 +15,8 @@ namespace {
 QLabel *makePageShell(const QString &title, const std::function<void()> &onBack,
                       QVBoxLayout **listLayout, QWidget *parent)
 {
-    auto *backButton = new QPushButton(QStringLiteral("← 返回"), parent);
+    auto *backButton = new QPushButton(QStringLiteral("←"), parent);
+    backButton->setFixedWidth(44);
     auto *titleLabel = new QLabel(title, parent);
     titleLabel->setStyleSheet(QStringLiteral("font-size: 18px; font-weight: bold;"));
 
@@ -234,7 +235,8 @@ void TransactionsView::load()
 CarView::CarView(QWidget *parent)
     : QWidget(parent)
 {
-    auto *backButton = new QPushButton(QStringLiteral("← 返回"), this);
+    auto *backButton = new QPushButton(QStringLiteral("←"), this);
+    backButton->setFixedWidth(44);
     connect(backButton, &QPushButton::clicked, this, &CarView::backRequested);
     auto *headerRow = new QHBoxLayout;
     headerRow->addWidget(backButton);
@@ -273,7 +275,8 @@ CarView::CarView(QWidget *parent)
 AboutView::AboutView(QWidget *parent)
     : QWidget(parent)
 {
-    auto *backButton = new QPushButton(QStringLiteral("← 返回"), this);
+    auto *backButton = new QPushButton(QStringLiteral("←"), this);
+    backButton->setFixedWidth(44);
     connect(backButton, &QPushButton::clicked, this, &AboutView::backRequested);
     auto *headerRow = new QHBoxLayout;
     headerRow->addWidget(backButton);

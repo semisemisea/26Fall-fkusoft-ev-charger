@@ -29,6 +29,7 @@ public:
 
     void setAccessToken(const QString &token);
     [[nodiscard]] const QString &accessToken() const { return m_accessToken; }
+    [[nodiscard]] const QString &baseUrl() const { return m_baseUrl; }
 
     void get(const QString &path, Success onSuccess, Failure onFailure);
     void post(const QString &path, const QJsonObject &body, Success onSuccess, Failure onFailure);

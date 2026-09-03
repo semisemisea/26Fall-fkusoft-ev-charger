@@ -15,7 +15,8 @@ StationDetailView::StationDetailView(ApiClient &api, QWidget *parent)
     : QWidget(parent)
     , m_api(api)
 {
-    m_backButton = new QPushButton(QStringLiteral("← 返回"), this);
+    m_backButton = new QPushButton(QStringLiteral("←"), this);
+    m_backButton->setFixedWidth(44);
 
     m_nameLabel = new QLabel(this);
     m_nameLabel->setStyleSheet(QStringLiteral("font-size: 20px; font-weight: bold;"));

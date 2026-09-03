@@ -7,6 +7,7 @@
 #include <QUrl>
 #include <QUrlQuery>
 #include <QVBoxLayout>
+#include <QWebEngineProfile>
 #include <QWebEngineView>
 
 namespace {
@@ -27,7 +28,8 @@ NavigationView::NavigationView(Session &session, ApiClient &api, QWidget *parent
     , m_session(session)
     , m_api(api)
 {
-    auto *backButton = new QPushButton(QStringLiteral("← 返回"), this);
+    auto *backButton = new QPushButton(QStringLiteral("←"), this);
+    backButton->setFixedWidth(44);
     auto *titleLabel = new QLabel(this);
     titleLabel->setStyleSheet(QStringLiteral("font-size: 18px; font-weight: bold;"));
     titleLabel->setObjectName(QStringLiteral("stationTitle"));
@@ -119,6 +121,8 @@ void NavigationView::requestRoute()
                   }
                   if (!m_webView) {
                       m_webView = new QWebEngineView(this);
+                      m_webView->page()->profile()->setHttpUserAgent(QStringLiteral(
+                          "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1"));
                       m_layout->addWidget(m_webView, 1);
                   }
                   m_webView->load(mapUrl);

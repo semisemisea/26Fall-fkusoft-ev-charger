@@ -5,10 +5,10 @@
 
 #include <QWidget>
 
+class ChargePollThread;
 class ChargeRingWidget;
 class QLabel;
 class QPushButton;
-class QTimer;
 
 class ChargingView : public QWidget
 {
@@ -26,14 +26,13 @@ protected:
     void hideEvent(QHideEvent *event) override;
 
 private:
-    void poll();
     void updateDisplay(const Order &order);
     void stopCharging();
     static QString formatDuration(int minutes);
 
     ApiClient &m_api;
     Order m_order;
-    QTimer *m_pollTimer = nullptr;
+    ChargePollThread *m_pollThread = nullptr;
     ChargeRingWidget *m_ringWidget = nullptr;
     QLabel *m_headerLabel = nullptr;
     QLabel *m_energyLabel = nullptr;

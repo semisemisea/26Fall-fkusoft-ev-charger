@@ -16,6 +16,8 @@ qt_add_executable(user-app
     src/common/Format.h
     src/app/Session.h
     src/app/Session.cpp
+    src/app/ChargePollThread.h
+    src/app/ChargePollThread.cpp
     src/api/ApiClient.h
     src/api/ApiClient.cpp
     src/models/User.h
