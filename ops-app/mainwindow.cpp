@@ -96,10 +96,22 @@ void MainWindow::resumeAfterLogin() {
 }
 
 QWidget *MainWindow::createPage(int index) {
-	// 各页面在后续提交中逐个接入;先用占位页保持框架可构建
-	auto *placeholder = new QWidget(this);
-	auto *v = new QVBoxLayout(placeholder);
-	v->addWidget(new QLabel(tr("页面 %1 建设中").arg(index + 1), placeholder), 0,
-				 Qt::AlignCenter);
-	return placeholder;
+	switch (index) {
+	case PageSales:
+		m_salesPage = new SalesPage(m_api, this);
+		return m_salesPage;
+	case PageChargerStatus:
+		m_chargerStatusPage = new ChargerStatusPage(m_api, this);
+		return m_chargerStatusPage;
+	case PageChargerManage:
+		m_chargerManagePage = new ChargerManagePage(m_api, this);
+		return m_chargerManagePage;
+	case PageStationManage:
+		m_stationPage = new StationPage(m_api, this);
+		return m_stationPage;
+	case PageUserManage:
+		m_userPage = new UserPage(m_api, this);
+		return m_userPage;
+	}
+	return new QWidget(this);
 }

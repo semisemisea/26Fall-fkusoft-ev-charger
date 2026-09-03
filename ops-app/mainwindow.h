@@ -34,4 +34,9 @@ private:
 	QListWidget *m_navList = nullptr;
 	QStackedWidget *m_stack = nullptr;
 	QLabel *m_userLabel = nullptr;
+	SalesPage *m_salesPage = nullptr;
+	ChargerStatusPage *m_chargerStatusPage = nullptr;
+	ChargerManagePage *m_chargerManagePage = nullptr;
+	StationPage *m_stationPage = nullptr;
+	UserPage *m_userPage = nullptr;
 };
