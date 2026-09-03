@@ -75,6 +75,34 @@ StationPage::StationPage(ops::ApiClient *api, QWidget *parent)
 	m_hintLabel->setStyleSheet(QStringLiteral("color: #8a8f98;"));
 	root->addWidget(m_hintLabel);
 
+	// 分页条:上一页/下一页/页码;服务端未返回分页 meta 时整行隐藏
+	auto *pagerRow = new QHBoxLayout;
+	pagerRow->addStretch();
+	m_prevButton = new QPushButton(tr("上一页"), this);
+	m_pageLabel = new QLabel(this);
+	m_pageLabel->setStyleSheet(QStringLiteral("color: #8a8f98;"));
+	m_nextButton = new QPushButton(tr("下一页"), this);
+	pagerRow->addWidget(m_prevButton);
+	pagerRow->addWidget(m_pageLabel);
+	pagerRow->addWidget(m_nextButton);
+	root->addLayout(pagerRow);
+	m_prevButton->setEnabled(false);
+	m_nextButton->setEnabled(false);
+	m_pageLabel->setText(tr("第 1 页"));
+
+	connect(m_prevButton, &QPushButton::clicked, this, [this] {
+		if (m_page > 1) {
+			--m_page;
+			m_api->fetchStations(m_searchEdit->text().trimmed(), m_page);
+		}
+	});
+	connect(m_nextButton, &QPushButton::clicked, this, [this] {
+		if (m_hasNext) {
+			++m_page;
+			m_api->fetchStations(m_searchEdit->text().trimmed(), m_page);
+		}
+	});
+
 	// 站内电桩明细:点击行时加载
 	auto *detailTable = new QTableWidget(this);
 	detailTable->setObjectName(QStringLiteral("stationChargerTable"));
@@ -91,11 +119,19 @@ StationPage::StationPage(ops::ApiClient *api, QWidget *parent)
 	detailTable->setMaximumHeight(220);
 	root->addWidget(detailTable, 1);
 
-	connect(m_searchEdit, &QLineEdit::returnPressed, this,
-			[this] { m_api->fetchStations(m_searchEdit->text().trimmed()); });
+	connect(m_searchEdit, &QLineEdit::returnPressed, this, [this] {
+		m_page = 1; // 新搜索回到第 1 页
+		m_api->fetchStations(m_searchEdit->text().trimmed(), m_page);
+	});
 
 	connect(m_api, &ops::ApiClient::stationsFetched, this,
-			[this](const QList<ops::StationSummary> &stations) {
+			[this](const QList<ops::StationSummary> &stations, const ops::PageMeta &meta,
+				   const QString &errorCode) {
+				if (!errorCode.isEmpty()) {
+					QMessageBox::warning(this, tr("加载失败"),
+										 tr("电站列表加载失败(%1),请稍后重试").arg(errorCode));
+					return;
+				}
 				m_rows = stations;
 				m_table->setRowCount(stations.size());
 				for (int i = 0; i < stations.size(); ++i) {
@@ -125,6 +161,8 @@ StationPage::StationPage(ops::ApiClient *api, QWidget *parent)
 				m_hintLabel->setText(tr("共 %1 座电站。点击行查看站内电桩明细。")
 										 .arg(stations.size()));
 				m_currentStationId = -1;
+				m_hasNext = meta.valid && meta.hasNext;
+				updatePager();
 			});
 
 	connect(m_table, &QTableWidget::cellClicked, this, [this](int row, int) {
@@ -135,9 +173,14 @@ StationPage::StationPage(ops::ApiClient *api, QWidget *parent)
 	});
 
 	connect(m_api, &ops::ApiClient::stationChargersFetched, this,
-			[this, detailTable](qint64 stationId, const QList<ops::Charger> &chargers) {
+			[this, detailTable](qint64 stationId, const QList<ops::Charger> &chargers,
+								const QString &errorCode) {
 				if (stationId != m_currentStationId)
 					return; // 响应已过期
+				if (!errorCode.isEmpty()) {
+					m_hintLabel->setText(tr("站内电桩明细加载失败(%1)").arg(errorCode));
+					return;
+				}
 				detailTable->setRowCount(chargers.size());
 				for (int i = 0; i < chargers.size(); ++i) {
 					const auto &c = chargers.at(i);
@@ -174,7 +217,8 @@ StationPage::StationPage(ops::ApiClient *api, QWidget *parent)
 				if (ok) {
 					QMessageBox::information(this, tr("新增电站"),
 											 tr("电站创建成功"));
-					m_api->fetchStations(m_searchEdit->text().trimmed());
+					m_page = 1; // 新电站按时间倒序出现在第 1 页
+					m_api->fetchStations(m_searchEdit->text().trimmed(), m_page);
 				} else {
 					QMessageBox::warning(
 						this, tr("新增失败"),
@@ -191,6 +235,16 @@ void StationPage::showStationChargers(qint64 stationId, const QString &stationNa
 	m_api->fetchStationChargers(stationId);
 }
 
+void StationPage::updatePager() {
+	const bool show = m_hasNext || m_page > 1;
+	m_prevButton->setVisible(show);
+	m_nextButton->setVisible(show);
+	m_pageLabel->setVisible(show);
+	m_pageLabel->setText(tr("第 %1 页").arg(m_page));
+	m_prevButton->setEnabled(m_page > 1);
+	m_nextButton->setEnabled(m_hasNext);
+}
+
 void StationPage::showEvent(QShowEvent *event) {
 	QWidget::showEvent(event);
 	refresh();
@@ -200,7 +254,7 @@ void StationPage::refresh() {
 	if (m_loaded)
 		return;
 	m_loaded = true;
-	m_api->fetchStations();
+	m_api->fetchStations({}, m_page);
 }
 
 // ---- AddStationDialog ----

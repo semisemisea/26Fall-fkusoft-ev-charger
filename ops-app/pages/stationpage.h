@@ -24,14 +24,20 @@ protected:
 
 private:
 	void showStationChargers(qint64 stationId, const QString &stationName);
+	void updatePager();
 
 	ops::ApiClient *m_api;
 	QLineEdit *m_searchEdit = nullptr;
 	QTableWidget *m_table = nullptr;
 	QPushButton *m_addButton = nullptr;
 	QLabel *m_hintLabel = nullptr;
+	QLabel *m_pageLabel = nullptr;
+	QPushButton *m_prevButton = nullptr;
+	QPushButton *m_nextButton = nullptr;
 	QList<ops::StationSummary> m_rows;
 	qint64 m_currentStationId = -1;
+	int m_page = 1;
+	bool m_hasNext = false;
 	bool m_loaded = false;
 };
 

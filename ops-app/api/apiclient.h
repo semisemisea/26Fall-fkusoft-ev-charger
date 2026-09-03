@@ -27,6 +27,7 @@ namespace ops {
 		QString errorCode; // 业务错误码,如 CHARGER_UNAVAILABLE
 		QString errorMessage;
 		QJsonObject data; // 成功时的 data 对象;data 为数组时放在 "items" 下
+		PageMeta meta;    // 列表响应的分页信息(valid=false 表示服务端未返回)
 
 		// 便捷:直接以列表形式取 data 数组
 		QList<QJsonObject> items() const;
@@ -54,16 +55,16 @@ namespace ops {
 		void fetchChargerStatus();
 
 		// ---- 电桩 ----
-		void fetchChargers(const QString &statusFilter = {});
+		void fetchChargers(const QString &statusFilter = {}, int page = 1);
 		void restartCharger(qint64 chargerId, const QString &reason);
 
 		// ---- 电站 ----
-		void fetchStations(const QString &search = {});
+		void fetchStations(const QString &search = {}, int page = 1);
 		void fetchStationChargers(qint64 stationId);
 		void createStation(const StationForm &form);
 
 		// ---- 用户 ----
-		void fetchUsers(const QString &phoneSearch = {});
+		void fetchUsers(const QString &phoneSearch = {}, int page = 1);
 		void setUserStatus(qint64 userId, bool frozen);
 
 	signals:
@@ -73,21 +74,27 @@ namespace ops {
 		void authenticationChanged(bool authenticated);
 
 		// 看板
-		void dashboardSummaryFetched(const ops::DashboardSummary &summary);
-		void revenueSeriesFetched(const QString &range, const QList<ops::RevenuePoint> &points);
-		void chargerStatusFetched(const QList<ops::ChargerStatusCount> &rows);
+		void dashboardSummaryFetched(const ops::DashboardSummary &summary, const QString &errorCode);
+		void revenueSeriesFetched(const QString &range, const QList<ops::RevenuePoint> &points,
+								  const QString &errorCode);
+		void chargerStatusFetched(const QList<ops::ChargerStatusCount> &rows,
+								  const QString &errorCode);
 
 		// 电桩
-		void chargersFetched(const QList<ops::Charger> &chargers);
+		void chargersFetched(const QList<ops::Charger> &chargers, const ops::PageMeta &meta,
+							 const QString &errorCode);
 		void commandFinished(qint64 chargerId, bool succeeded, const QString &message);
 
 		// 电站
-		void stationsFetched(const QList<ops::StationSummary> &stations);
-		void stationChargersFetched(qint64 stationId, const QList<ops::Charger> &chargers);
+		void stationsFetched(const QList<ops::StationSummary> &stations, const ops::PageMeta &meta,
+							 const QString &errorCode);
+		void stationChargersFetched(qint64 stationId, const QList<ops::Charger> &chargers,
+									const QString &errorCode);
 		void stationCreated(bool succeeded, const QString &errorCode);
 
 		// 用户
-		void usersFetched(const QList<ops::AdminUserRow> &users);
+		void usersFetched(const QList<ops::AdminUserRow> &users, const ops::PageMeta &meta,
+						  const QString &errorCode);
 		void userStatusChanged(bool succeeded, const QString &errorCode);
 
 	private:

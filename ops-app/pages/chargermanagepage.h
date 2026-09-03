@@ -25,12 +25,18 @@ protected:
 private:
 	void applyRows(const QList<ops::Charger> &chargers);
 	int selectedChargerRow() const;
+	void updatePager();
 
 	ops::ApiClient *m_api;
 	QComboBox *m_statusFilter = nullptr;
 	QTableWidget *m_table = nullptr;
 	QPushButton *m_restartButton = nullptr;
 	QLabel *m_hintLabel = nullptr;
+	QLabel *m_pageLabel = nullptr;
+	QPushButton *m_prevButton = nullptr;
+	QPushButton *m_nextButton = nullptr;
 	QList<ops::Charger> m_rows;
+	int m_page = 1;
+	bool m_hasNext = false;
 	bool m_loaded = false;
 };

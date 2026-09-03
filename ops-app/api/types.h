@@ -27,6 +27,15 @@ namespace ops {
 		return v.isDouble() ? v.toDouble() : fallback;
 	}
 
+	// 列表分页元数据(apis.md: 列表响应在 meta 中带 page/pageSize/total/hasNext)
+	struct PageMeta {
+		bool valid = false; // 服务端是否返回分页 meta(false 表示未返回,界面退化为单页展示)
+		int page = 1;
+		int pageSize = 20;
+		qint64 total = 0;
+		bool hasNext = false;
+	};
+
 	// ---- 值类型 ----
 
 	struct AdminUser {

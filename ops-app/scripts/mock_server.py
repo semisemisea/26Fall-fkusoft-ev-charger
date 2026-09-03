@@ -16,6 +16,8 @@ from urllib.parse import parse_qs, urlparse
 
 LOCK = threading.Lock()
 
+PAGE_SIZE = 20  # apis.md: pageSize 默认 20,最大 100
+
 NOW = lambda: datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 ADMINS = {
@@ -89,8 +91,10 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
-    def ok(self, data, status=200):
-        self.send_json(status, {"data": data, "meta": {"requestId": "mock-req"}})
+    def ok(self, data, status=200, **extra_meta):
+        meta = {"requestId": "mock-req"}
+        meta.update(extra_meta)
+        self.send_json(status, {"data": data, "meta": meta})
 
     def err(self, status, code, message):
         self.send_json(status, {"error": {"code": code, "message": message},
@@ -113,8 +117,18 @@ class Handler(BaseHTTPRequestHandler):
             return None
         return ADMINS[user]
 
-    def paginate(self, items):
-        return {"items": items}
+    def paginate(self, items, q):
+        # apis.md: 列表响应 meta 带 page/pageSize/total/hasNext,page 从 1 起
+        try:
+            page = max(1, int(q.get("page", "1")))
+        except (TypeError, ValueError):
+            page = 1
+        total = len(items)
+        start = (page - 1) * PAGE_SIZE
+        chunk = items[start:start + PAGE_SIZE]
+        meta = {"page": page, "pageSize": PAGE_SIZE, "total": total,
+                "hasNext": start + PAGE_SIZE < total}
+        return {"items": chunk}, meta
 
     # ---- HTTP ----
     def do_GET(self):
@@ -148,7 +162,8 @@ class Handler(BaseHTTPRequestHandler):
                 status = q.get("status")
                 items = [c for c in CHARGERS.values()
                          if not status or c["status"] == status]
-                self.ok(items)
+                chunk, meta = self.paginate(items, q)
+                self.ok(chunk, **meta)
             elif p == "/api/v1/admin/stations":
                 search = (q.get("search") or "").lower()
                 items = []
@@ -161,7 +176,8 @@ class Handler(BaseHTTPRequestHandler):
                                   "availableChargerCount": sum(
                                       1 for c in cs if c["status"] == "available"),
                                   "onlineRate": round(random.uniform(0.9, 1.0), 2)})
-                self.ok(items)
+                chunk, meta = self.paginate(items, q)
+                self.ok(chunk, **meta)
             elif p.startswith("/api/v1/stations/") and p.endswith("/chargers"):
                 sid = int(p.split("/")[4])
                 self.ok([c for c in CHARGERS.values() if c["stationId"] == sid])
@@ -169,7 +185,8 @@ class Handler(BaseHTTPRequestHandler):
                 phone = (q.get("phone") or "").strip()
                 items = [u for u in USERS.values()
                          if not phone or phone in u["phone"]]
-                self.ok(items)
+                chunk, meta = self.paginate(items, q)
+                self.ok(chunk, **meta)
             else:
                 self.err(404, "NOT_FOUND", f"未知路径 {p}")
 

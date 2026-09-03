@@ -97,7 +97,11 @@ SalesPage::SalesPage(ops::ApiClient *api, QWidget *parent)
 	});
 
 	connect(m_api, &ops::ApiClient::dashboardSummaryFetched, this,
-			[this](const ops::DashboardSummary &s) {
+			[this](const ops::DashboardSummary &s, const QString &errorCode) {
+				if (!errorCode.isEmpty()) {
+					m_extraLabel->setText(tr("指标加载失败(%1),请切换时间范围重试").arg(errorCode));
+					return;
+				}
 				m_todayCard->setText(ops::fenCents(s.todayRevenueFen));
 				m_monthCard->setText(ops::fenCents(s.monthRevenueFen));
 				m_totalCard->setText(ops::fenCents(s.totalRevenueFen));
@@ -110,9 +114,14 @@ SalesPage::SalesPage(ops::ApiClient *api, QWidget *parent)
 			});
 
 	connect(m_api, &ops::ApiClient::revenueSeriesFetched, this,
-			[this](const QString &range, const QList<ops::RevenuePoint> &points) {
+			[this](const QString &range, const QList<ops::RevenuePoint> &points,
+				   const QString &errorCode) {
 				if (range != m_range)
 					return; // 过期响应丢弃
+				if (!errorCode.isEmpty()) {
+					m_chart->setTitle(tr("营收趋势(加载失败: %1)").arg(errorCode));
+					return;
+				}
 				m_series->clear();
 				qint64 maxVal = 1;
 				for (const auto &p : points) {

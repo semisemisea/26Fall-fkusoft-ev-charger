@@ -75,14 +75,51 @@ ChargerManagePage::ChargerManagePage(ops::ApiClient *api, QWidget *parent)
 	m_hintLabel->setStyleSheet(QStringLiteral("color: #8a8f98;"));
 	root->addWidget(m_hintLabel);
 
+	// 分页条:上一页/下一页/页码;服务端未返回分页 meta 时整行隐藏
+	auto *pagerRow = new QHBoxLayout;
+	pagerRow->addStretch();
+	m_prevButton = new QPushButton(tr("上一页"), this);
+	m_pageLabel = new QLabel(this);
+	m_pageLabel->setStyleSheet(QStringLiteral("color: #8a8f98;"));
+	m_nextButton = new QPushButton(tr("下一页"), this);
+	pagerRow->addWidget(m_prevButton);
+	pagerRow->addWidget(m_pageLabel);
+	pagerRow->addWidget(m_nextButton);
+	root->addLayout(pagerRow);
+	m_prevButton->setEnabled(false);
+	m_nextButton->setEnabled(false);
+	m_pageLabel->setText(tr("第 1 页"));
+
+	connect(m_prevButton, &QPushButton::clicked, this, [this] {
+		if (m_page > 1) {
+			--m_page;
+			m_api->fetchChargers(m_statusFilter->currentData().toString(), m_page);
+		}
+	});
+	connect(m_nextButton, &QPushButton::clicked, this, [this] {
+		if (m_hasNext) {
+			++m_page;
+			m_api->fetchChargers(m_statusFilter->currentData().toString(), m_page);
+		}
+	});
+
 	connect(m_statusFilter, &QComboBox::currentIndexChanged, this, [this](int) {
-		m_api->fetchChargers(m_statusFilter->currentData().toString());
+		m_page = 1; // 筛选变化回到第 1 页
+		m_api->fetchChargers(m_statusFilter->currentData().toString(), m_page);
 	});
 
 	connect(m_api, &ops::ApiClient::chargersFetched, this,
-			[this](const QList<ops::Charger> &chargers) {
+			[this](const QList<ops::Charger> &chargers, const ops::PageMeta &meta,
+				   const QString &errorCode) {
+				if (!errorCode.isEmpty()) {
+					QMessageBox::warning(this, tr("加载失败"),
+										 tr("电桩列表加载失败(%1),请稍后重试").arg(errorCode));
+					return;
+				}
 				m_rows = chargers;
 				applyRows(chargers);
+				m_hasNext = meta.valid && meta.hasNext;
+				updatePager();
 			});
 
 	connect(m_api, &ops::ApiClient::commandFinished, this,
@@ -141,6 +178,16 @@ void ChargerManagePage::applyRows(const QList<ops::Charger> &chargers) {
 	m_hintLabel->setText(tr("共 %1 台电桩。选中电桩后可执行远程重启。").arg(chargers.size()));
 }
 
+void ChargerManagePage::updatePager() {
+	const bool show = m_hasNext || m_page > 1;
+	m_prevButton->setVisible(show);
+	m_nextButton->setVisible(show);
+	m_pageLabel->setVisible(show);
+	m_pageLabel->setText(tr("第 %1 页").arg(m_page));
+	m_prevButton->setEnabled(m_page > 1);
+	m_nextButton->setEnabled(m_hasNext);
+}
+
 int ChargerManagePage::selectedChargerRow() const {
 	const auto indexes = m_table->selectionModel()->selectedRows();
 	return indexes.isEmpty() ? -1 : indexes.first().row();
@@ -155,5 +202,5 @@ void ChargerManagePage::refresh() {
 	if (m_loaded)
 		return;
 	m_loaded = true;
-	m_api->fetchChargers(m_statusFilter->currentData().toString());
+	m_api->fetchChargers(m_statusFilter->currentData().toString(), m_page);
 }

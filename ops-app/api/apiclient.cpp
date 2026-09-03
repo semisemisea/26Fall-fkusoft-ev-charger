@@ -41,6 +41,8 @@ namespace ops {
 							 QUuid::createUuid().toString(QUuid::WithoutBraces).toUtf8());
 		if (!m_token.isEmpty())
 			request.setRawHeader(QByteArrayLiteral("Authorization"), "Bearer " + m_token.toUtf8());
+		// 读操作失败可见化的前提:请求不能无限挂起(契约要求超时与 503 处理)
+		request.setTransferTimeout(15000); // 15s:慢于演示场景一切正常请求
 
 		QNetworkReply *reply = nullptr;
 		if (method == QLatin1String("GET"))
@@ -69,9 +71,14 @@ namespace ops {
 					const QByteArray body = reply->readAll();
 					QJsonDocument doc = QJsonDocument::fromJson(body);
 					if (result.httpStatus == 0) {
-						result.errorCode = QStringLiteral("SERVICE_UNAVAILABLE");
-						result.errorMessage =
-							QStringLiteral("无法连接业务服务层,请确认服务端已启动");
+						if (reply->error() == QNetworkReply::OperationCanceledError) {
+							result.errorCode = QStringLiteral("TIMEOUT");
+							result.errorMessage = QStringLiteral("请求超时,请稍后重试");
+						} else {
+							result.errorCode = QStringLiteral("SERVICE_UNAVAILABLE");
+							result.errorMessage =
+								QStringLiteral("无法连接业务服务层,请确认服务端已启动");
+						}
 					} else if (doc.isObject()) {
 						const QJsonObject root = doc.object();
 						const QJsonObject err = root.value(QLatin1String("error")).toObject();
@@ -85,6 +92,18 @@ namespace ops {
 								result.data = dataVal.toObject();
 							else if (dataVal.isArray())
 								result.data.insert(QStringLiteral("items"), dataVal.toArray());
+							// 列表接口的分页 meta(apis.md: meta.page/pageSize/total/hasNext)
+							const QJsonObject metaObj =
+								root.value(QLatin1String("meta")).toObject();
+							if (metaObj.contains(QLatin1String("page"))) {
+								result.meta.valid = true;
+								result.meta.page = static_cast<int>(jsonI64(metaObj, "page", 1));
+								result.meta.pageSize =
+									static_cast<int>(jsonI64(metaObj, "pageSize", 20));
+								result.meta.total = jsonI64(metaObj, "total");
+								result.meta.hasNext =
+									metaObj.value(QLatin1String("hasNext")).toBool();
+							}
 						}
 					}
 					result.ok = result.httpStatus >= 200 && result.httpStatus < 300 &&
@@ -134,8 +153,10 @@ namespace ops {
 	void ApiClient::fetchDashboardSummary() {
 		send(QStringLiteral("GET"), QStringLiteral("/admin/dashboard/summary"), {}, {},
 			 [this](const ApiResult &r) {
-				 if (!r.ok)
+				 if (!r.ok) {
+					 emit dashboardSummaryFetched(DashboardSummary{}, r.errorCode);
 					 return;
+				 }
 				 DashboardSummary s;
 				 s.asOf = jsonStr(r.data, "asOf");
 				 s.todayRevenueFen = jsonI64(r.data, "todayRevenueFen");
@@ -145,7 +166,7 @@ namespace ops {
 				 s.stationCount = jsonI64(r.data, "stationCount");
 				 s.chargerCount = jsonI64(r.data, "chargerCount");
 				 s.onlineRate = jsonDbl(r.data, "onlineRate");
-				 emit dashboardSummaryFetched(s);
+				 emit dashboardSummaryFetched(s, {});
 			 });
 	}
 
@@ -154,8 +175,10 @@ namespace ops {
 		seriesQuery.addQueryItem(QStringLiteral("range"), range);
 		send(QStringLiteral("GET"), QStringLiteral("/admin/dashboard/revenue-series"), seriesQuery, {},
 			 [this, range](const ApiResult &r) {
-				 if (!r.ok)
+				 if (!r.ok) {
+					 emit revenueSeriesFetched(range, {}, r.errorCode);
 					 return;
+				 }
 				 QList<RevenuePoint> points;
 				 const auto arr = r.data.value(QLatin1String("points")).toArray();
 				 for (const auto &e : arr) {
@@ -166,15 +189,17 @@ namespace ops {
 					 p.orderCount = jsonI64(o, "orderCount");
 					 points.append(p);
 				 }
-				 emit revenueSeriesFetched(range, points);
+				 emit revenueSeriesFetched(range, points, {});
 			 });
 	}
 
 	void ApiClient::fetchChargerStatus() {
 		send(QStringLiteral("GET"), QStringLiteral("/admin/dashboard/charger-status"), {}, {},
 			 [this](const ApiResult &r) {
-				 if (!r.ok)
+				 if (!r.ok) {
+					 emit chargerStatusFetched({}, r.errorCode);
 					 return;
+				 }
 				 QList<ChargerStatusCount> rows;
 				 const auto arr = r.data.value(QLatin1String("items")).toArray();
 				 for (const auto &e : arr) {
@@ -185,20 +210,23 @@ namespace ops {
 					 row.percent = jsonDbl(o, "percent");
 					 rows.append(row);
 				 }
-				 emit chargerStatusFetched(rows);
+				 emit chargerStatusFetched(rows, {});
 			 });
 	}
 
 	// ---- 电桩 ----
 
-	void ApiClient::fetchChargers(const QString &statusFilter) {
+	void ApiClient::fetchChargers(const QString &statusFilter, int page) {
 		QUrlQuery query;
 		if (!statusFilter.isEmpty())
 			query.addQueryItem(QStringLiteral("status"), statusFilter);
+		query.addQueryItem(QStringLiteral("page"), QString::number(qMax(1, page)));
 		send(QStringLiteral("GET"), QStringLiteral("/admin/chargers"), query, {},
 			 [this](const ApiResult &r) {
-				 if (!r.ok)
+				 if (!r.ok) {
+					 emit chargersFetched({}, PageMeta{}, r.errorCode);
 					 return;
+				 }
 				 QList<Charger> chargers;
 				 for (const auto &e : r.data.value(QLatin1String("items")).toArray()) {
 					 const QJsonObject o = e.toObject();
@@ -213,7 +241,7 @@ namespace ops {
 					 c.totalChargeMinutes = jsonI64(o, "totalChargeMinutes");
 					 chargers.append(c);
 				 }
-				 emit chargersFetched(chargers);
+				 emit chargersFetched(chargers, r.meta, {});
 			 });
 	}
 
@@ -230,14 +258,17 @@ namespace ops {
 
 	// ---- 电站 ----
 
-	void ApiClient::fetchStations(const QString &search) {
+	void ApiClient::fetchStations(const QString &search, int page) {
 		QUrlQuery query;
 		if (!search.isEmpty())
 			query.addQueryItem(QStringLiteral("search"), search);
+		query.addQueryItem(QStringLiteral("page"), QString::number(qMax(1, page)));
 		send(QStringLiteral("GET"), QStringLiteral("/admin/stations"), query, {},
 			 [this](const ApiResult &r) {
-				 if (!r.ok)
+				 if (!r.ok) {
+					 emit stationsFetched({}, PageMeta{}, r.errorCode);
 					 return;
+				 }
 				 QList<StationSummary> stations;
 				 for (const auto &e : r.data.value(QLatin1String("items")).toArray()) {
 					 const QJsonObject o = e.toObject();
@@ -254,7 +285,7 @@ namespace ops {
 					 s.status = jsonStr(o, "status");
 					 stations.append(s);
 				 }
-				 emit stationsFetched(stations);
+				 emit stationsFetched(stations, r.meta, {});
 			 });
 	}
 
@@ -277,7 +308,7 @@ namespace ops {
 						 chargers.append(c);
 					 }
 				 }
-				 emit stationChargersFetched(stationId, chargers);
+				 emit stationChargersFetched(stationId, chargers, r.errorCode);
 			 });
 	}
 
@@ -312,14 +343,17 @@ namespace ops {
 
 	// ---- 用户 ----
 
-	void ApiClient::fetchUsers(const QString &phoneSearch) {
+	void ApiClient::fetchUsers(const QString &phoneSearch, int page) {
 		QUrlQuery query;
 		if (!phoneSearch.isEmpty())
 			query.addQueryItem(QStringLiteral("phone"), phoneSearch);
+		query.addQueryItem(QStringLiteral("page"), QString::number(qMax(1, page)));
 		send(QStringLiteral("GET"), QStringLiteral("/admin/users"), query, {},
 			 [this](const ApiResult &r) {
-				 if (!r.ok)
+				 if (!r.ok) {
+					 emit usersFetched({}, PageMeta{}, r.errorCode);
 					 return;
+				 }
 				 QList<AdminUserRow> users;
 				 for (const auto &e : r.data.value(QLatin1String("items")).toArray()) {
 					 const QJsonObject o = e.toObject();
@@ -332,7 +366,7 @@ namespace ops {
 					 u.createdAt = jsonStr(o, "createdAt");
 					 users.append(u);
 				 }
-				 emit usersFetched(users);
+				 emit usersFetched(users, r.meta, {});
 			 });
 	}
 

@@ -46,7 +46,11 @@ ChargerStatusPage::ChargerStatusPage(ops::ApiClient *api, QWidget *parent)
 	root->addWidget(m_table, 1);
 
 	connect(m_api, &ops::ApiClient::chargerStatusFetched, this,
-			[this](const QList<ops::ChargerStatusCount> &rows) {
+			[this](const QList<ops::ChargerStatusCount> &rows, const QString &errorCode) {
+				if (!errorCode.isEmpty()) {
+					m_totalLabel->setText(tr("状态分布加载失败(%1)").arg(errorCode));
+					return;
+				}
 				qint64 total = 0;
 				for (const auto &r : rows)
 					total += r.count;
