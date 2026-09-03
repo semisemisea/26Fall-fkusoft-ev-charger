@@ -1,5 +1,7 @@
 #include "ChargeRingWidget.h"
 
+#include "common/Theme.h"
+
 #include "common/Demo.h"
 
 #include <QHideEvent>
@@ -46,11 +48,11 @@ void ChargeRingWidget::paintEvent(QPaintEvent *event)
     painter.setRenderHint(QPainter::Antialiasing);
 
     const QRectF rect = this->rect().adjusted(10, 10, -10, -10);
-    QPen backgroundPen(QColor(0xe5, 0xe9, 0xef), 9, Qt::SolidLine, Qt::RoundCap);
+    QPen backgroundPen(theme::border(), 9, Qt::SolidLine, Qt::RoundCap);
     painter.setPen(backgroundPen);
     painter.drawEllipse(rect);
 
-    QPen progressPen(QColor(0x2e, 0x9e, 0x5b), 9, Qt::SolidLine, Qt::RoundCap);
+    QPen progressPen(theme::success(), 9, Qt::SolidLine, Qt::RoundCap);
     painter.setPen(progressPen);
     painter.drawArc(rect, -m_angle * 16, -110 * 16);
 

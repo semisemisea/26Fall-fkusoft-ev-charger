@@ -1,12 +1,12 @@
 #include "LoginView.h"
 
 #include "models/User.h"
+#include "widgets/Toast.h"
 #include "widgets/ScaleButton.h"
 
 #include <QJsonObject>
 #include <QLabel>
 #include <QLineEdit>
-#include <QMessageBox>
 #include <QPushButton>
 #include <QRegularExpression>
 #include <QRegularExpressionValidator>
@@ -79,11 +79,11 @@ void LoginView::submit()
     body.insert(QLatin1String("phone"), phone);
     m_api.post(QStringLiteral("/auth/user/login"), body,
                [this](const QJsonValue &data, const QJsonObject &) {
+                   m_loginButton->setEnabled(true);
                    const QJsonObject object = data.toObject();
                    const User user = User::fromJson(object.value(QLatin1String("user")).toObject());
                    if (object.value(QLatin1String("isNewUser")).toBool()) {
-                       QMessageBox::information(this, QStringLiteral("注册成功"),
-                                                QStringLiteral("已自动注册，默认昵称：%1").arg(user.nickname));
+                       Toast::success(this, QStringLiteral("已自动注册，默认昵称：%1").arg(user.nickname));
                    }
                    m_session.signIn(user, object.value(QLatin1String("accessToken")).toString());
                    emit loginSucceeded();

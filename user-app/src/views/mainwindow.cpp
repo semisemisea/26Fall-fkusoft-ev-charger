@@ -8,6 +8,7 @@
 #include "StationListView.h"
 #include "ui_mainwindow.h"
 #include "common/Demo.h"
+#include "common/Theme.h"
 #include "models/Order.h"
 #include "models/Reservation.h"
 
@@ -26,6 +27,7 @@
 #include <QMessageBox>
 #include <QJsonObject>
 #include "widgets/AppIcons.h"
+#include "widgets/Toast.h"
 
 namespace {
 constexpr int kPhoneWidth = 390;
@@ -219,8 +221,8 @@ void MainWindow::buildTabBar()
 
 void MainWindow::updateTabIcons()
 {
-    const QColor active(0x1d, 0x5c, 0xff);
-    const QColor inactive(0x8a, 0x8f, 0x99);
+    const QColor active = theme::primary();
+    const QColor inactive = theme::textSecondary();
 
     for (int i = 0; i < m_tabButtons.size(); ++i) {
         const bool hasBadge = (i == 1 && m_hasActiveOrder);
@@ -306,8 +308,7 @@ void MainWindow::startChargingFromDetail(const Charger &charger)
                         m_chargingTab->checkActiveOrder();
                         return;
                     }
-                    QMessageBox::warning(this, QStringLiteral("开始充电失败"),
-                                         error.message.isEmpty() ? error.code : error.message);
+                    Toast::error(this, error.message.isEmpty() ? error.code : error.message);
                 });
 }
 
@@ -332,8 +333,7 @@ void MainWindow::handleReservationFromDetail(const Charger &charger)
                         m_chargingTab->checkActiveOrder();
                         return;
                     }
-                    QMessageBox::warning(this, QStringLiteral("预约失败"),
-                                         error.message.isEmpty() ? error.code : error.message);
+                    Toast::error(this, error.message.isEmpty() ? error.code : error.message);
                 });
 }
 

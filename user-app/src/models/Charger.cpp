@@ -1,5 +1,7 @@
 #include "Charger.h"
 
+#include "common/Theme.h"
+
 #include <QJsonObject>
 
 Charger Charger::fromJson(const QJsonObject &object)
@@ -50,19 +52,19 @@ QString Charger::statusLabel(const QString &status)
 QString Charger::statusColor(const QString &status)
 {
     if (status == QLatin1String("available")) {
-        return QStringLiteral("#2e9e5b");
+        return theme::successName();
     }
     if (status == QLatin1String("reserved")) {
-        return QStringLiteral("#d98a00");
+        return theme::warningName();
     }
     if (status == QLatin1String("charging")) {
-        return QStringLiteral("#2a6fdb");
+        return theme::primaryName();
     }
     if (status == QLatin1String("fault")) {
-        return QStringLiteral("#d33");
+        return theme::errorName();
     }
     if (status == QLatin1String("offline")) {
-        return QStringLiteral("#888");
+        return theme::neutralGray().name();
     }
-    return QStringLiteral("#555");
+    return theme::textSecondaryName();
 }

@@ -1,5 +1,7 @@
 #include "BackButton.h"
 
+#include "common/Theme.h"
+
 #include <QPainter>
 #include <QPainterPath>
 #include <QPixmap>
@@ -14,7 +16,7 @@ QIcon makeChevronIcon()
     QPainter painter(&pixmap);
     painter.setRenderHint(QPainter::Antialiasing);
 
-    QPen pen(QColor(0x3a, 0x3d, 0x44), 2.4);
+    QPen pen(theme::textPrimary(), 2.4);
     pen.setCapStyle(Qt::RoundCap);
     pen.setJoinStyle(Qt::RoundJoin);
     painter.setPen(pen);

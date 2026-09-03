@@ -3,6 +3,7 @@
 #include "app/ChargePollThread.h"
 #include "common/Format.h"
 #include "widgets/ChargeRingWidget.h"
+#include "widgets/Toast.h"
 
 #include <QJsonObject>
 #include <QLabel>
@@ -108,8 +109,7 @@ void ChargingView::stopCharging()
                    m_stopButton->setEnabled(true);
                    m_pollThread->configure(m_order.id, m_api.baseUrl(), m_api.accessToken());
                    m_pollThread->start();
-                   QMessageBox::warning(this, QStringLiteral("停止失败"),
-                                        error.message.isEmpty() ? error.code : error.message);
+                   Toast::error(this, error.message.isEmpty() ? error.code : error.message);
                });
 }
 

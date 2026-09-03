@@ -1,5 +1,7 @@
 #include "Spinner.h"
 
+#include "common/Theme.h"
+
 #include "common/Demo.h"
 
 #include <QPainter>
@@ -36,11 +38,11 @@ void Spinner::paintEvent(QPaintEvent *event)
     painter.setRenderHint(QPainter::Antialiasing);
 
     const QRectF ring = QRectF(rect()).adjusted(2, 2, -2, -2);
-    QPen background(QColor(0xdf, 0xe3, 0xea), 2.4, Qt::SolidLine, Qt::RoundCap);
+    QPen background(theme::border(), 2.4, Qt::SolidLine, Qt::RoundCap);
     painter.setPen(background);
     painter.drawEllipse(ring);
 
-    QPen progress(QColor(0x1d, 0x5c, 0xff), 2.4, Qt::SolidLine, Qt::RoundCap);
+    QPen progress(theme::primary(), 2.4, Qt::SolidLine, Qt::RoundCap);
     painter.setPen(progress);
     painter.drawArc(ring, -m_angle * 16, -280 * 16);
 }

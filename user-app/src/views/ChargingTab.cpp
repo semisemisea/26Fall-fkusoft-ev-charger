@@ -3,6 +3,7 @@
 #include "ChargingView.h"
 #include "SettleView.h"
 #include "widgets/ScaleButton.h"
+#include "widgets/Toast.h"
 
 #include <QDateTime>
 #include <QFrame>
@@ -362,10 +363,9 @@ void ChargingTab::cancelReservation()
                [this](const QJsonValue &, const QJsonObject &) {
                    m_countdownTimer->stop();
                    setReservationBusy(false);
-                   m_hintLabel->setText(QStringLiteral("预约已取消"));
-                   m_hintLabel->show();
                    emit activeOrderChanged(false);
                    showPrepare();
+                   Toast::success(this, QStringLiteral("预约已取消"));
                },
                [this](const ApiError &error) {
                    setReservationBusy(false);
@@ -381,8 +381,7 @@ void ChargingTab::updateCountdown()
     if (remaining <= 0) {
         m_countdownTimer->stop();
         m_countdownLabel->setText(QStringLiteral("00:00"));
-        m_reservationHintLabel->setText(QStringLiteral("预约已过期，电桩已释放"));
-        m_reservationHintLabel->show();
+        Toast::info(this, QStringLiteral("预约已过期，电桩已释放"));
         QTimer::singleShot(1200, this, &ChargingTab::checkActiveOrder);
         return;
     }

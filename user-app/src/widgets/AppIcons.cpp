@@ -1,5 +1,7 @@
 #include "AppIcons.h"
 
+#include "common/Theme.h"
+
 #include <QPainter>
 #include <QPainterPath>
 
@@ -16,7 +18,7 @@ void drawBadge(QPainter &painter)
     painter.setPen(Qt::NoPen);
     painter.setBrush(Qt::white);
     painter.drawEllipse(QPointF(18.8, 4.8), 4.2, 4.2);
-    painter.setBrush(QColor(0xe7, 0x4c, 0x3c));
+    painter.setBrush(theme::error());
     painter.drawEllipse(QPointF(18.8, 4.8), 3.0, 3.0);
 }
 } // namespace

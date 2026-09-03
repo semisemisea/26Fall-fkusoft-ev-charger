@@ -1,4 +1,5 @@
 /* 充电用户端全局样式表：基础控件、手机壳结构、排版角色、卡片、杂项控件 */
+/* 色板对齐 Ant Design：primary #1677ff / success #52c41a / warning #faad14 / error #ff4d4f */
 
 /* ===== 基础 ===== */
 * {
@@ -6,10 +7,10 @@
 }
 QWidget {
     font-size: 14px;
-    color: #26282b;
+    color: rgba(0, 0, 0, 0.88);
 }
 QMainWindow, QDialog {
-    background: #f2f4f8;
+    background: #f5f5f5;
 }
 QLabel {
     background: transparent;
@@ -23,52 +24,57 @@ QScrollArea > QWidget > QWidget {
 }
 QLineEdit {
     background: white;
-    border: 1px solid #dcdfe6;
+    border: 1px solid #d9d9d9;
     border-radius: 10px;
     padding: 10px 12px;
 }
 QLineEdit:focus {
-    border-color: #1d5cff;
+    border-color: #1677ff;
 }
 QListWidget {
     background: white;
-    border: 1px solid #e8eaee;
+    border: 1px solid #d9d9d9;
     border-radius: 10px;
 }
 
 /* ===== 按钮 ===== */
 QPushButton {
     background: white;
-    border: 1px solid #dcdfe6;
+    border: 1px solid #d9d9d9;
     border-radius: 10px;
     padding: 10px 14px;
     font-size: 15px;
 }
 QPushButton:hover {
-    border-color: #1d5cff;
+    border-color: #4096ff;
+    color: #4096ff;
 }
 QPushButton:pressed {
-    background: #eef3ff;
+    border-color: #0958d9;
+    color: #0958d9;
+    background: #e6f4ff;
 }
 QPushButton:disabled {
-    color: #a8adb5;
-    border-color: #e4e6ea;
-    background: #f5f6f8;
+    color: rgba(0, 0, 0, 0.25);
+    border-color: #d9d9d9;
+    background: rgba(0, 0, 0, 0.04);
 }
 QPushButton#primaryButton {
-    background: #1d5cff;
+    background: #1677ff;
     color: white;
     border: none;
     font-weight: bold;
 }
 QPushButton#primaryButton:hover {
-    background: #1a4fe0;
+    background: #4096ff;
+    color: white;
 }
 QPushButton#primaryButton:pressed {
-    background: #1645c4;
+    background: #0958d9;
+    color: white;
 }
 QPushButton#dangerButton {
-    background: #e74c3c;
+    background: #ff4d4f;
     color: white;
     border: none;
     font-weight: bold;
@@ -76,38 +82,61 @@ QPushButton#dangerButton {
     padding: 12px;
 }
 QPushButton#dangerButton:hover {
-    background: #d63a2a;
+    background: #ff7875;
+    color: white;
+}
+QPushButton#dangerButton:pressed {
+    background: #d9363e;
+    color: white;
 }
 QPushButton#warnButton {
-    background: #e67e22;
+    background: #faad14;
     color: white;
     border: none;
     font-weight: bold;
 }
+QPushButton#warnButton:hover {
+    background: #ffc53d;
+    color: white;
+}
+QPushButton#warnButton:pressed {
+    background: #d48806;
+    color: white;
+}
 QPushButton#outlineDangerButton {
     background: white;
-    color: #e74c3c;
-    border: 1px solid #e74c3c;
+    color: #ff4d4f;
+    border: 1px solid #ff4d4f;
     font-weight: bold;
+}
+QPushButton#outlineDangerButton:hover {
+    color: #ff7875;
+    border-color: #ff7875;
+    background: white;
+}
+QPushButton#outlineDangerButton:pressed {
+    color: #d9363e;
+    border-color: #d9363e;
+    background: #fff2f0;
 }
 QPushButton#roundBackButton {
     background: white;
-    color: #26282b;
-    border: 1px solid #dcdfe6;
+    color: rgba(0, 0, 0, 0.88);
+    border: 1px solid #d9d9d9;
     border-radius: 18px;
     font-size: 18px;
     font-weight: bold;
     padding: 0;
 }
 QPushButton#roundBackButton:hover {
-    border-color: #1d5cff;
-    color: #1d5cff;
+    border-color: #1677ff;
+    color: #1677ff;
 }
 QPushButton#roundBackButton:pressed {
-    background: #eef3ff;
+    background: #e6f4ff;
 }
 QPushButton#roundStartButton {
-    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #2ecc71, stop:1 #27ae60);
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #52c41a, stop:1 #389e0d);
     color: white;
     border: none;
     border-radius: 75px;
@@ -115,29 +144,31 @@ QPushButton#roundStartButton {
     font-weight: bold;
 }
 QPushButton#roundStartButton:hover {
-    background: #2ecc71;
+    background: #52c41a;
     border: none;
+    color: white;
 }
 QPushButton#roundStartButton:pressed {
-    background: #1f8b4d;
+    background: #389e0d;
+    color: white;
 }
 QPushButton#roundStartButton:disabled {
-    background: #95d5b2;
+    background: #b7eb8f;
 }
 QPushButton#compactButton {
     padding: 8px 16px;
 }
 QPushButton#reserveButton {
     padding: 4px 10px;
-    color: #1d5cff;
+    color: #1677ff;
 }
 QPushButton#chargeButton {
     padding: 4px 14px;
 }
 QPushButton#aiBanner {
-    background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #eef3ff, stop:1 #f6f0ff);
-    color: #1d5cff;
-    border: 1px solid #d8e2ff;
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #e6f4ff, stop:1 #f9f0ff);
+    color: #1677ff;
+    border: 1px solid #d6e4ff;
     border-radius: 10px;
     padding: 9px 12px;
     text-align: left;
@@ -151,7 +182,7 @@ QPushButton#iconGhost {
 
 /* ===== 手机壳结构 ===== */
 QFrame#statusBar {
-    background: rgba(242, 244, 248, 0.82);
+    background: rgba(245, 245, 245, 0.82);
     border-bottom: 1px solid rgba(0, 0, 0, 0.05);
 }
 QFrame#tabPill {
@@ -164,22 +195,22 @@ QToolButton#tabBarButton {
     background: transparent;
     border: none;
     border-radius: 0;
-    color: #8a8f99;
+    color: rgba(0, 0, 0, 0.45);
     font-size: 11px;
     padding: 4px 0;
 }
 QToolButton#tabBarButton:checked {
-    color: #1d5cff;
+    color: #1677ff;
     font-weight: bold;
 }
 QToolButton#tabBarButton:hover {
     background: transparent;
-    color: #1d5cff;
+    color: #1677ff;
 }
 QLabel#statusTime {
     font-size: 12px;
     font-weight: bold;
-    color: #26282b;
+    color: rgba(0, 0, 0, 0.88);
 }
 QLabel#statusGlyph {
     font-size: 11px;
@@ -210,40 +241,40 @@ QLabel#strong {
     font-weight: bold;
 }
 QLabel#muted {
-    color: #8a8f99;
+    color: rgba(0, 0, 0, 0.45);
 }
 QLabel#meta {
-    color: #8a8f99;
+    color: rgba(0, 0, 0, 0.45);
     font-size: 12px;
 }
 QLabel#faint {
-    color: #8a8f99;
+    color: rgba(0, 0, 0, 0.25);
     font-size: 11px;
 }
 QLabel#error {
-    color: #e74c3c;
+    color: #ff4d4f;
 }
 QLabel#price {
-    color: #e74c3c;
+    color: #ff4d4f;
     font-weight: bold;
 }
 QLabel#amountRed {
-    color: #e74c3c;
+    color: #ff4d4f;
     font-size: 16px;
     font-weight: bold;
 }
 QLabel#totalAmount {
-    color: #e74c3c;
+    color: #ff4d4f;
     font-size: 26px;
     font-weight: bold;
 }
 QLabel#balance {
-    color: #1d5cff;
+    color: #1677ff;
     font-size: 28px;
     font-weight: bold;
 }
 QLabel#countdown {
-    color: #1d5cff;
+    color: #1677ff;
     font-size: 34px;
     font-weight: bold;
 }
@@ -252,10 +283,10 @@ QLabel#bigNumber {
     font-weight: bold;
 }
 QLabel#routeInfo {
-    color: #2a6fdb;
+    color: #1677ff;
 }
 QLabel#linkBlue {
-    color: #1d5cff;
+    color: #1677ff;
     text-decoration: underline;
 }
 QLabel#statusStrong {
@@ -283,7 +314,7 @@ QLabel#reservationStation {
 /* ===== 卡片 ===== */
 QFrame#infoCard {
     background: white;
-    border: 1px solid #e8eaee;
+    border: 1px solid #f0f0f0;
     border-radius: 14px;
 }
 QFrame#infoCard QLabel {
@@ -291,7 +322,7 @@ QFrame#infoCard QLabel {
 }
 QFrame#profileCard {
     background: white;
-    border: 1px solid #e8eaee;
+    border: 1px solid #f0f0f0;
     border-radius: 18px;
 }
 QFrame#profileCard QLabel {
@@ -299,7 +330,7 @@ QFrame#profileCard QLabel {
 }
 QFrame#chargerRow {
     background: white;
-    border: 1px solid #e8eaee;
+    border: 1px solid #f0f0f0;
     border-radius: 10px;
 }
 QFrame#chargerRow QLabel {
@@ -307,14 +338,14 @@ QFrame#chargerRow QLabel {
 }
 QFrame#receiptCard {
     background: white;
-    border: 1px dashed #d5d9e0;
+    border: 1px dashed #d9d9d9;
     border-radius: 14px;
 }
 QFrame#receiptCard QLabel {
     border: none;
 }
 QFrame#profileHeader {
-    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #1d5cff, stop:1 #4ca1ff);
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #1677ff, stop:1 #69b1ff);
     border: none;
     border-radius: 18px;
 }
@@ -324,7 +355,7 @@ QFrame#profileHeader QLabel {
 }
 QFrame#menuCard {
     background: white;
-    border: 1px solid #e8eaee;
+    border: 1px solid #f0f0f0;
     border-radius: 18px;
 }
 QFrame#menuCard QPushButton {
@@ -334,9 +365,11 @@ QFrame#menuCard QPushButton {
     padding: 14px 16px;
     text-align: left;
     font-size: 14px;
+    color: rgba(0, 0, 0, 0.88);
 }
 QFrame#menuCard QPushButton:hover {
-    background: #f5f7fa;
+    background: rgba(0, 0, 0, 0.04);
+    color: rgba(0, 0, 0, 0.88);
 }
 QLabel#profileName {
     font-size: 18px;
@@ -351,19 +384,19 @@ QLabel#profilePhone {
 /* ===== 电站卡片 ===== */
 StationCard {
     background: white;
-    border: 1px solid #e8eaee;
+    border: 1px solid #f0f0f0;
     border-radius: 14px;
 }
 StationCard:hover {
-    border-color: #1d5cff;
+    border-color: #1677ff;
 }
 StationCard QLabel {
     border: none;
     background: transparent;
 }
 StationCard QPushButton#navMini {
-    color: #1d5cff;
-    background: #eaf1ff;
+    color: #1677ff;
+    background: #e6f4ff;
     border: none;
     border-radius: 6px;
     padding: 3px 9px;
@@ -373,8 +406,26 @@ StationCard QPushButton#navMini {
 /* ===== 下拉框弹层 ===== */
 QListView#comboPopup {
     background: white;
-    border: 1px solid #e8eaee;
+    border: 1px solid #f0f0f0;
     border-radius: 10px;
     padding: 4px;
     outline: 0;
+}
+
+/* ===== 轻提示 ===== */
+QFrame#toast {
+    background: white;
+    border: 1px solid #f0f0f0;
+    border-radius: 10px;
+}
+QLabel#toastText {
+    border: none;
+}
+QLabel#toastDot {
+    border: none;
+    border-radius: 4px;
+    min-width: 8px;
+    max-width: 8px;
+    min-height: 8px;
+    max-height: 8px;
 }

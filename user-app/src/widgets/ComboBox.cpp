@@ -1,5 +1,7 @@
 #include "ComboBox.h"
 
+#include "common/Theme.h"
+
 #include <QAbstractItemView>
 #include <QEvent>
 #include <QListView>
@@ -24,10 +26,10 @@ public:
         const bool hovered = option.state & QStyle::State_MouseOver;
         if (selected || hovered) {
             painter->setPen(Qt::NoPen);
-            painter->setBrush(QColor(selected ? QStringLiteral("#eef3ff") : QStringLiteral("#f2f5fa")));
+            painter->setBrush(selected ? theme::primaryBg() : theme::fillHover());
             painter->drawRoundedRect(option.rect.adjusted(3, 1, -3, -1), 6, 6);
         }
-        painter->setPen(QColor(selected ? QStringLiteral("#1d5cff") : QStringLiteral("#26282b")));
+        painter->setPen(selected ? theme::primary() : theme::textPrimary());
         painter->drawText(option.rect.adjusted(12, 0, 0, 0), Qt::AlignVCenter | Qt::AlignLeft,
                           index.data(Qt::DisplayRole).toString());
         painter->restore();
@@ -84,12 +86,12 @@ void ComboBox::paintEvent(QPaintEvent *event)
     painter.setRenderHint(QPainter::Antialiasing);
 
     const QRectF frame = QRectF(rect()).adjusted(0.5, 0.5, -0.5, -0.5);
-    painter.setPen(QColor(hasFocus() || underMouse() ? QStringLiteral("#1d5cff") : QStringLiteral("#dcdfe6")));
+    painter.setPen(hasFocus() || underMouse() ? theme::primary() : theme::border());
     painter.setBrush(Qt::white);
     painter.drawRoundedRect(frame, 10, 10);
 
     const QRect textRect = rect().adjusted(12, 0, -34, 0);
-    painter.setPen(QColor(QStringLiteral("#26282b")));
+    painter.setPen(theme::textPrimary());
     painter.drawText(textRect, Qt::AlignVCenter | Qt::AlignLeft,
                      painter.fontMetrics().elidedText(currentText(), Qt::ElideRight, textRect.width()));
 
@@ -98,7 +100,7 @@ void ComboBox::paintEvent(QPaintEvent *event)
     chevron.moveTo(center.x() - 4.5, center.y() - 2.5);
     chevron.lineTo(center.x(), center.y() + 2.5);
     chevron.lineTo(center.x() + 4.5, center.y() - 2.5);
-    painter.setPen(QPen(QColor(QStringLiteral("#555a63")), 1.8, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+    painter.setPen(QPen(theme::textSecondary(), 1.8, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
     painter.setBrush(Qt::NoBrush);
     painter.drawPath(chevron);
 }

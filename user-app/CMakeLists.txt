@@ -16,6 +16,7 @@ qt_add_executable(user-app
     src/main.cpp
     src/common/Format.h
     src/common/Demo.h
+    src/common/Theme.h
     src/app/Session.h
     src/app/Session.cpp
     src/app/ChargePollThread.h
@@ -48,6 +49,8 @@ qt_add_executable(user-app
     src/widgets/ChargeRingWidget.cpp
     src/widgets/RechargeDialog.h
     src/widgets/RechargeDialog.cpp
+    src/widgets/Toast.h
+    src/widgets/Toast.cpp
     src/views/mainwindow.cpp
     src/views/mainwindow.h
     src/views/mainwindow.ui

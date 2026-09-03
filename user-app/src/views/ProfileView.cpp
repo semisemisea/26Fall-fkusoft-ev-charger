@@ -2,6 +2,7 @@
 
 #include "common/Format.h"
 #include "models/User.h"
+#include "widgets/Toast.h"
 #include "widgets/RechargeDialog.h"
 #include "widgets/ScaleButton.h"
 
@@ -201,7 +202,7 @@ void ProfileView::changeAvatar()
     auto *file = new QFile(path);
     if (!file->open(QIODevice::ReadOnly)) {
         delete file;
-        QMessageBox::warning(this, QStringLiteral("上传失败"), QStringLiteral("无法读取所选文件"));
+        Toast::error(this, QStringLiteral("无法读取所选文件"));
         return;
     }
 
@@ -220,8 +221,7 @@ void ProfileView::changeAvatar()
                      m_session.updateUser(user);
                  },
                  [this](const ApiError &error) {
-                     QMessageBox::warning(this, QStringLiteral("上传失败"),
-                                          error.message.isEmpty() ? error.code : error.message);
+                     Toast::error(this, error.message.isEmpty() ? error.code : error.message);
                  });
 }
 
@@ -241,8 +241,7 @@ void ProfileView::changeNickname()
                     m_session.updateUser(User::fromJson(data.toObject()));
                 },
                 [this](const ApiError &error) {
-                    QMessageBox::warning(this, QStringLiteral("修改失败"),
-                                         error.message.isEmpty() ? error.code : error.message);
+                    Toast::error(this, error.message.isEmpty() ? error.code : error.message);
                 });
 }
 

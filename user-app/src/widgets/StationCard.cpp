@@ -1,6 +1,7 @@
 #include "StationCard.h"
 
 #include "common/Format.h"
+#include "common/Theme.h"
 
 #include <QEvent>
 #include <QGraphicsDropShadowEffect>
@@ -54,8 +55,8 @@ StationCard::StationCard(const Station &station, QWidget *parent)
                                      .arg(station.chargerCount),
                                  this);
     idleLabel->setObjectName(QStringLiteral("strong"));
-    idleLabel->setStyleSheet(station.availableChargerCount > 0 ? QStringLiteral("color: #2e9e5b;")
-                                                               : QStringLiteral("color: #e74c3c;"));
+    idleLabel->setStyleSheet(QStringLiteral("color: %1;")
+                                 .arg(station.availableChargerCount > 0 ? theme::successName() : theme::errorName()));
 
     auto *grid = new QGridLayout(this);
     grid->setContentsMargins(14, 12, 14, 12);

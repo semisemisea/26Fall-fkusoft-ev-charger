@@ -1,5 +1,7 @@
 #include "RechargeDialog.h"
 
+#include "Toast.h"
+
 #include "common/Demo.h"
 #include "common/Format.h"
 #include "widgets/ScaleButton.h"
@@ -9,7 +11,6 @@
 #include <QJsonObject>
 #include <QLabel>
 #include <QLineEdit>
-#include <QMessageBox>
 #include <QPropertyAnimation>
 #include <QPushButton>
 #include <QRegularExpression>
@@ -65,7 +66,7 @@ void RechargeDialog::pay()
     bool ok = false;
     const double yuan = m_amountEdit->text().toDouble(&ok);
     if (!ok || yuan < 0.01) {
-        QMessageBox::warning(this, QStringLiteral("充值"), QStringLiteral("请输入有效金额"));
+        Toast::error(this, QStringLiteral("请输入有效金额"));
         return;
     }
 
@@ -78,14 +79,13 @@ void RechargeDialog::pay()
                [this](const QJsonValue &data, const QJsonObject &) {
                    m_payButton->setEnabled(true);
                    const qlonglong balance = data.toObject().value(QLatin1String("balanceAfterFen")).toInteger();
-                   QMessageBox::information(this, QStringLiteral("支付成功"), QStringLiteral("微信/支付宝支付成功"));
+                   Toast::success(parentWidget() ? parentWidget() : this, QStringLiteral("支付成功"));
                    emit succeeded(balance);
                    accept();
                },
                [this](const ApiError &error) {
                    m_payButton->setEnabled(true);
-                   QMessageBox::warning(this, QStringLiteral("充值失败"),
-                                        error.message.isEmpty() ? error.code : error.message);
+                   Toast::error(this, error.message.isEmpty() ? error.code : error.message);
                });
 }
 

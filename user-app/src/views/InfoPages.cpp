@@ -1,6 +1,7 @@
 #include "InfoPages.h"
 
 #include "common/Format.h"
+#include "common/Theme.h"
 #include "models/Order.h"
 #include "models/Reservation.h"
 #include "widgets/BackButton.h"
@@ -112,10 +113,10 @@ void OrderHistoryView::load()
                       const Order order = Order::fromJson(value.toObject());
 
                       const QString statusColor = order.status == QLatin1String("settled")
-                                                      ? QStringLiteral("#2e9e5b")
+                                                      ? theme::successName()
                                                       : (order.status == QLatin1String("awaiting_payment")
-                                                             ? QStringLiteral("#e67e22")
-                                                             : QStringLiteral("#2a6fdb"));
+                                                             ? theme::warningName()
+                                                             : theme::primaryName());
 
                       auto *card = new QFrame(this);
                       card->setObjectName(QStringLiteral("infoCard"));
@@ -220,7 +221,7 @@ void TransactionsView::load()
                       amountLabel->setObjectName(QStringLiteral("strong"));
                       amountLabel->setStyleSheet(
                           QStringLiteral("color: %1;")
-                              .arg(amount >= 0 ? QStringLiteral("#2e9e5b") : QStringLiteral("#e74c3c")));
+                              .arg(amount >= 0 ? theme::successName() : theme::errorName()));
                       amountLabel->setAlignment(Qt::AlignRight);
                       auto *balanceLabel = new QLabel(
                           QStringLiteral("余额 ￥%1")
@@ -281,12 +282,12 @@ void ReservationHistoryView::load()
                       const Reservation reservation = Reservation::fromJson(value.toObject());
 
                       const QString statusColor = reservation.status == QLatin1String("active")
-                                                      ? QStringLiteral("#1d5cff")
+                                                      ? theme::primaryName()
                                                       : (reservation.status == QLatin1String("used")
-                                                             ? QStringLiteral("#2e9e5b")
+                                                             ? theme::successName()
                                                              : (reservation.status == QLatin1String("expired")
-                                                                    ? QStringLiteral("#e67e22")
-                                                                    : QStringLiteral("#8a8f99")));
+                                                                    ? theme::warningName()
+                                                                    : theme::textSecondaryName()));
 
                       auto *card = new QFrame(this);
                       card->setObjectName(QStringLiteral("infoCard"));

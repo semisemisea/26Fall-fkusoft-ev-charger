@@ -1,13 +1,14 @@
 #include "SettleView.h"
 
 #include "common/Format.h"
+#include "common/Theme.h"
+#include "widgets/Toast.h"
 #include "widgets/RechargeDialog.h"
 #include "widgets/ScaleButton.h"
 
 #include <QFrame>
 #include <QJsonObject>
 #include <QLabel>
-#include <QMessageBox>
 #include <QPushButton>
 #include <QVBoxLayout>
 
@@ -50,7 +51,7 @@ SettleView::SettleView(Session &session, ApiClient &api, QWidget *parent)
 
     m_messageLabel = new QLabel(this);
     m_messageLabel->setAlignment(Qt::AlignCenter);
-    m_messageLabel->setStyleSheet(QStringLiteral("color: #e74c3c;"));
+    m_messageLabel->setStyleSheet(QStringLiteral("color: %1;").arg(theme::errorName()));
     m_messageLabel->setWordWrap(true);
     m_messageLabel->hide();
 
@@ -118,7 +119,7 @@ void SettleView::settle()
                QJsonObject{{QLatin1String("paymentMethod"), QStringLiteral("wallet")}},
                [this](const QJsonValue &, const QJsonObject &) {
                    m_titleLabel->setText(QStringLiteral("✅ 支付完成"));
-                   m_messageLabel->setStyleSheet(QStringLiteral("color: #2e9e5b;"));
+                   m_messageLabel->setStyleSheet(QStringLiteral("color: %1;").arg(theme::successName()));
                    m_messageLabel->setText(QStringLiteral("订单已支付，感谢使用"));
                    m_messageLabel->show();
                    m_payButton->hide();
@@ -130,14 +131,13 @@ void SettleView::settle()
                [this](const ApiError &error) {
                    m_payButton->setEnabled(true);
                    if (error.code == QLatin1String("INSUFFICIENT_BALANCE")) {
-                       m_messageLabel->setStyleSheet(QStringLiteral("color: #e74c3c;"));
+                       m_messageLabel->setStyleSheet(QStringLiteral("color: %1;").arg(theme::errorName()));
                        m_messageLabel->setText(QStringLiteral("钱包余额不足，请先充值"));
                        m_messageLabel->show();
                        m_topUpButton->show();
                        return;
                    }
-                   QMessageBox::warning(this, QStringLiteral("结算失败"),
-                                        error.message.isEmpty() ? error.code : error.message);
+                   Toast::error(this, error.message.isEmpty() ? error.code : error.message);
                });
 }
 
