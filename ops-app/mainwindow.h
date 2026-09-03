@@ -11,6 +11,8 @@ class QLabel;
 class QListWidget;
 class QStackedWidget;
 class SalesPage;
+class ChargerStatusPage;
+class ChargerManagePage;
 
 class MainWindow : public QMainWindow {
 	Q_OBJECT

@@ -24,6 +24,10 @@ qt_add_executable(ops-app
     logindialog.ui
     pages/salespage.cpp
     pages/salespage.h
+    pages/chargerstatuspage.cpp
+    pages/chargerstatuspage.h
+    pages/chargermanagepage.cpp
+    pages/chargermanagepage.h
 )
 
 target_link_libraries(ops-app PRIVATE

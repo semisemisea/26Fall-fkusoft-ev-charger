@@ -1,5 +1,7 @@
 #include "mainwindow.h"
 
+#include "pages/chargermanagepage.h"
+#include "pages/chargerstatuspage.h"
 #include "pages/salespage.h"
 
 #include <QHBoxLayout>
