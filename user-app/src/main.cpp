@@ -39,12 +39,6 @@ QLineEdit {
 QLineEdit:focus {
     border-color: #1d5cff;
 }
-QComboBox {
-    background: white;
-    border: 1px solid #dcdfe6;
-    border-radius: 10px;
-    padding: 8px 12px;
-}
 QPushButton {
     background: white;
     border: 1px solid #dcdfe6;
@@ -98,20 +92,47 @@ QPushButton#outlineDangerButton {
     border: 1px solid #e74c3c;
     font-weight: bold;
 }
-QPushButton#tabBarButton {
+QFrame#statusBar {
+    background: rgba(242, 244, 248, 0.82);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+QFrame#tabPill {
+    background: rgba(255, 255, 255, 0.82);
+    border: 1px solid rgba(255, 255, 255, 0.9);
+    border-top: 1px solid rgba(255, 255, 255, 1);
+    border-radius: 26px;
+}
+QToolButton#tabBarButton {
     background: transparent;
     border: none;
     border-radius: 0;
     color: #8a8f99;
-    font-size: 12px;
+    font-size: 11px;
     padding: 4px 0;
 }
-QPushButton#tabBarButton:checked {
+QToolButton#tabBarButton:checked {
     color: #1d5cff;
     font-weight: bold;
 }
-QPushButton#tabBarButton:hover {
+QToolButton#tabBarButton:hover {
     background: transparent;
+    color: #1d5cff;
+}
+QPushButton#roundBackButton {
+    background: white;
+    color: #26282b;
+    border: 1px solid #dcdfe6;
+    border-radius: 18px;
+    font-size: 18px;
+    font-weight: bold;
+    padding: 0;
+}
+QPushButton#roundBackButton:hover {
+    border-color: #1d5cff;
+    color: #1d5cff;
+}
+QPushButton#roundBackButton:pressed {
+    background: #eef3ff;
 }
 QPushButton#roundStartButton {
     background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #2ecc71, stop:1 #27ae60);

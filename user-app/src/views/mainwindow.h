@@ -10,11 +10,11 @@
 class ChargingTab;
 class QLabel;
 class ProfileView;
-class QPushButton;
 class QStackedWidget;
 class StationDetailView;
 class StationListView;
 class NavigationView;
+class QAbstractButton;
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -33,17 +33,20 @@ public:
 private:
     void buildStatusBar();
     void buildTabBar();
+    void updateTabIcons();
     void showTab(int index);
     void enterOverlay(QWidget *page);
     void navigateTo(const class Station &station, QWidget *returnPage);
     void startChargingFromDetail(const Charger &charger);
+    void handleReservationFromDetail(const Charger &charger);
     void refreshBalance();
 
     Ui::MainWindow *ui;
     Session *m_session = nullptr;
     ApiClient *m_api = nullptr;
     QLabel *m_timeLabel = nullptr;
-    QVector<QPushButton *> m_tabButtons;
+    QVector<QAbstractButton *> m_tabButtons;
+    bool m_hasActiveOrder = false;
     QWidget *m_tabContainer = nullptr;
     QStackedWidget *m_tabStack = nullptr;
     StationListView *m_stationListView = nullptr;

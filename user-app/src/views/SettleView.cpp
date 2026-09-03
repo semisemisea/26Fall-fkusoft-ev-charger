@@ -2,6 +2,7 @@
 
 #include "common/Format.h"
 #include "widgets/RechargeDialog.h"
+#include "widgets/ScaleButton.h"
 
 #include <QFrame>
 #include <QJsonObject>
@@ -21,7 +22,7 @@ SettleView::SettleView(Session &session, ApiClient &api, QWidget *parent)
 
     auto *receipt = new QFrame(this);
     receipt->setStyleSheet(QStringLiteral(
-        "QFrame { background: white; border: 1px dashed #d5d9e0; border-radius: 12px; }"
+        "QFrame { background: white; border: 1px dashed #d5d9e0; border-radius: 14px; }"
         "QLabel { border: none; }"));
     m_stationLabel = new QLabel(receipt);
     m_stationLabel->setStyleSheet(QStringLiteral("font-size: 16px; font-weight: bold;"));
@@ -55,17 +56,17 @@ SettleView::SettleView(Session &session, ApiClient &api, QWidget *parent)
     m_messageLabel->setWordWrap(true);
     m_messageLabel->hide();
 
-    m_payButton = new QPushButton(QStringLiteral("确认支付（钱包）"), this);
+    m_payButton = new ScaleButton(QStringLiteral("确认支付（钱包）"), this);
     m_payButton->setObjectName(QStringLiteral("primaryButton"));
 
-    m_topUpButton = new QPushButton(QStringLiteral("余额不足，去充值"), this);
+    m_topUpButton = new ScaleButton(QStringLiteral("余额不足，去充值"), this);
     m_topUpButton->setObjectName(QStringLiteral("warnButton"));
     m_topUpButton->hide();
 
     m_laterButton = new QPushButton(QStringLiteral("稍后支付"), this);
     m_laterButton->setFlat(true);
 
-    m_homeButton = new QPushButton(QStringLiteral("返回首页"), this);
+    m_homeButton = new ScaleButton(QStringLiteral("返回首页"), this);
     m_homeButton->setObjectName(QStringLiteral("primaryButton"));
     m_homeButton->hide();
 

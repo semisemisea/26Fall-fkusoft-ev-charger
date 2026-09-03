@@ -1,14 +1,17 @@
 #include "NavigationView.h"
 
 #include <QComboBox>
+#include "widgets/ComboBox.h"
 #include <QJsonObject>
 #include <QLabel>
 #include <QPushButton>
 #include <QUrl>
 #include <QUrlQuery>
 #include <QVBoxLayout>
+#include <QWebEnginePage>
 #include <QWebEngineProfile>
 #include <QWebEngineView>
+#include "widgets/BackButton.h"
 
 namespace {
 struct ModeOption
@@ -21,6 +24,44 @@ const ModeOption kModeOptions[] = {
     {"驾车", "driving"},
     {"步行", "walking"},
 };
+
+class MapPage : public QWebEnginePage
+{
+public:
+    using QWebEnginePage::QWebEnginePage;
+
+protected:
+    QWebEnginePage *createWindow(WebWindowType type) override
+    {
+        Q_UNUSED(type)
+        return this;
+    }
+
+    bool acceptNavigationRequest(const QUrl &url, NavigationType type, bool isMainFrame) override
+    {
+        if (!url.scheme().startsWith(QLatin1String("http"))) {
+            return false;
+        }
+        return QWebEnginePage::acceptNavigationRequest(url, type, isMainFrame);
+    }
+};
+
+const char kTouchBridgeScript[] = R"JS(
+(function(){
+  function fire(type, e){
+    try{
+      var t = new Touch({identifier: 1, target: e.target, clientX: e.clientX, clientY: e.clientY,
+                         pageX: e.pageX, pageY: e.pageY});
+      e.target.dispatchEvent(new TouchEvent(type, {bubbles: true, cancelable: true,
+        touches: type === 'touchend' ? [] : [t],
+        targetTouches: type === 'touchend' ? [] : [t],
+        changedTouches: [t]}));
+    }catch(err){}
+  }
+  window.addEventListener('mousedown', function(e){ fire('touchstart', e); }, true);
+  window.addEventListener('mouseup', function(e){ fire('touchend', e); }, true);
+})();
+)JS";
 }
 
 NavigationView::NavigationView(Session &session, ApiClient &api, QWidget *parent)
@@ -28,13 +69,12 @@ NavigationView::NavigationView(Session &session, ApiClient &api, QWidget *parent
     , m_session(session)
     , m_api(api)
 {
-    auto *backButton = new QPushButton(QStringLiteral("←"), this);
-    backButton->setFixedWidth(44);
+    auto *backButton = new BackButton(this);
     auto *titleLabel = new QLabel(this);
     titleLabel->setStyleSheet(QStringLiteral("font-size: 18px; font-weight: bold;"));
     titleLabel->setObjectName(QStringLiteral("stationTitle"));
 
-    m_modeCombo = new QComboBox(this);
+    m_modeCombo = new ComboBox(this);
     for (const ModeOption &option : kModeOptions) {
         m_modeCombo->addItem(QString::fromUtf8(option.label), QLatin1String(option.value));
     }
@@ -49,6 +89,10 @@ NavigationView::NavigationView(Session &session, ApiClient &api, QWidget *parent
     m_statusLabel = new QLabel(this);
     m_statusLabel->setStyleSheet(QStringLiteral("color: #d33;"));
     m_statusLabel->hide();
+
+    m_hintLabel = new QLabel(QStringLiteral("点击「开始导航」加载路线地图"), this);
+    m_hintLabel->setAlignment(Qt::AlignCenter);
+    m_hintLabel->setStyleSheet(QStringLiteral("color: #8a8f99; font-size: 15px;"));
 
     m_layout = new QVBoxLayout(this);
     m_layout->setContentsMargins(12, 12, 12, 12);
@@ -68,11 +112,12 @@ NavigationView::NavigationView(Session &session, ApiClient &api, QWidget *parent
     m_layout->addLayout(modeRow);
     m_layout->addWidget(m_summaryLabel);
     m_layout->addWidget(m_statusLabel);
+    m_layout->addWidget(m_hintLabel, 1);
 
     connect(backButton, &QPushButton::clicked, this, &NavigationView::backRequested);
     connect(m_navigateButton, &QPushButton::clicked, this, &NavigationView::requestRoute);
     connect(m_modeCombo, &QComboBox::activated, this, [this] {
-        if (m_webView) {
+        if (m_loaded) {
             requestRoute();
         }
     });
@@ -84,7 +129,12 @@ void NavigationView::open(const Station &station)
     findChild<QLabel *>(QStringLiteral("stationTitle"))->setText(station.name);
     m_summaryLabel->hide();
     m_statusLabel->hide();
-    requestRoute();
+    m_loaded = false;
+    m_navigateButton->setText(QStringLiteral("开始导航"));
+    if (m_webView) {
+        m_webView->hide();
+    }
+    m_hintLabel->show();
 }
 
 void NavigationView::requestRoute()
@@ -121,11 +171,22 @@ void NavigationView::requestRoute()
                   }
                   if (!m_webView) {
                       m_webView = new QWebEngineView(this);
+                      auto *mapPage = new MapPage(QWebEngineProfile::defaultProfile(), m_webView);
+                      m_webView->setPage(mapPage);
                       m_webView->page()->profile()->setHttpUserAgent(QStringLiteral(
                           "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1"));
+                      connect(m_webView, &QWebEngineView::loadFinished, this, [this](bool ok) {
+                          if (ok && m_webView) {
+                              m_webView->page()->runJavaScript(QString::fromUtf8(kTouchBridgeScript));
+                          }
+                      });
                       m_layout->addWidget(m_webView, 1);
                   }
+                  m_hintLabel->hide();
+                  m_webView->show();
                   m_webView->load(mapUrl);
+                  m_loaded = true;
+                  m_navigateButton->setText(QStringLiteral("重新规划"));
               },
               [this](const ApiError &error) {
                   m_navigateButton->setEnabled(true);

@@ -1,5 +1,7 @@
 #include "ChargeRingWidget.h"
 
+#include "common/Demo.h"
+
 #include <QHideEvent>
 #include <QPainter>
 #include <QShowEvent>
@@ -17,7 +19,7 @@ void ChargeRingWidget::showEvent(QShowEvent *event)
     auto *animation = new QVariantAnimation(this);
     animation->setStartValue(0);
     animation->setEndValue(360);
-    animation->setDuration(1600);
+    animation->setDuration(demo::ms(1600));
     animation->setLoopCount(-1);
     connect(animation, &QVariantAnimation::valueChanged, this, [this](const QVariant &value) {
         m_angle = value.toInt();

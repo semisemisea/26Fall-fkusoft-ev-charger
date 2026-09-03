@@ -14,6 +14,7 @@ include(GNUInstallDirs)
 qt_add_executable(user-app
     src/main.cpp
     src/common/Format.h
+    src/common/Demo.h
     src/app/Session.h
     src/app/Session.cpp
     src/app/ChargePollThread.h
@@ -28,8 +29,20 @@ qt_add_executable(user-app
     src/models/Charger.cpp
     src/models/Order.h
     src/models/Order.cpp
+    src/models/Reservation.h
+    src/models/Reservation.cpp
     src/widgets/StationCard.h
     src/widgets/StationCard.cpp
+    src/widgets/BackButton.h
+    src/widgets/BackButton.cpp
+    src/widgets/ComboBox.h
+    src/widgets/ComboBox.cpp
+    src/widgets/AppIcons.h
+    src/widgets/AppIcons.cpp
+    src/widgets/ScaleButton.h
+    src/widgets/ScaleButton.cpp
+    src/widgets/Spinner.h
+    src/widgets/Spinner.cpp
     src/widgets/ChargeRingWidget.h
     src/widgets/ChargeRingWidget.cpp
     src/widgets/RechargeDialog.h

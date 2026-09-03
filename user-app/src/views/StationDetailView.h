@@ -8,6 +8,7 @@
 
 class QLabel;
 class QPushButton;
+class Spinner;
 class QVBoxLayout;
 
 class StationDetailView : public QWidget
@@ -22,6 +23,7 @@ public:
 signals:
     void backRequested();
     void chargeRequested(const Charger &charger);
+    void reservationRequested(const Charger &charger);
     void navigateRequested(const Station &station);
 
 private:
@@ -33,5 +35,6 @@ private:
     QLabel *m_nameLabel = nullptr;
     QLabel *m_infoLabel = nullptr;
     QLabel *m_statusLabel = nullptr;
+    Spinner *m_spinner = nullptr;
     QVBoxLayout *m_chargersLayout = nullptr;
 };

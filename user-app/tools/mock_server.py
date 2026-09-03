@@ -108,6 +108,25 @@ def active_reservation_for(user):
                  if r["userId"] == user["id"] and r["status"] == "active"), None)
 
 
+def expire_stale_reservations():
+    now = datetime.now(timezone.utc)
+    for r in reservations.values():
+        if r["status"] == "active" and parse_iso(r["expiresAt"]) <= now:
+            r["status"] = "expired"
+            charger = find_charger(r["chargerId"])
+            if charger and charger["status"] == "reserved":
+                charger["status"] = "available"
+
+
+def reservation_view(reservation):
+    station = find_station(reservation["stationId"])
+    charger = find_charger(reservation["chargerId"])
+    view = dict(reservation)
+    view["stationName"] = station["name"] if station else ""
+    view["chargerCode"] = charger["code"] if charger else ""
+    return view
+
+
 def order_view(order):
     station = find_station(order["stationId"])
     charger = find_charger(order["chargerId"])
@@ -195,6 +214,8 @@ class Handler(BaseHTTPRequestHandler):
             self.handle_create_reservation()
         elif path == f"{BASE}/orders":
             self.handle_create_order()
+        elif match := re.fullmatch(rf"{BASE}/reservations/(\d+)/cancel", path):
+            self.handle_cancel_reservation(int(match.group(1)))
         elif match := re.fullmatch(rf"{BASE}/orders/(\d+)/stop", path):
             self.handle_stop_order(int(match.group(1)))
         elif match := re.fullmatch(rf"{BASE}/orders/(\d+)/settle", path):
@@ -211,6 +232,10 @@ class Handler(BaseHTTPRequestHandler):
             self.handle_active_order()
         elif path == f"{BASE}/me/wallet/transactions":
             self.handle_transactions()
+        elif path == f"{BASE}/reservations":
+            self.handle_list_reservations(query)
+        elif match := re.fullmatch(rf"{BASE}/reservations/(\d+)", path):
+            self.handle_get_reservation(int(match.group(1)))
         elif path == f"{BASE}/orders":
             self.handle_list_orders(query)
         elif path == f"{BASE}/forecasts":
@@ -434,6 +459,7 @@ class Handler(BaseHTTPRequestHandler):
         user = self.require_user()
         if not user:
             return
+        expire_stale_reservations()
         body = self.read_body()
         charger = find_charger(body.get("chargerId", 0))
         if not charger:
@@ -460,12 +486,54 @@ class Handler(BaseHTTPRequestHandler):
         next_reservation_id += 1
         reservations[reservation["id"]] = reservation
         charger["status"] = "reserved"
-        self.send_json(201, reservation)
+        self.send_json(201, reservation_view(reservation))
+
+    def handle_list_reservations(self, query):
+        user = self.require_user()
+        if not user:
+            return
+        expire_stale_reservations()
+        items = [reservation_view(r) for r in reservations.values() if r["userId"] == user["id"]]
+        status = query.get("status", [None])[0]
+        if status:
+            items = [r for r in items if r["status"] == status]
+        items.sort(key=lambda r: r["id"], reverse=True)
+        self.send_json(200, items)
+
+    def handle_get_reservation(self, reservation_id):
+        user = self.require_user()
+        if not user:
+            return
+        expire_stale_reservations()
+        reservation = reservations.get(reservation_id)
+        if not reservation or reservation["userId"] != user["id"]:
+            self.send_error_code(404, "NOT_FOUND", "预约不存在")
+            return
+        self.send_json(200, reservation_view(reservation))
+
+    def handle_cancel_reservation(self, reservation_id):
+        user = self.require_user()
+        if not user:
+            return
+        expire_stale_reservations()
+        reservation = reservations.get(reservation_id)
+        if not reservation or reservation["userId"] != user["id"]:
+            self.send_error_code(404, "NOT_FOUND", "预约不存在")
+            return
+        if reservation["status"] != "active":
+            self.send_error_code(409, "INVALID_STATE_TRANSITION", "预约当前不可取消")
+            return
+        reservation["status"] = "cancelled"
+        charger = find_charger(reservation["chargerId"])
+        if charger and charger["status"] == "reserved":
+            charger["status"] = "available"
+        self.send_json(200, reservation_view(reservation))
 
     def handle_create_order(self):
         user = self.require_user()
         if not user:
             return
+        expire_stale_reservations()
         body = self.read_body()
         charger = find_charger(body.get("chargerId", 0))
         if not charger:
@@ -559,6 +627,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_json(200, order_view(order))
 
     def handle_nearby(self, query):
+        expire_stale_reservations()
         try:
             lat = float(query.get("latitude", ["38.914"])[0])
             lng = float(query.get("longitude", ["121.614"])[0])
@@ -578,6 +647,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_json(200, items)
 
     def handle_station(self, station_id):
+        expire_stale_reservations()
         station = next((s for s in STATIONS if s["id"] == station_id), None)
         if not station:
             self.send_error_code(404, "NOT_FOUND", "电站不存在")
@@ -588,6 +658,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_json(200, data)
 
     def handle_station_chargers(self, station_id):
+        expire_stale_reservations()
         if not any(s["id"] == station_id for s in STATIONS):
             self.send_error_code(404, "NOT_FOUND", "电站不存在")
             return

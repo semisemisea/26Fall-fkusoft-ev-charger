@@ -3,6 +3,7 @@
 #include "common/Format.h"
 #include "models/User.h"
 #include "widgets/RechargeDialog.h"
+#include "widgets/ScaleButton.h"
 
 #include <QEvent>
 #include <QFile>
@@ -40,7 +41,7 @@ ProfileView::ProfileView(Session &session, ApiClient &api, QWidget *parent)
     auto *headerCard = new QFrame(this);
     headerCard->setStyleSheet(QStringLiteral(
         "QFrame { background: qlineargradient(x1:0, y1:0, x2:1, y2:1,"
-        " stop:0 #1d5cff, stop:1 #4ca1ff); border: none; border-radius: 16px; }"
+        " stop:0 #1d5cff, stop:1 #4ca1ff); border: none; border-radius: 18px; }"
         "QLabel { border: none; background: transparent; }"));
 
     m_avatarLabel = new QLabel(QStringLiteral("👤"), headerCard);
@@ -84,7 +85,7 @@ ProfileView::ProfileView(Session &session, ApiClient &api, QWidget *parent)
 
     auto *walletCard = new QFrame(this);
     walletCard->setStyleSheet(QStringLiteral(
-        "QFrame { background: white; border: 1px solid #e8eaee; border-radius: 16px; }"
+        "QFrame { background: white; border: 1px solid #e8eaee; border-radius: 18px; }"
         "QLabel { border: none; }"));
     auto *balanceTitle = new QLabel(QStringLiteral("钱包余额"), walletCard);
     balanceTitle->setStyleSheet(QStringLiteral("color: #8a8f99;"));
@@ -92,7 +93,7 @@ ProfileView::ProfileView(Session &session, ApiClient &api, QWidget *parent)
     m_balanceLabel = new QLabel(walletCard);
     m_balanceLabel->setAlignment(Qt::AlignCenter);
     m_balanceLabel->setStyleSheet(QStringLiteral("font-size: 28px; font-weight: bold; color: #1d5cff;"));
-    auto *topUpButton = new QPushButton(QStringLiteral("立即充值"), walletCard);
+    auto *topUpButton = new ScaleButton(QStringLiteral("立即充值"), walletCard);
     topUpButton->setObjectName(QStringLiteral("primaryButton"));
 
     auto *walletLayout = new QVBoxLayout(walletCard);
@@ -109,6 +110,7 @@ ProfileView::ProfileView(Session &session, ApiClient &api, QWidget *parent)
         void (ProfileView::*signal)();
     } menuItems[] = {
         {"📋  历史充电订单", &ProfileView::ordersRequested},
+        {"📅  我的预约记录", &ProfileView::reservationsRequested},
         {"💰  钱包流水", &ProfileView::transactionsRequested},
         {"🚗  我的爱车", &ProfileView::carRequested},
         {"ℹ️  关于系统", &ProfileView::aboutRequested},
@@ -116,7 +118,7 @@ ProfileView::ProfileView(Session &session, ApiClient &api, QWidget *parent)
 
     auto *menuCard = new QFrame(this);
     menuCard->setStyleSheet(QStringLiteral(
-        "QFrame { background: white; border: 1px solid #e8eaee; border-radius: 16px; }"
+        "QFrame { background: white; border: 1px solid #e8eaee; border-radius: 18px; }"
         "QPushButton { background: transparent; border: none; border-radius: 0;"
         " padding: 14px 16px; text-align: left; font-size: 14px; }"
         "QPushButton:hover { background: #f5f7fa; }"));
@@ -129,7 +131,7 @@ ProfileView::ProfileView(Session &session, ApiClient &api, QWidget *parent)
         menuLayout->addWidget(row);
     }
 
-    auto *logoutButton = new QPushButton(QStringLiteral("退出登录"), this);
+    auto *logoutButton = new ScaleButton(QStringLiteral("退出登录"), this);
     logoutButton->setObjectName(QStringLiteral("outlineDangerButton"));
     connect(logoutButton, &QPushButton::clicked, this, &ProfileView::signOut);
     connect(editButton, &QPushButton::clicked, this, &ProfileView::changeNickname);

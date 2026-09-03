@@ -2,34 +2,50 @@
 
 #include "common/Format.h"
 #include "models/Order.h"
+#include "models/Reservation.h"
+#include "widgets/BackButton.h"
+#include "widgets/Spinner.h"
 
 #include <QFrame>
+#include <QGridLayout>
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QLabel>
 #include <QPushButton>
 #include <QScrollArea>
+#include <QHBoxLayout>
 #include <QVBoxLayout>
 
 namespace {
 QLabel *makePageShell(const QString &title, const std::function<void()> &onBack,
-                      QVBoxLayout **listLayout, QWidget *parent)
+                      QVBoxLayout **listLayout, Spinner **spinnerOut, QWidget *parent)
 {
-    auto *backButton = new QPushButton(QStringLiteral("←"), parent);
-    backButton->setFixedWidth(44);
+    auto *backButton = new BackButton(parent);
     auto *titleLabel = new QLabel(title, parent);
     titleLabel->setStyleSheet(QStringLiteral("font-size: 18px; font-weight: bold;"));
 
     auto *statusLabel = new QLabel(parent);
-    statusLabel->setAlignment(Qt::AlignCenter);
     statusLabel->setStyleSheet(QStringLiteral("color: #8a8f99;"));
     statusLabel->hide();
+
+    auto *spinner = new Spinner(parent);
+    spinner->hide();
+    *spinnerOut = spinner;
+
+    auto *statusRow = new QWidget(parent);
+    auto *statusRowLayout = new QHBoxLayout(statusRow);
+    statusRowLayout->setContentsMargins(0, 0, 0, 0);
+    statusRowLayout->setSpacing(8);
+    statusRowLayout->addStretch();
+    statusRowLayout->addWidget(spinner);
+    statusRowLayout->addWidget(statusLabel);
+    statusRowLayout->addStretch();
 
     auto *container = new QWidget(parent);
     *listLayout = new QVBoxLayout(container);
     (*listLayout)->setContentsMargins(0, 0, 0, 0);
     (*listLayout)->setSpacing(10);
-    (*listLayout)->addWidget(statusLabel);
+    (*listLayout)->addWidget(statusRow);
     (*listLayout)->addStretch();
 
     auto *scrollArea = new QScrollArea(parent);
@@ -68,7 +84,7 @@ OrderHistoryView::OrderHistoryView(ApiClient &api, QWidget *parent)
 {
     QVBoxLayout *listLayout = nullptr;
     m_statusLabel = makePageShell(QStringLiteral("历史充电订单"), [this] { emit backRequested(); },
-                                  &listLayout, this);
+                                  &listLayout, &m_spinner, this);
     m_listLayout = listLayout;
 }
 
@@ -80,10 +96,11 @@ void OrderHistoryView::showEvent(QShowEvent *event)
 
 void OrderHistoryView::load()
 {
-    m_statusLabel->setText(QStringLiteral("加载中..."));
-    m_statusLabel->show();
+    m_spinner->show();
+    m_statusLabel->hide();
     m_api.get(QStringLiteral("/orders?pageSize=50"),
               [this](const QJsonValue &data, const QJsonObject &) {
+                  m_spinner->hide();
                   clearCards(m_listLayout);
                   const QJsonArray orders = data.toArray();
                   if (orders.isEmpty()) {
@@ -91,7 +108,6 @@ void OrderHistoryView::load()
                       m_statusLabel->show();
                       return;
                   }
-                  m_statusLabel->hide();
                   for (const QJsonValue &value : orders) {
                       const Order order = Order::fromJson(value.toObject());
 
@@ -103,7 +119,7 @@ void OrderHistoryView::load()
 
                       auto *card = new QFrame(this);
                       card->setStyleSheet(QStringLiteral(
-                          "QFrame { background: white; border: 1px solid #e8eaee; border-radius: 12px; }"
+                          "QFrame { background: white; border: 1px solid #e8eaee; border-radius: 14px; }"
                           "QLabel { border: none; }"));
                       auto *nameLabel = new QLabel(order.stationName, card);
                       nameLabel->setStyleSheet(QStringLiteral("font-size: 15px; font-weight: bold;"));
@@ -137,6 +153,7 @@ void OrderHistoryView::load()
                   }
               },
               [this](const ApiError &error) {
+                  m_spinner->hide();
                   m_statusLabel->setText(error.message.isEmpty() ? error.code : error.message);
                   m_statusLabel->show();
               });
@@ -148,7 +165,7 @@ TransactionsView::TransactionsView(ApiClient &api, QWidget *parent)
 {
     QVBoxLayout *listLayout = nullptr;
     m_statusLabel = makePageShell(QStringLiteral("钱包流水"), [this] { emit backRequested(); },
-                                  &listLayout, this);
+                                  &listLayout, &m_spinner, this);
     m_listLayout = listLayout;
 }
 
@@ -160,10 +177,11 @@ void TransactionsView::showEvent(QShowEvent *event)
 
 void TransactionsView::load()
 {
-    m_statusLabel->setText(QStringLiteral("加载中..."));
-    m_statusLabel->show();
+    m_spinner->show();
+    m_statusLabel->hide();
     m_api.get(QStringLiteral("/me/wallet/transactions"),
               [this](const QJsonValue &data, const QJsonObject &) {
+                  m_spinner->hide();
                   clearCards(m_listLayout);
                   const QJsonArray transactions = data.toArray();
                   if (transactions.isEmpty()) {
@@ -171,7 +189,6 @@ void TransactionsView::load()
                       m_statusLabel->show();
                       return;
                   }
-                  m_statusLabel->hide();
                   for (const QJsonValue &value : transactions) {
                       const QJsonObject object = value.toObject();
                       QString type;
@@ -189,7 +206,7 @@ void TransactionsView::load()
 
                       auto *card = new QFrame(this);
                       card->setStyleSheet(QStringLiteral(
-                          "QFrame { background: white; border: 1px solid #e8eaee; border-radius: 12px; }"
+                          "QFrame { background: white; border: 1px solid #e8eaee; border-radius: 14px; }"
                           "QLabel { border: none; }"));
                       auto *typeLabel = new QLabel(type, card);
                       typeLabel->setStyleSheet(QStringLiteral("font-weight: bold;"));
@@ -227,6 +244,90 @@ void TransactionsView::load()
                   }
               },
               [this](const ApiError &error) {
+                  m_spinner->hide();
+                  m_statusLabel->setText(error.message.isEmpty() ? error.code : error.message);
+                  m_statusLabel->show();
+              });
+}
+
+ReservationHistoryView::ReservationHistoryView(ApiClient &api, QWidget *parent)
+    : QWidget(parent)
+    , m_api(api)
+{
+    QVBoxLayout *listLayout = nullptr;
+    m_statusLabel = makePageShell(QStringLiteral("我的预约记录"), [this] { emit backRequested(); },
+                                  &listLayout, &m_spinner, this);
+    m_listLayout = listLayout;
+}
+
+void ReservationHistoryView::showEvent(QShowEvent *event)
+{
+    QWidget::showEvent(event);
+    load();
+}
+
+void ReservationHistoryView::load()
+{
+    m_spinner->show();
+    m_statusLabel->hide();
+    m_api.get(QStringLiteral("/reservations"),
+              [this](const QJsonValue &data, const QJsonObject &) {
+                  m_spinner->hide();
+                  clearCards(m_listLayout);
+                  const QJsonArray reservations = data.toArray();
+                  if (reservations.isEmpty()) {
+                      m_statusLabel->setText(QStringLiteral("暂无预约记录"));
+                      m_statusLabel->show();
+                      return;
+                  }
+                  for (const QJsonValue &value : reservations) {
+                      const Reservation reservation = Reservation::fromJson(value.toObject());
+
+                      const QString statusColor = reservation.status == QLatin1String("active")
+                                                      ? QStringLiteral("#1d5cff")
+                                                      : (reservation.status == QLatin1String("used")
+                                                             ? QStringLiteral("#2e9e5b")
+                                                             : (reservation.status == QLatin1String("expired")
+                                                                    ? QStringLiteral("#e67e22")
+                                                                    : QStringLiteral("#8a8f99")));
+
+                      auto *card = new QFrame(this);
+                      card->setStyleSheet(QStringLiteral(
+                          "QFrame { background: white; border: 1px solid #e8eaee; border-radius: 14px; }"
+                          "QLabel { border: none; }"));
+                      auto *nameLabel = new QLabel(reservation.stationName, card);
+                      nameLabel->setStyleSheet(QStringLiteral("font-size: 15px; font-weight: bold;"));
+                      auto *statusLabel = new QLabel(Reservation::statusLabel(reservation.status), card);
+                      statusLabel->setStyleSheet(
+                          QStringLiteral("color: %1; font-weight: bold;").arg(statusColor));
+                      auto *detailLabel = new QLabel(
+                          QStringLiteral("电桩 %1 · %2")
+                              .arg(reservation.chargerCode,
+                                   QString(reservation.startAt)
+                                       .replace(QLatin1Char('T'), QLatin1Char(' '))
+                                       .left(16)),
+                          card);
+                      detailLabel->setStyleSheet(QStringLiteral("color: #8a8f99; font-size: 12px;"));
+                      auto *expireLabel = new QLabel(
+                          QStringLiteral("到期 %1")
+                              .arg(reservation.expiresAt.toString(QStringLiteral("MM-dd hh:mm"))),
+                          card);
+                      expireLabel->setStyleSheet(QStringLiteral("color: #8a8f99; font-size: 12px;"));
+                      expireLabel->setAlignment(Qt::AlignRight);
+
+                      auto *grid = new QGridLayout(card);
+                      grid->setContentsMargins(14, 10, 14, 10);
+                      grid->setVerticalSpacing(4);
+                      grid->addWidget(nameLabel, 0, 0);
+                      grid->addWidget(statusLabel, 0, 1, Qt::AlignRight);
+                      grid->addWidget(detailLabel, 1, 0);
+                      grid->addWidget(expireLabel, 1, 1, Qt::AlignRight);
+
+                      m_listLayout->insertWidget(m_listLayout->count() - 1, card);
+                  }
+              },
+              [this](const ApiError &error) {
+                  m_spinner->hide();
                   m_statusLabel->setText(error.message.isEmpty() ? error.code : error.message);
                   m_statusLabel->show();
               });
@@ -235,8 +336,7 @@ void TransactionsView::load()
 CarView::CarView(QWidget *parent)
     : QWidget(parent)
 {
-    auto *backButton = new QPushButton(QStringLiteral("←"), this);
-    backButton->setFixedWidth(44);
+    auto *backButton = new BackButton(this);
     connect(backButton, &QPushButton::clicked, this, &CarView::backRequested);
     auto *headerRow = new QHBoxLayout;
     headerRow->addWidget(backButton);
@@ -256,7 +356,7 @@ CarView::CarView(QWidget *parent)
 
     auto *card = new QFrame(this);
     card->setStyleSheet(QStringLiteral(
-        "QFrame { background: white; border: 1px solid #e8eaee; border-radius: 16px; }"
+        "QFrame { background: white; border: 1px solid #e8eaee; border-radius: 18px; }"
         "QLabel { border: none; }"));
     auto *cardLayout = new QVBoxLayout(card);
     cardLayout->setContentsMargins(24, 32, 24, 32);
@@ -275,8 +375,7 @@ CarView::CarView(QWidget *parent)
 AboutView::AboutView(QWidget *parent)
     : QWidget(parent)
 {
-    auto *backButton = new QPushButton(QStringLiteral("←"), this);
-    backButton->setFixedWidth(44);
+    auto *backButton = new BackButton(this);
     connect(backButton, &QPushButton::clicked, this, &AboutView::backRequested);
     auto *headerRow = new QHBoxLayout;
     headerRow->addWidget(backButton);

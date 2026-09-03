@@ -1,12 +1,17 @@
 #include "StationListView.h"
 
+#include "common/Demo.h"
+#include "widgets/Spinner.h"
 #include "widgets/StationCard.h"
 
-#include <QComboBox>
+#include "widgets/ComboBox.h"
+#include <QGraphicsOpacityEffect>
+#include <QHBoxLayout>
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QLabel>
 #include <QLineEdit>
+#include <QPropertyAnimation>
 #include <QPushButton>
 #include <QScrollArea>
 #include <QUrlQuery>
@@ -34,9 +39,9 @@ StationListView::StationListView(Session &session, ApiClient &api, QWidget *pare
     , m_session(session)
     , m_api(api)
 {
-    m_locationCombo = new QComboBox(this);
+    m_locationCombo = new ComboBox(this);
     for (const LocationPreset &preset : kLocationPresets) {
-        m_locationCombo->addItem(QStringLiteral("📍 %1").arg(preset.name));
+        m_locationCombo->addItem(preset.name);
     }
     connect(m_locationCombo, &QComboBox::activated, this, [this] {
         const LocationPreset &preset = kLocationPresets[m_locationCombo->currentIndex()];
@@ -59,9 +64,20 @@ StationListView::StationListView(Session &session, ApiClient &api, QWidget *pare
     m_bannerButton->hide();
 
     m_statusLabel = new QLabel(this);
-    m_statusLabel->setAlignment(Qt::AlignCenter);
     m_statusLabel->setStyleSheet(QStringLiteral("color: #d33;"));
     m_statusLabel->hide();
+
+    m_spinner = new Spinner(this);
+    m_spinner->hide();
+
+    auto *statusRow = new QWidget(this);
+    auto *statusRowLayout = new QHBoxLayout(statusRow);
+    statusRowLayout->setContentsMargins(0, 0, 0, 0);
+    statusRowLayout->setSpacing(8);
+    statusRowLayout->addStretch();
+    statusRowLayout->addWidget(m_spinner);
+    statusRowLayout->addWidget(m_statusLabel);
+    statusRowLayout->addStretch();
 
     auto *cardsContainer = new QWidget(this);
     m_cardsLayout = new QVBoxLayout(cardsContainer);
@@ -69,9 +85,9 @@ StationListView::StationListView(Session &session, ApiClient &api, QWidget *pare
     m_cardsLayout->setSpacing(10);
     m_cardsLayout->addStretch();
 
-    auto *scrollArea = new QScrollArea(this);
-    scrollArea->setWidgetResizable(true);
-    scrollArea->setWidget(cardsContainer);
+    m_scrollArea = new QScrollArea(this);
+    m_scrollArea->setWidgetResizable(true);
+    m_scrollArea->setWidget(cardsContainer);
 
     auto *layout = new QVBoxLayout(this);
     layout->setContentsMargins(12, 12, 12, 12);
@@ -79,8 +95,8 @@ StationListView::StationListView(Session &session, ApiClient &api, QWidget *pare
     layout->addWidget(m_locationCombo);
     layout->addWidget(m_searchEdit);
     layout->addWidget(m_bannerButton);
-    layout->addWidget(m_statusLabel);
-    layout->addWidget(scrollArea);
+    layout->addWidget(statusRow);
+    layout->addWidget(m_scrollArea);
 
     connect(m_bannerButton, &QPushButton::clicked, this, [this] {
         if (m_hasRecommendation) {
@@ -103,14 +119,14 @@ void StationListView::reload()
     query.addQueryItem(QLatin1String("latitude"), QString::number(preset.latitude));
     query.addQueryItem(QLatin1String("longitude"), QString::number(preset.longitude));
 
-    m_statusLabel->setText(QStringLiteral("加载中..."));
-    m_statusLabel->show();
+    m_spinner->show();
+    m_statusLabel->hide();
     m_bannerButton->hide();
     m_hasRecommendation = false;
 
     m_api.get(QStringLiteral("/stations/nearby?%1").arg(query.toString(QUrl::FullyEncoded)),
               [this](const QJsonValue &data, const QJsonObject &) {
-                  m_statusLabel->hide();
+                  m_spinner->hide();
                   qDeleteAll(m_cards);
                   m_cards.clear();
                   const QJsonArray stations = data.toArray();
@@ -128,8 +144,24 @@ void StationListView::reload()
                   }
                   applyFilter();
                   loadRecommendation();
+                  if (!m_listAnimated) {
+                      m_listAnimated = true;
+                      auto *fade = new QGraphicsOpacityEffect(m_scrollArea);
+                      m_scrollArea->setGraphicsEffect(fade);
+                      fade->setOpacity(0.0);
+                      auto *anim = new QPropertyAnimation(fade, "opacity", m_scrollArea);
+                      anim->setDuration(demo::ms(220));
+                      anim->setStartValue(0.0);
+                      anim->setEndValue(1.0);
+                      anim->setEasingCurve(QEasingCurve::OutQuint);
+                      connect(anim, &QPropertyAnimation::finished, m_scrollArea, [this] {
+                          m_scrollArea->setGraphicsEffect(nullptr);
+                      });
+                      anim->start(QAbstractAnimation::DeleteWhenStopped);
+                  }
               },
               [this](const ApiError &error) {
+                  m_spinner->hide();
                   m_statusLabel->setText(error.message.isEmpty() ? error.code : error.message);
                   m_statusLabel->show();
               });

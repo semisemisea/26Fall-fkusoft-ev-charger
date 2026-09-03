@@ -1,12 +1,16 @@
 #include "RechargeDialog.h"
 
+#include "common/Demo.h"
 #include "common/Format.h"
+#include "widgets/ScaleButton.h"
 
+#include <QGraphicsOpacityEffect>
 #include <QGridLayout>
 #include <QJsonObject>
 #include <QLabel>
 #include <QLineEdit>
 #include <QMessageBox>
+#include <QPropertyAnimation>
 #include <QPushButton>
 #include <QRegularExpression>
 #include <QRegularExpressionValidator>
@@ -42,7 +46,7 @@ RechargeDialog::RechargeDialog(ApiClient &api, QWidget *parent)
     m_amountEdit->setPlaceholderText(QStringLiteral("自定义金额（元）"));
     m_amountEdit->setValidator(new QRegularExpressionValidator(kAmountPattern, this));
 
-    m_payButton = new QPushButton(QStringLiteral("模拟支付"), this);
+    m_payButton = new ScaleButton(QStringLiteral("模拟支付"), this);
     m_payButton->setObjectName(QStringLiteral("primaryButton"));
 
     auto *layout = new QVBoxLayout(this);
@@ -83,4 +87,22 @@ void RechargeDialog::pay()
                    QMessageBox::warning(this, QStringLiteral("充值失败"),
                                         error.message.isEmpty() ? error.code : error.message);
                });
+}
+
+void RechargeDialog::showEvent(QShowEvent *event)
+{
+    QDialog::showEvent(event);
+    if (m_fadeAnim) {
+        return;
+    }
+    auto *fade = new QGraphicsOpacityEffect(this);
+    setGraphicsEffect(fade);
+    fade->setOpacity(0.0);
+    m_fadeAnim = new QPropertyAnimation(fade, "opacity", this);
+    m_fadeAnim->setDuration(demo::ms(160));
+    m_fadeAnim->setStartValue(0.0);
+    m_fadeAnim->setEndValue(1.0);
+    m_fadeAnim->setEasingCurve(QEasingCurve::OutQuint);
+    connect(m_fadeAnim, &QPropertyAnimation::finished, this, [this] { setGraphicsEffect(nullptr); });
+    m_fadeAnim->start();
 }

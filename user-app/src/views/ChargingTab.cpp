@@ -2,13 +2,17 @@
 
 #include "ChargingView.h"
 #include "SettleView.h"
+#include "widgets/ScaleButton.h"
 
+#include <QDateTime>
+#include <QFrame>
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
 #include <QStackedWidget>
+#include <QTimer>
 #include <QUrlQuery>
 #include <QVBoxLayout>
 
@@ -18,6 +22,7 @@ ChargingTab::ChargingTab(Session &session, ApiClient &api, QWidget *parent)
     , m_api(api)
 {
     buildPreparePage();
+    buildReservationPage();
 
     m_chargingView = new ChargingView(m_api, this);
     m_settleView = new SettleView(m_session, m_api, this);
@@ -26,6 +31,7 @@ ChargingTab::ChargingTab(Session &session, ApiClient &api, QWidget *parent)
     m_stack->addWidget(m_preparePage);
     m_stack->addWidget(m_chargingView);
     m_stack->addWidget(m_settleView);
+    m_stack->addWidget(m_reservationPage);
 
     auto *layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
@@ -34,7 +40,10 @@ ChargingTab::ChargingTab(Session &session, ApiClient &api, QWidget *parent)
     connect(m_chargingView, &ChargingView::orderStopped, this, [this](const Order &order) {
         showSettlement(order);
     });
-    connect(m_settleView, &SettleView::settled, this, &ChargingTab::orderSettled);
+    connect(m_settleView, &SettleView::settled, this, [this] {
+        emit activeOrderChanged(false);
+        emit orderSettled();
+    });
     connect(m_settleView, &SettleView::dismissed, this, &ChargingTab::returnHomeRequested);
     connect(m_settleView, &SettleView::returnHomeRequested, this, &ChargingTab::returnHomeRequested);
 }
@@ -65,7 +74,7 @@ void ChargingTab::buildPreparePage()
     m_hintLabel->setStyleSheet(QStringLiteral("color: #e74c3c;"));
     m_hintLabel->hide();
 
-    m_startButton = new QPushButton(QStringLiteral("启动\n充电"), page);
+    m_startButton = new ScaleButton(QStringLiteral("启动\n充电"), page);
     m_startButton->setObjectName(QStringLiteral("roundStartButton"));
     m_startButton->setFixedSize(150, 150);
 
@@ -89,15 +98,88 @@ void ChargingTab::buildPreparePage()
     m_preparePage = page;
 }
 
+void ChargingTab::buildReservationPage()
+{
+    auto *page = new QWidget(this);
+
+    auto *titleLabel = new QLabel(QStringLiteral("我的预约"), page);
+    titleLabel->setAlignment(Qt::AlignCenter);
+    titleLabel->setStyleSheet(QStringLiteral("font-size: 22px; font-weight: bold;"));
+
+    auto *card = new QFrame(page);
+    card->setObjectName(QStringLiteral("reservationCard"));
+    card->setStyleSheet(QStringLiteral(
+        "QFrame#reservationCard { background: white; border: 1px solid #e8eaee; border-radius: 14px; }"
+        "QLabel { border: none; }"));
+
+    m_reservationStationLabel = new QLabel(card);
+    m_reservationStationLabel->setStyleSheet(QStringLiteral("font-size: 17px; font-weight: bold;"));
+    m_reservationStationLabel->setWordWrap(true);
+
+    m_reservationChargerLabel = new QLabel(card);
+    m_reservationChargerLabel->setStyleSheet(QStringLiteral("color: #777;"));
+
+    m_countdownLabel = new QLabel(card);
+    m_countdownLabel->setAlignment(Qt::AlignCenter);
+    m_countdownLabel->setStyleSheet(QStringLiteral("font-size: 34px; font-weight: bold; color: #1d5cff;"));
+
+    auto *countdownTipLabel = new QLabel(QStringLiteral("保留时长倒计时"), card);
+    countdownTipLabel->setAlignment(Qt::AlignCenter);
+    countdownTipLabel->setStyleSheet(QStringLiteral("color: #999;"));
+
+    auto *cardLayout = new QVBoxLayout(card);
+    cardLayout->setContentsMargins(20, 18, 20, 18);
+    cardLayout->setSpacing(6);
+    cardLayout->addWidget(m_reservationStationLabel);
+    cardLayout->addWidget(m_reservationChargerLabel);
+    cardLayout->addSpacing(10);
+    cardLayout->addWidget(m_countdownLabel);
+    cardLayout->addWidget(countdownTipLabel);
+
+    m_reservationStartButton = new ScaleButton(QStringLiteral("启动充电"), page);
+    m_reservationStartButton->setObjectName(QStringLiteral("primaryButton"));
+    m_reservationCancelButton = new ScaleButton(QStringLiteral("取消预约"), page);
+    m_reservationCancelButton->setObjectName(QStringLiteral("outlineDangerButton"));
+
+    m_reservationHintLabel = new QLabel(page);
+    m_reservationHintLabel->setAlignment(Qt::AlignCenter);
+    m_reservationHintLabel->setWordWrap(true);
+    m_reservationHintLabel->setStyleSheet(QStringLiteral("color: #e74c3c;"));
+    m_reservationHintLabel->hide();
+
+    auto *layout = new QVBoxLayout(page);
+    layout->setContentsMargins(24, 12, 24, 24);
+    layout->addStretch(2);
+    layout->addWidget(titleLabel);
+    layout->addSpacing(16);
+    layout->addWidget(card);
+    layout->addSpacing(8);
+    layout->addWidget(m_reservationHintLabel);
+    layout->addSpacing(12);
+    layout->addWidget(m_reservationStartButton);
+    layout->addWidget(m_reservationCancelButton);
+    layout->addStretch(3);
+
+    connect(m_reservationStartButton, &QPushButton::clicked, this, &ChargingTab::startFromReservation);
+    connect(m_reservationCancelButton, &QPushButton::clicked, this, &ChargingTab::cancelReservation);
+
+    m_countdownTimer = new QTimer(this);
+    m_countdownTimer->setInterval(1000);
+    connect(m_countdownTimer, &QTimer::timeout, this, &ChargingTab::updateCountdown);
+
+    m_reservationPage = page;
+}
+
 void ChargingTab::checkActiveOrder()
 {
     m_api.get(QStringLiteral("/me/active-order"),
               [this](const QJsonValue &data, const QJsonObject &) {
                   if (data.isNull()) {
-                      showPrepare();
+                      checkActiveReservation();
                       return;
                   }
                   const Order order = Order::fromJson(data.toObject());
+                  emit activeOrderChanged(true);
                   if (order.status == QLatin1String("charging")) {
                       showCharging(order);
                   } else {
@@ -111,12 +193,14 @@ void ChargingTab::checkActiveOrder()
 
 void ChargingTab::showCharging(const Order &order)
 {
+    emit activeOrderChanged(true);
     m_chargingView->open(order);
     m_stack->setCurrentWidget(m_chargingView);
 }
 
 void ChargingTab::showSettlement(const Order &order)
 {
+    emit activeOrderChanged(true);
     m_settleView->open(order);
     m_stack->setCurrentWidget(m_settleView);
 }
@@ -210,4 +294,107 @@ void ChargingTab::fail(const QString &message)
     m_hintLabel->setText(message);
     m_hintLabel->show();
     showPrepare();
+}
+
+void ChargingTab::showReservation(const Reservation &reservation)
+{
+    m_reservation = reservation;
+    m_reservationStationLabel->setText(reservation.stationName);
+    m_reservationChargerLabel->setText(QStringLiteral("电桩 %1 · 已为您保留").arg(reservation.chargerCode));
+    m_reservationHintLabel->hide();
+    updateCountdown();
+    m_countdownTimer->start();
+    emit activeOrderChanged(true);
+    m_stack->setCurrentWidget(m_reservationPage);
+}
+
+void ChargingTab::checkActiveReservation()
+{
+    m_api.get(QStringLiteral("/reservations?status=active"),
+              [this](const QJsonValue &data, const QJsonObject &) {
+                  const QJsonArray items = data.toArray();
+                  if (items.isEmpty()) {
+                      emit activeOrderChanged(false);
+                      showPrepare();
+                      return;
+                  }
+                  showReservation(Reservation::fromJson(items.first().toObject()));
+              },
+              [this](const ApiError &) {
+                  emit activeOrderChanged(false);
+                  showPrepare();
+              });
+}
+
+void ChargingTab::startFromReservation()
+{
+    setReservationBusy(true);
+    const int reservationId = m_reservation.id;
+    const int chargerId = m_reservation.chargerId;
+    QJsonObject body;
+    body.insert(QLatin1String("chargerId"), chargerId);
+    body.insert(QLatin1String("reservationId"), reservationId);
+    m_api.post(QStringLiteral("/orders"), body,
+               [this](const QJsonValue &data, const QJsonObject &) {
+                   m_countdownTimer->stop();
+                   setReservationBusy(false);
+                   showCharging(Order::fromJson(data.toObject()));
+               },
+               [this](const ApiError &error) {
+                   setReservationBusy(false);
+                   if (error.code == QLatin1String("ACTIVE_ORDER_EXISTS")) {
+                       checkActiveOrder();
+                       return;
+                   }
+                   m_reservationHintLabel->setText(error.message.isEmpty() ? error.code : error.message);
+                   m_reservationHintLabel->show();
+                   if (error.code != QLatin1String("CHARGER_UNAVAILABLE")
+                       && error.code != QLatin1String("INVALID_STATE_TRANSITION")) {
+                       return;
+                   }
+                   QTimer::singleShot(1200, this, &ChargingTab::checkActiveOrder);
+               });
+}
+
+void ChargingTab::cancelReservation()
+{
+    setReservationBusy(true);
+    const int reservationId = m_reservation.id;
+    m_api.post(QStringLiteral("/reservations/%1/cancel").arg(reservationId), {},
+               [this](const QJsonValue &, const QJsonObject &) {
+                   m_countdownTimer->stop();
+                   setReservationBusy(false);
+                   m_hintLabel->setText(QStringLiteral("预约已取消"));
+                   m_hintLabel->show();
+                   emit activeOrderChanged(false);
+                   showPrepare();
+               },
+               [this](const ApiError &error) {
+                   setReservationBusy(false);
+                   m_reservationHintLabel->setText(error.message.isEmpty() ? error.code : error.message);
+                   m_reservationHintLabel->show();
+                   QTimer::singleShot(1200, this, &ChargingTab::checkActiveOrder);
+               });
+}
+
+void ChargingTab::updateCountdown()
+{
+    const qint64 remaining = QDateTime::currentDateTimeUtc().secsTo(m_reservation.expiresAt);
+    if (remaining <= 0) {
+        m_countdownTimer->stop();
+        m_countdownLabel->setText(QStringLiteral("00:00"));
+        m_reservationHintLabel->setText(QStringLiteral("预约已过期，电桩已释放"));
+        m_reservationHintLabel->show();
+        QTimer::singleShot(1200, this, &ChargingTab::checkActiveOrder);
+        return;
+    }
+    m_countdownLabel->setText(QStringLiteral("%1:%2")
+                                  .arg(remaining / 60, 2, 10, QLatin1Char('0'))
+                                  .arg(remaining % 60, 2, 10, QLatin1Char('0')));
+}
+
+void ChargingTab::setReservationBusy(bool busy)
+{
+    m_reservationStartButton->setEnabled(!busy);
+    m_reservationCancelButton->setEnabled(!busy);
 }

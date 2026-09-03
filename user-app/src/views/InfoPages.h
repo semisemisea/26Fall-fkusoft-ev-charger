@@ -5,6 +5,7 @@
 #include <QWidget>
 
 class QLabel;
+class Spinner;
 class QVBoxLayout;
 
 class OrderHistoryView : public QWidget
@@ -25,6 +26,7 @@ private:
 
     ApiClient &m_api;
     QLabel *m_statusLabel = nullptr;
+    Spinner *m_spinner = nullptr;
     QVBoxLayout *m_listLayout = nullptr;
 };
 
@@ -46,6 +48,29 @@ private:
 
     ApiClient &m_api;
     QLabel *m_statusLabel = nullptr;
+    Spinner *m_spinner = nullptr;
+    QVBoxLayout *m_listLayout = nullptr;
+};
+
+class ReservationHistoryView : public QWidget
+{
+    Q_OBJECT
+
+public:
+    explicit ReservationHistoryView(ApiClient &api, QWidget *parent = nullptr);
+
+signals:
+    void backRequested();
+
+protected:
+    void showEvent(QShowEvent *event) override;
+
+private:
+    void load();
+
+    ApiClient &m_api;
+    QLabel *m_statusLabel = nullptr;
+    Spinner *m_spinner = nullptr;
     QVBoxLayout *m_listLayout = nullptr;
 };
 

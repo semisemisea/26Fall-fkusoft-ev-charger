@@ -7,10 +7,12 @@
 #include <QWidget>
 #include <QVector>
 
-class QComboBox;
+class ComboBox;
 class QLabel;
 class QLineEdit;
 class QPushButton;
+class QScrollArea;
+class Spinner;
 class QVBoxLayout;
 class StationCard;
 
@@ -35,12 +37,15 @@ private:
 
     Session &m_session;
     ApiClient &m_api;
-    QComboBox *m_locationCombo = nullptr;
+    ComboBox *m_locationCombo = nullptr;
     QLineEdit *m_searchEdit = nullptr;
     QPushButton *m_bannerButton = nullptr;
     QLabel *m_statusLabel = nullptr;
+    Spinner *m_spinner = nullptr;
+    QScrollArea *m_scrollArea = nullptr;
     QVBoxLayout *m_cardsLayout = nullptr;
     QVector<StationCard *> m_cards;
     Station m_recommendedStation;
     bool m_hasRecommendation = false;
+    bool m_listAnimated = false;
 };

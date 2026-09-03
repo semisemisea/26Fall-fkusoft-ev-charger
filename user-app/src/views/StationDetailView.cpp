@@ -2,8 +2,12 @@
 
 #include "common/Format.h"
 #include "models/Charger.h"
+#include "widgets/BackButton.h"
+#include "widgets/ScaleButton.h"
+#include "widgets/Spinner.h"
 
 #include <QFrame>
+#include <QHBoxLayout>
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QLabel>
@@ -15,8 +19,7 @@ StationDetailView::StationDetailView(ApiClient &api, QWidget *parent)
     : QWidget(parent)
     , m_api(api)
 {
-    m_backButton = new QPushButton(QStringLiteral("←"), this);
-    m_backButton->setFixedWidth(44);
+    m_backButton = new BackButton(this);
 
     m_nameLabel = new QLabel(this);
     m_nameLabel->setStyleSheet(QStringLiteral("font-size: 20px; font-weight: bold;"));
@@ -26,8 +29,19 @@ StationDetailView::StationDetailView(ApiClient &api, QWidget *parent)
     m_infoLabel->setWordWrap(true);
 
     m_statusLabel = new QLabel(this);
-    m_statusLabel->setAlignment(Qt::AlignCenter);
     m_statusLabel->setStyleSheet(QStringLiteral("color: #d33;"));
+
+    m_spinner = new Spinner(this);
+    m_spinner->hide();
+
+    auto *statusRow = new QWidget(this);
+    auto *statusRowLayout = new QHBoxLayout(statusRow);
+    statusRowLayout->setContentsMargins(0, 0, 0, 0);
+    statusRowLayout->setSpacing(8);
+    statusRowLayout->addStretch();
+    statusRowLayout->addWidget(m_spinner);
+    statusRowLayout->addWidget(m_statusLabel);
+    statusRowLayout->addStretch();
 
     auto *navigateButton = new QPushButton(QStringLiteral("🧭 导航到这里"), this);
 
@@ -51,7 +65,7 @@ StationDetailView::StationDetailView(ApiClient &api, QWidget *parent)
     layout->addLayout(headerRow);
     layout->addWidget(m_infoLabel);
     layout->addWidget(navigateButton);
-    layout->addWidget(m_statusLabel);
+    layout->addWidget(statusRow);
     layout->addWidget(scrollArea);
 
     connect(m_backButton, &QPushButton::clicked, this, &StationDetailView::backRequested);
@@ -72,12 +86,12 @@ void StationDetailView::open(const Station &station)
 
 void StationDetailView::loadChargers()
 {
-    m_statusLabel->setText(QStringLiteral("加载中..."));
-    m_statusLabel->show();
+    m_spinner->show();
+    m_statusLabel->hide();
 
     m_api.get(QStringLiteral("/stations/%1/chargers").arg(m_station.id),
               [this](const QJsonValue &data, const QJsonObject &) {
-                  m_statusLabel->hide();
+                  m_spinner->hide();
                   while (m_chargersLayout->count() > 1) {
                       QLayoutItem *item = m_chargersLayout->takeAt(0);
                       item->widget()->deleteLater();
@@ -89,7 +103,7 @@ void StationDetailView::loadChargers()
 
                       auto *row = new QFrame(this);
                       row->setStyleSheet(
-                          QStringLiteral("QFrame { background: white; border: 1px solid #ddd; border-radius: 8px; }"
+                          QStringLiteral("QFrame { background: white; border: 1px solid #e8eaee; border-radius: 10px; }"
                                          "QLabel { border: none; }"));
                       auto *codeLabel = new QLabel(charger.code, row);
                       codeLabel->setStyleSheet(QStringLiteral("font-weight: bold;"));
@@ -106,13 +120,19 @@ void StationDetailView::loadChargers()
                       rowLayout->addWidget(new QLabel(QStringLiteral("%1 kW").arg(charger.powerKw, 0, 'f', 1), row));
                       rowLayout->addStretch();
                       rowLayout->addWidget(statusLabel);
-                      if (charger.status == QLatin1String("available")) {
-                          auto *chargeButton = new QPushButton(QStringLiteral("充电"), row);
-                          chargeButton->setStyleSheet(QStringLiteral("padding: 4px 14px;"));
-                          connect(chargeButton, &QPushButton::clicked, this,
-                                  [this, charger] { emit chargeRequested(charger); });
-                          rowLayout->addWidget(chargeButton);
-                      }
+                        if (charger.status == QLatin1String("available")) {
+                            auto *reserveButton = new ScaleButton(QStringLiteral("预约"), row);
+                            reserveButton->setStyleSheet(QStringLiteral("padding: 4px 10px; color: #1d5cff;"));
+                            connect(reserveButton, &QPushButton::clicked, this,
+                                    [this, charger] { emit reservationRequested(charger); });
+                            rowLayout->addWidget(reserveButton);
+
+                            auto *chargeButton = new ScaleButton(QStringLiteral("充电"), row);
+                            chargeButton->setStyleSheet(QStringLiteral("padding: 4px 14px;"));
+                            connect(chargeButton, &QPushButton::clicked, this,
+                                    [this, charger] { emit chargeRequested(charger); });
+                            rowLayout->addWidget(chargeButton);
+                        }
 
                       m_chargersLayout->insertWidget(m_chargersLayout->count() - 1, row);
                   }
@@ -122,6 +142,7 @@ void StationDetailView::loadChargers()
                   }
               },
               [this](const ApiError &error) {
+                  m_spinner->hide();
                   m_statusLabel->setText(error.message.isEmpty() ? error.code : error.message);
                   m_statusLabel->show();
               });

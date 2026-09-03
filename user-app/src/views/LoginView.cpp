@@ -1,6 +1,7 @@
 #include "LoginView.h"
 
 #include "models/User.h"
+#include "widgets/ScaleButton.h"
 
 #include <QJsonObject>
 #include <QLabel>
@@ -37,7 +38,7 @@ LoginView::LoginView(Session &session, ApiClient &api, QWidget *parent)
     m_phoneEdit->setMaxLength(11);
     m_phoneEdit->setClearButtonEnabled(true);
 
-    m_loginButton = new QPushButton(QStringLiteral("登录 / 注册"), this);
+    m_loginButton = new ScaleButton(QStringLiteral("登录 / 注册"), this);
     m_loginButton->setObjectName(QStringLiteral("primaryButton"));
 
     m_messageLabel = new QLabel(this);

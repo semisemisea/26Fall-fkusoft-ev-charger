@@ -12,7 +12,7 @@
 
 namespace {
 const QLatin1String kCardStyle{
-    "StationCard { background: white; border: 1px solid #e8eaee; border-radius: 12px; }"
+    "StationCard { background: white; border: 1px solid #e8eaee; border-radius: 14px; }"
     "StationCard:hover { border-color: #1d5cff; }"};
 }
 

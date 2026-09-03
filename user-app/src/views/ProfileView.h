@@ -16,6 +16,7 @@ public:
 
 signals:
     void ordersRequested();
+    void reservationsRequested();
     void transactionsRequested();
     void carRequested();
     void aboutRequested();

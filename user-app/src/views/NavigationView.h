@@ -34,6 +34,8 @@ private:
     QPushButton *m_navigateButton = nullptr;
     QLabel *m_summaryLabel = nullptr;
     QLabel *m_statusLabel = nullptr;
+    QLabel *m_hintLabel = nullptr;
     QVBoxLayout *m_layout = nullptr;
     QWebEngineView *m_webView = nullptr;
+    bool m_loaded = false;
 };
