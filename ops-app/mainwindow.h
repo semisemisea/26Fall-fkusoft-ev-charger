@@ -3,6 +3,7 @@
 // 管理后台主窗口:左侧导航 + 右侧 QStackedWidget 页面栈。
 // 布局参考 Qt 官方 Thermostat 示例的深色卡片视觉,用 Widgets + QSS 实现。
 
+#include <QHBoxLayout>
 #include <QMainWindow>
 
 #include "api/apiclient.h"
@@ -26,7 +27,7 @@ public:
 	void resumeAfterLogin();
 
 private:
-	void buildSidebar();
+	void buildSidebar(QHBoxLayout *layout);
 	QWidget *createPage(int index);
 
 	ops::ApiClient *m_api; // 非所有权引用,生命周期由 main 管理
