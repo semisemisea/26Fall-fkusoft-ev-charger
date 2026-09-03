@@ -14,6 +14,7 @@ class SalesPage;
 class ChargerStatusPage;
 class ChargerManagePage;
 class StationPage;
+class UserPage;
 
 class MainWindow : public QMainWindow {
 	Q_OBJECT

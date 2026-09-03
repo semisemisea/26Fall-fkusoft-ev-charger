@@ -4,6 +4,7 @@
 #include "pages/chargerstatuspage.h"
 #include "pages/salespage.h"
 #include "pages/stationpage.h"
+#include "pages/userpage.h"
 
 #include <QHBoxLayout>
 #include <QLabel>
