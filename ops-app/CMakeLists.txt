@@ -14,6 +14,9 @@ include(GNUInstallDirs)
 
 qt_add_executable(ops-app
     main.cpp
+    api/apiclient.cpp
+    api/apiclient.h
+    api/types.h
     mainwindow.cpp
     mainwindow.h
     mainwindow.ui
