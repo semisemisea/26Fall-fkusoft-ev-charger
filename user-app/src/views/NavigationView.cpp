@@ -71,7 +71,7 @@ NavigationView::NavigationView(Session &session, ApiClient &api, QWidget *parent
 {
     auto *backButton = new BackButton(this);
     auto *titleLabel = new QLabel(this);
-    titleLabel->setStyleSheet(QStringLiteral("font-size: 18px; font-weight: bold;"));
+    titleLabel->setObjectName(QStringLiteral("pageTitle"));
     titleLabel->setObjectName(QStringLiteral("stationTitle"));
 
     m_modeCombo = new ComboBox(this);
@@ -80,19 +80,19 @@ NavigationView::NavigationView(Session &session, ApiClient &api, QWidget *parent
     }
 
     m_navigateButton = new QPushButton(QStringLiteral("开始导航"), this);
-    m_navigateButton->setStyleSheet(QStringLiteral("padding: 8px 16px;"));
+    m_navigateButton->setObjectName(QStringLiteral("compactButton"));
 
     m_summaryLabel = new QLabel(this);
-    m_summaryLabel->setStyleSheet(QStringLiteral("color: #2a6fdb;"));
+    m_summaryLabel->setObjectName(QStringLiteral("routeInfo"));
     m_summaryLabel->hide();
 
     m_statusLabel = new QLabel(this);
-    m_statusLabel->setStyleSheet(QStringLiteral("color: #d33;"));
+    m_statusLabel->setObjectName(QStringLiteral("error"));
     m_statusLabel->hide();
 
     m_hintLabel = new QLabel(QStringLiteral("点击「开始导航」加载路线地图"), this);
     m_hintLabel->setAlignment(Qt::AlignCenter);
-    m_hintLabel->setStyleSheet(QStringLiteral("color: #8a8f99; font-size: 15px;"));
+    m_hintLabel->setObjectName(QStringLiteral("muted"));
 
     m_layout = new QVBoxLayout(this);
     m_layout->setContentsMargins(12, 12, 12, 12);

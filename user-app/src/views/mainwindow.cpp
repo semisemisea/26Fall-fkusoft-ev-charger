@@ -142,12 +142,12 @@ MainWindow::~MainWindow()
 void MainWindow::buildStatusBar()
 {
     m_timeLabel = new QLabel(ui->statusBar);
-    m_timeLabel->setStyleSheet(QStringLiteral("font-size: 12px; font-weight: bold; color: #26282b;"));
+    m_timeLabel->setObjectName(QStringLiteral("statusTime"));
 
     auto *signalLabel = new QLabel(QStringLiteral("📶"), ui->statusBar);
-    signalLabel->setStyleSheet(QStringLiteral("font-size: 11px;"));
+    signalLabel->setObjectName(QStringLiteral("statusGlyph"));
     auto *batteryLabel = new QLabel(QStringLiteral("🔋 86%"), ui->statusBar);
-    batteryLabel->setStyleSheet(QStringLiteral("font-size: 11px;"));
+    batteryLabel->setObjectName(QStringLiteral("statusGlyph"));
 
     auto *layout = new QHBoxLayout(ui->statusBar);
     layout->setContentsMargins(16, 4, 16, 4);

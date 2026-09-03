@@ -10,17 +10,10 @@
 #include <QPushButton>
 #include <QVBoxLayout>
 
-namespace {
-const QLatin1String kCardStyle{
-    "StationCard { background: white; border: 1px solid #e8eaee; border-radius: 14px; }"
-    "StationCard:hover { border-color: #1d5cff; }"};
-}
-
 StationCard::StationCard(const Station &station, QWidget *parent)
     : QFrame(parent)
     , m_station(station)
 {
-    setStyleSheet(kCardStyle);
     setCursor(Qt::PointingHandCursor);
     setMinimumHeight(96);
 
@@ -31,19 +24,16 @@ StationCard::StationCard(const Station &station, QWidget *parent)
     setGraphicsEffect(shadow);
 
     auto *nameLabel = new QLabel(station.name, this);
-    nameLabel->setStyleSheet(QStringLiteral("font-size: 15px; font-weight: bold; border: none; background: transparent;"));
+    nameLabel->setObjectName(QStringLiteral("cardTitle"));
 
     m_distanceLabel = new QLabel(QStringLiteral("%1 km").arg(station.distanceKm, 0, 'f', 2), this);
-    m_distanceLabel->setStyleSheet(
-        QStringLiteral("color: #1d5cff; text-decoration: underline; border: none; background: transparent;"));
+    m_distanceLabel->setObjectName(QStringLiteral("linkBlue"));
     m_distanceLabel->setCursor(Qt::PointingHandCursor);
     m_distanceLabel->setToolTip(QStringLiteral("点击导航"));
     m_distanceLabel->installEventFilter(this);
 
     auto *navButton = new QPushButton(QStringLiteral("↱"), this);
-    navButton->setStyleSheet(QStringLiteral(
-        "QPushButton { color: #1d5cff; background: #eaf1ff; border: none; border-radius: 6px;"
-        " padding: 3px 9px; font-weight: bold; }"));
+    navButton->setObjectName(QStringLiteral("navMini"));
     navButton->setCursor(Qt::PointingHandCursor);
     navButton->setToolTip(QStringLiteral("一键导航"));
     connect(navButton, &QPushButton::clicked, this, [this] { emit navigateRequested(m_station); });
@@ -54,19 +44,18 @@ StationCard::StationCard(const Station &station, QWidget *parent)
     distanceRow->addWidget(navButton);
 
     auto *addressLabel = new QLabel(station.address, this);
-    addressLabel->setStyleSheet(QStringLiteral("color: #8a8f99; font-size: 12px; border: none; background: transparent;"));
+    addressLabel->setObjectName(QStringLiteral("meta"));
 
     auto *priceLabel = new QLabel(QStringLiteral("￥%1/度").arg(fenToYuan(station.pricePerKwhFen)), this);
-    priceLabel->setStyleSheet(QStringLiteral("color: #e74c3c; font-weight: bold; border: none; background: transparent;"));
+    priceLabel->setObjectName(QStringLiteral("price"));
 
     auto *idleLabel = new QLabel(QStringLiteral("空闲 %1 / %2")
                                      .arg(station.availableChargerCount)
                                      .arg(station.chargerCount),
                                  this);
-    idleLabel->setStyleSheet(
-        station.availableChargerCount > 0
-            ? QStringLiteral("color: #2e9e5b; font-weight: bold; border: none; background: transparent;")
-            : QStringLiteral("color: #d33; font-weight: bold; border: none; background: transparent;"));
+    idleLabel->setObjectName(QStringLiteral("strong"));
+    idleLabel->setStyleSheet(station.availableChargerCount > 0 ? QStringLiteral("color: #2e9e5b;")
+                                                               : QStringLiteral("color: #e74c3c;"));
 
     auto *grid = new QGridLayout(this);
     grid->setContentsMargins(14, 12, 14, 12);

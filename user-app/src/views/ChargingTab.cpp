@@ -54,15 +54,15 @@ void ChargingTab::buildPreparePage()
 
     auto *iconLabel = new QLabel(QStringLiteral("⚡"), page);
     iconLabel->setAlignment(Qt::AlignCenter);
-    iconLabel->setStyleSheet(QStringLiteral("font-size: 52px;"));
+    iconLabel->setObjectName(QStringLiteral("prepareIcon"));
 
     auto *titleLabel = new QLabel(QStringLiteral("准备充电"), page);
     titleLabel->setAlignment(Qt::AlignCenter);
-    titleLabel->setStyleSheet(QStringLiteral("font-size: 22px; font-weight: bold;"));
+    titleLabel->setObjectName(QStringLiteral("pageHeading"));
 
     auto *tipLabel = new QLabel(QStringLiteral("输入电桩编号，如 S01-001"), page);
     tipLabel->setAlignment(Qt::AlignCenter);
-    tipLabel->setStyleSheet(QStringLiteral("color: #888;"));
+    tipLabel->setObjectName(QStringLiteral("muted"));
 
     m_codeEdit = new QLineEdit(page);
     m_codeEdit->setPlaceholderText(QStringLiteral("请输入电桩编号"));
@@ -71,7 +71,7 @@ void ChargingTab::buildPreparePage()
 
     m_hintLabel = new QLabel(page);
     m_hintLabel->setAlignment(Qt::AlignCenter);
-    m_hintLabel->setStyleSheet(QStringLiteral("color: #e74c3c;"));
+    m_hintLabel->setObjectName(QStringLiteral("error"));
     m_hintLabel->hide();
 
     m_startButton = new ScaleButton(QStringLiteral("启动\n充电"), page);
@@ -104,28 +104,26 @@ void ChargingTab::buildReservationPage()
 
     auto *titleLabel = new QLabel(QStringLiteral("我的预约"), page);
     titleLabel->setAlignment(Qt::AlignCenter);
-    titleLabel->setStyleSheet(QStringLiteral("font-size: 22px; font-weight: bold;"));
+    titleLabel->setObjectName(QStringLiteral("pageHeading"));
 
     auto *card = new QFrame(page);
     card->setObjectName(QStringLiteral("reservationCard"));
-    card->setStyleSheet(QStringLiteral(
-        "QFrame#reservationCard { background: white; border: 1px solid #e8eaee; border-radius: 14px; }"
-        "QLabel { border: none; }"));
+    card->setObjectName(QStringLiteral("infoCard"));
 
     m_reservationStationLabel = new QLabel(card);
-    m_reservationStationLabel->setStyleSheet(QStringLiteral("font-size: 17px; font-weight: bold;"));
+    m_reservationStationLabel->setObjectName(QStringLiteral("reservationStation"));
     m_reservationStationLabel->setWordWrap(true);
 
     m_reservationChargerLabel = new QLabel(card);
-    m_reservationChargerLabel->setStyleSheet(QStringLiteral("color: #777;"));
+    m_reservationChargerLabel->setObjectName(QStringLiteral("muted"));
 
     m_countdownLabel = new QLabel(card);
     m_countdownLabel->setAlignment(Qt::AlignCenter);
-    m_countdownLabel->setStyleSheet(QStringLiteral("font-size: 34px; font-weight: bold; color: #1d5cff;"));
+    m_countdownLabel->setObjectName(QStringLiteral("countdown"));
 
     auto *countdownTipLabel = new QLabel(QStringLiteral("保留时长倒计时"), card);
     countdownTipLabel->setAlignment(Qt::AlignCenter);
-    countdownTipLabel->setStyleSheet(QStringLiteral("color: #999;"));
+    countdownTipLabel->setObjectName(QStringLiteral("muted"));
 
     auto *cardLayout = new QVBoxLayout(card);
     cardLayout->setContentsMargins(20, 18, 20, 18);
@@ -144,7 +142,7 @@ void ChargingTab::buildReservationPage()
     m_reservationHintLabel = new QLabel(page);
     m_reservationHintLabel->setAlignment(Qt::AlignCenter);
     m_reservationHintLabel->setWordWrap(true);
-    m_reservationHintLabel->setStyleSheet(QStringLiteral("color: #e74c3c;"));
+    m_reservationHintLabel->setObjectName(QStringLiteral("error"));
     m_reservationHintLabel->hide();
 
     auto *layout = new QVBoxLayout(page);

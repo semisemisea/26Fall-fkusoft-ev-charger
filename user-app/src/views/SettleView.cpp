@@ -18,22 +18,20 @@ SettleView::SettleView(Session &session, ApiClient &api, QWidget *parent)
 {
     m_titleLabel = new QLabel(QStringLiteral("订单结算"), this);
     m_titleLabel->setAlignment(Qt::AlignCenter);
-    m_titleLabel->setStyleSheet(QStringLiteral("font-size: 20px; font-weight: bold;"));
+    m_titleLabel->setObjectName(QStringLiteral("heroTitle"));
 
     auto *receipt = new QFrame(this);
-    receipt->setStyleSheet(QStringLiteral(
-        "QFrame { background: white; border: 1px dashed #d5d9e0; border-radius: 14px; }"
-        "QLabel { border: none; }"));
+    receipt->setObjectName(QStringLiteral("receiptCard"));
     m_stationLabel = new QLabel(receipt);
-    m_stationLabel->setStyleSheet(QStringLiteral("font-size: 16px; font-weight: bold;"));
+    m_stationLabel->setObjectName(QStringLiteral("cardHeading"));
     m_timeLabel = new QLabel(receipt);
-    m_timeLabel->setStyleSheet(QStringLiteral("color: #888; font-size: 12px;"));
+    m_timeLabel->setObjectName(QStringLiteral("meta"));
     m_energyLabel = new QLabel(receipt);
     m_durationLabel = new QLabel(receipt);
     m_priceLabel = new QLabel(receipt);
     m_totalLabel = new QLabel(receipt);
     m_totalLabel->setAlignment(Qt::AlignCenter);
-    m_totalLabel->setStyleSheet(QStringLiteral("font-size: 26px; font-weight: bold; color: #e74c3c;"));
+    m_totalLabel->setObjectName(QStringLiteral("totalAmount"));
 
     auto *receiptLayout = new QVBoxLayout(receipt);
     receiptLayout->setContentsMargins(16, 14, 16, 14);
@@ -48,7 +46,7 @@ SettleView::SettleView(Session &session, ApiClient &api, QWidget *parent)
 
     m_balanceLabel = new QLabel(this);
     m_balanceLabel->setAlignment(Qt::AlignCenter);
-    m_balanceLabel->setStyleSheet(QStringLiteral("color: #555;"));
+    m_balanceLabel->setObjectName(QStringLiteral("muted"));
 
     m_messageLabel = new QLabel(this);
     m_messageLabel->setAlignment(Qt::AlignCenter);

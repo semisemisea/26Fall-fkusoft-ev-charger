@@ -22,14 +22,14 @@ StationDetailView::StationDetailView(ApiClient &api, QWidget *parent)
     m_backButton = new BackButton(this);
 
     m_nameLabel = new QLabel(this);
-    m_nameLabel->setStyleSheet(QStringLiteral("font-size: 20px; font-weight: bold;"));
+    m_nameLabel->setObjectName(QStringLiteral("heroTitle"));
 
     m_infoLabel = new QLabel(this);
-    m_infoLabel->setStyleSheet(QStringLiteral("color: #777;"));
+    m_infoLabel->setObjectName(QStringLiteral("muted"));
     m_infoLabel->setWordWrap(true);
 
     m_statusLabel = new QLabel(this);
-    m_statusLabel->setStyleSheet(QStringLiteral("color: #d33;"));
+    m_statusLabel->setObjectName(QStringLiteral("error"));
 
     m_spinner = new Spinner(this);
     m_spinner->hide();
@@ -102,16 +102,14 @@ void StationDetailView::loadChargers()
                       const Charger charger = Charger::fromJson(value.toObject());
 
                       auto *row = new QFrame(this);
-                      row->setStyleSheet(
-                          QStringLiteral("QFrame { background: white; border: 1px solid #e8eaee; border-radius: 10px; }"
-                                         "QLabel { border: none; }"));
+                      row->setObjectName(QStringLiteral("chargerRow"));
                       auto *codeLabel = new QLabel(charger.code, row);
-                      codeLabel->setStyleSheet(QStringLiteral("font-weight: bold;"));
+                      codeLabel->setObjectName(QStringLiteral("strong"));
 
                       const QString color = Charger::statusColor(charger.status);
                       auto *statusLabel = new QLabel(Charger::statusLabel(charger.status), row);
-                      statusLabel->setStyleSheet(
-                          QStringLiteral("color: white; background: %1; border-radius: 6px; padding: 2px 8px;").arg(color));
+                      statusLabel->setObjectName(QStringLiteral("badge"));
+                      statusLabel->setStyleSheet(QStringLiteral("background: %1;").arg(color));
 
                       auto *rowLayout = new QHBoxLayout(row);
                       rowLayout->setContentsMargins(10, 6, 10, 6);
@@ -122,13 +120,13 @@ void StationDetailView::loadChargers()
                       rowLayout->addWidget(statusLabel);
                         if (charger.status == QLatin1String("available")) {
                             auto *reserveButton = new ScaleButton(QStringLiteral("预约"), row);
-                            reserveButton->setStyleSheet(QStringLiteral("padding: 4px 10px; color: #1d5cff;"));
+                            reserveButton->setObjectName(QStringLiteral("reserveButton"));
                             connect(reserveButton, &QPushButton::clicked, this,
                                     [this, charger] { emit reservationRequested(charger); });
                             rowLayout->addWidget(reserveButton);
 
                             auto *chargeButton = new ScaleButton(QStringLiteral("充电"), row);
-                            chargeButton->setStyleSheet(QStringLiteral("padding: 4px 14px;"));
+                            chargeButton->setObjectName(QStringLiteral("chargeButton"));
                             connect(chargeButton, &QPushButton::clicked, this,
                                     [this, charger] { emit chargeRequested(charger); });
                             rowLayout->addWidget(chargeButton);

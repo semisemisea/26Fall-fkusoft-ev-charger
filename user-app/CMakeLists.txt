@@ -9,6 +9,7 @@ find_package(Qt6 REQUIRED COMPONENTS Widgets Network WebEngineWidgets)
 
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
+set(CMAKE_AUTORCC ON)
 include(GNUInstallDirs)
 
 qt_add_executable(user-app
@@ -68,6 +69,7 @@ qt_add_executable(user-app
     src/views/NavigationView.h
     src/views/InfoPages.cpp
     src/views/InfoPages.h
+    resources/resources.qrc
 )
 
 target_include_directories(user-app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)

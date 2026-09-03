@@ -23,11 +23,11 @@ LoginView::LoginView(Session &session, ApiClient &api, QWidget *parent)
 {
     auto *logoLabel = new QLabel(QStringLiteral("⚡"), this);
     logoLabel->setAlignment(Qt::AlignCenter);
-    logoLabel->setStyleSheet(QStringLiteral("font-size: 52px;"));
+    logoLabel->setObjectName(QStringLiteral("prepareIcon"));
 
     auto *title = new QLabel(QStringLiteral("欢迎使用智能充电系统"), this);
     title->setAlignment(Qt::AlignCenter);
-    title->setStyleSheet(QStringLiteral("font-size: 22px; font-weight: bold;"));
+    title->setObjectName(QStringLiteral("pageHeading"));
 
     auto *hint = new QLabel(QStringLiteral("输入 11 位手机号，免密登录\n新手机号将自动注册"), this);
     hint->setAlignment(Qt::AlignCenter);
@@ -43,7 +43,7 @@ LoginView::LoginView(Session &session, ApiClient &api, QWidget *parent)
 
     m_messageLabel = new QLabel(this);
     m_messageLabel->setAlignment(Qt::AlignCenter);
-    m_messageLabel->setStyleSheet(QStringLiteral("color: #d33;"));
+    m_messageLabel->setObjectName(QStringLiteral("error"));
     m_messageLabel->hide();
 
     auto *layout = new QVBoxLayout(this);

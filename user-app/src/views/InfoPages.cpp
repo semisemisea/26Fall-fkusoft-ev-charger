@@ -22,10 +22,10 @@ QLabel *makePageShell(const QString &title, const std::function<void()> &onBack,
 {
     auto *backButton = new BackButton(parent);
     auto *titleLabel = new QLabel(title, parent);
-    titleLabel->setStyleSheet(QStringLiteral("font-size: 18px; font-weight: bold;"));
+    titleLabel->setObjectName(QStringLiteral("pageTitle"));
 
     auto *statusLabel = new QLabel(parent);
-    statusLabel->setStyleSheet(QStringLiteral("color: #8a8f99;"));
+    statusLabel->setObjectName(QStringLiteral("muted"));
     statusLabel->hide();
 
     auto *spinner = new Spinner(parent);
@@ -118,27 +118,25 @@ void OrderHistoryView::load()
                                                              : QStringLiteral("#2a6fdb"));
 
                       auto *card = new QFrame(this);
-                      card->setStyleSheet(QStringLiteral(
-                          "QFrame { background: white; border: 1px solid #e8eaee; border-radius: 14px; }"
-                          "QLabel { border: none; }"));
+                      card->setObjectName(QStringLiteral("infoCard"));
                       auto *nameLabel = new QLabel(order.stationName, card);
-                      nameLabel->setStyleSheet(QStringLiteral("font-size: 15px; font-weight: bold;"));
+                      nameLabel->setObjectName(QStringLiteral("cardTitle"));
                       auto *statusLabel = new QLabel(Order::statusLabel(order.status), card);
-                      statusLabel->setStyleSheet(
-                          QStringLiteral("color: %1; font-weight: bold;").arg(statusColor));
+                      statusLabel->setObjectName(QStringLiteral("statusStrong"));
+                      statusLabel->setStyleSheet(QStringLiteral("color: %1;").arg(statusColor));
                       auto *detailLabel = new QLabel(
                           QStringLiteral("电桩 %1 · %2 · %3 分钟")
                               .arg(order.chargerCode,
                                    QString(order.startedAt).replace(QLatin1Char('T'), QLatin1Char(' ')).left(16))
                               .arg(order.durationMinutes),
                           card);
-                      detailLabel->setStyleSheet(QStringLiteral("color: #8a8f99; font-size: 12px;"));
+                      detailLabel->setObjectName(QStringLiteral("meta"));
                       auto *amountLabel = new QLabel(
                           QStringLiteral("%1 度 · ￥%2")
                               .arg(order.energyKwh, 0, 'f', 1)
                               .arg(fenToYuan(order.amountFen)),
                           card);
-                      amountLabel->setStyleSheet(QStringLiteral("font-weight: bold;"));
+                      amountLabel->setObjectName(QStringLiteral("strong"));
                       amountLabel->setAlignment(Qt::AlignRight);
 
                       auto *grid = new QGridLayout(card);
@@ -205,31 +203,30 @@ void TransactionsView::load()
                       const qlonglong amount = object.value(QLatin1String("amountFen")).toInteger();
 
                       auto *card = new QFrame(this);
-                      card->setStyleSheet(QStringLiteral(
-                          "QFrame { background: white; border: 1px solid #e8eaee; border-radius: 14px; }"
-                          "QLabel { border: none; }"));
+                      card->setObjectName(QStringLiteral("infoCard"));
                       auto *typeLabel = new QLabel(type, card);
-                      typeLabel->setStyleSheet(QStringLiteral("font-weight: bold;"));
+                      typeLabel->setObjectName(QStringLiteral("strong"));
                       auto *timeLabel = new QLabel(
                           QString(object.value(QLatin1String("createdAt")).toString())
                               .replace(QLatin1Char('T'), QLatin1Char(' '))
                               .left(16),
                           card);
-                      timeLabel->setStyleSheet(QStringLiteral("color: #8a8f99; font-size: 12px;"));
+                      timeLabel->setObjectName(QStringLiteral("meta"));
                       auto *amountLabel = new QLabel(
                           QStringLiteral("%1￥%2")
                               .arg(amount >= 0 ? QStringLiteral("+") : QStringLiteral("-"),
                                    fenToYuan(qAbs(amount))),
                           card);
+                      amountLabel->setObjectName(QStringLiteral("strong"));
                       amountLabel->setStyleSheet(
-                          QStringLiteral("font-weight: bold; color: %1;")
+                          QStringLiteral("color: %1;")
                               .arg(amount >= 0 ? QStringLiteral("#2e9e5b") : QStringLiteral("#e74c3c")));
                       amountLabel->setAlignment(Qt::AlignRight);
                       auto *balanceLabel = new QLabel(
                           QStringLiteral("余额 ￥%1")
                               .arg(fenToYuan(object.value(QLatin1String("balanceAfterFen")).toInteger())),
                           card);
-                      balanceLabel->setStyleSheet(QStringLiteral("color: #8a8f99; font-size: 12px;"));
+                      balanceLabel->setObjectName(QStringLiteral("meta"));
                       balanceLabel->setAlignment(Qt::AlignRight);
 
                       auto *grid = new QGridLayout(card);
@@ -292,14 +289,12 @@ void ReservationHistoryView::load()
                                                                     : QStringLiteral("#8a8f99")));
 
                       auto *card = new QFrame(this);
-                      card->setStyleSheet(QStringLiteral(
-                          "QFrame { background: white; border: 1px solid #e8eaee; border-radius: 14px; }"
-                          "QLabel { border: none; }"));
+                      card->setObjectName(QStringLiteral("infoCard"));
                       auto *nameLabel = new QLabel(reservation.stationName, card);
-                      nameLabel->setStyleSheet(QStringLiteral("font-size: 15px; font-weight: bold;"));
+                      nameLabel->setObjectName(QStringLiteral("cardTitle"));
                       auto *statusLabel = new QLabel(Reservation::statusLabel(reservation.status), card);
-                      statusLabel->setStyleSheet(
-                          QStringLiteral("color: %1; font-weight: bold;").arg(statusColor));
+                      statusLabel->setObjectName(QStringLiteral("statusStrong"));
+                      statusLabel->setStyleSheet(QStringLiteral("color: %1;").arg(statusColor));
                       auto *detailLabel = new QLabel(
                           QStringLiteral("电桩 %1 · %2")
                               .arg(reservation.chargerCode,
@@ -307,12 +302,12 @@ void ReservationHistoryView::load()
                                        .replace(QLatin1Char('T'), QLatin1Char(' '))
                                        .left(16)),
                           card);
-                      detailLabel->setStyleSheet(QStringLiteral("color: #8a8f99; font-size: 12px;"));
+                      detailLabel->setObjectName(QStringLiteral("meta"));
                       auto *expireLabel = new QLabel(
                           QStringLiteral("到期 %1")
                               .arg(reservation.expiresAt.toString(QStringLiteral("MM-dd hh:mm"))),
                           card);
-                      expireLabel->setStyleSheet(QStringLiteral("color: #8a8f99; font-size: 12px;"));
+                      expireLabel->setObjectName(QStringLiteral("meta"));
                       expireLabel->setAlignment(Qt::AlignRight);
 
                       auto *grid = new QGridLayout(card);
@@ -344,20 +339,18 @@ CarView::CarView(QWidget *parent)
 
     auto *iconLabel = new QLabel(QStringLiteral("🚗"), this);
     iconLabel->setAlignment(Qt::AlignCenter);
-    iconLabel->setStyleSheet(QStringLiteral("font-size: 64px;"));
+    iconLabel->setObjectName(QStringLiteral("heroIcon"));
 
     auto *nameLabel = new QLabel(QStringLiteral("比亚迪 · 汉 EV"), this);
     nameLabel->setAlignment(Qt::AlignCenter);
-    nameLabel->setStyleSheet(QStringLiteral("font-size: 20px; font-weight: bold;"));
+    nameLabel->setObjectName(QStringLiteral("heroTitle"));
 
     auto *detailLabel = new QLabel(QStringLiteral("电池容量 60.5 kWh · 支持快充\n车牌 辽B·D88888"), this);
     detailLabel->setAlignment(Qt::AlignCenter);
-    detailLabel->setStyleSheet(QStringLiteral("color: #8a8f99;"));
+    detailLabel->setObjectName(QStringLiteral("muted"));
 
     auto *card = new QFrame(this);
-    card->setStyleSheet(QStringLiteral(
-        "QFrame { background: white; border: 1px solid #e8eaee; border-radius: 18px; }"
-        "QLabel { border: none; }"));
+    card->setObjectName(QStringLiteral("profileCard"));
     auto *cardLayout = new QVBoxLayout(card);
     cardLayout->setContentsMargins(24, 32, 24, 32);
     cardLayout->setSpacing(12);
@@ -383,19 +376,19 @@ AboutView::AboutView(QWidget *parent)
 
     auto *iconLabel = new QLabel(QStringLiteral("⚡"), this);
     iconLabel->setAlignment(Qt::AlignCenter);
-    iconLabel->setStyleSheet(QStringLiteral("font-size: 56px;"));
+    iconLabel->setObjectName(QStringLiteral("heroIconSmall"));
 
     auto *nameLabel = new QLabel(QStringLiteral("智能充电系统"), this);
     nameLabel->setAlignment(Qt::AlignCenter);
-    nameLabel->setStyleSheet(QStringLiteral("font-size: 20px; font-weight: bold;"));
+    nameLabel->setObjectName(QStringLiteral("heroTitle"));
 
     auto *versionLabel = new QLabel(QStringLiteral("版本 1.0.0"), this);
     versionLabel->setAlignment(Qt::AlignCenter);
-    versionLabel->setStyleSheet(QStringLiteral("color: #8a8f99;"));
+    versionLabel->setObjectName(QStringLiteral("muted"));
 
     auto *detailLabel = new QLabel(QStringLiteral("电动汽车充电桩应用管理平台 · 用户端\n基于 Qt 6 构建"), this);
     detailLabel->setAlignment(Qt::AlignCenter);
-    detailLabel->setStyleSheet(QStringLiteral("color: #8a8f99;"));
+    detailLabel->setObjectName(QStringLiteral("muted"));
 
     auto *layout = new QVBoxLayout(this);
     layout->setContentsMargins(12, 12, 12, 12);

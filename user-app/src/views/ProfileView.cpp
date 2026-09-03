@@ -39,10 +39,7 @@ ProfileView::ProfileView(Session &session, ApiClient &api, QWidget *parent)
     , m_api(api)
 {
     auto *headerCard = new QFrame(this);
-    headerCard->setStyleSheet(QStringLiteral(
-        "QFrame { background: qlineargradient(x1:0, y1:0, x2:1, y2:1,"
-        " stop:0 #1d5cff, stop:1 #4ca1ff); border: none; border-radius: 18px; }"
-        "QLabel { border: none; background: transparent; }"));
+    headerCard->setObjectName(QStringLiteral("profileHeader"));
 
     m_avatarLabel = new QLabel(QStringLiteral("👤"), headerCard);
     m_avatarLabel->setAlignment(Qt::AlignCenter);
@@ -53,17 +50,16 @@ ProfileView::ProfileView(Session &session, ApiClient &api, QWidget *parent)
     m_avatarLabel->setToolTip(QStringLiteral("点击更换头像"));
 
     m_nicknameLabel = new QLabel(headerCard);
-    m_nicknameLabel->setStyleSheet(QStringLiteral("font-size: 18px; font-weight: bold; color: white;"));
+    m_nicknameLabel->setObjectName(QStringLiteral("profileName"));
 
     auto *editButton = new QPushButton(QStringLiteral("✏️"), headerCard);
-    editButton->setStyleSheet(QStringLiteral(
-        "QPushButton { background: transparent; border: none; color: rgba(255,255,255,0.85); font-size: 13px; }"));
+    editButton->setObjectName(QStringLiteral("iconGhost"));
     editButton->setCursor(Qt::PointingHandCursor);
     editButton->setToolTip(QStringLiteral("修改昵称"));
     editButton->setFixedSize(24, 24);
 
     m_phoneLabel = new QLabel(headerCard);
-    m_phoneLabel->setStyleSheet(QStringLiteral("color: rgba(255,255,255,0.8); font-size: 13px;"));
+    m_phoneLabel->setObjectName(QStringLiteral("profilePhone"));
 
     auto *nicknameRow = new QHBoxLayout;
     nicknameRow->setSpacing(4);
@@ -84,15 +80,13 @@ ProfileView::ProfileView(Session &session, ApiClient &api, QWidget *parent)
     headerLayout->addLayout(infoColumn, 1);
 
     auto *walletCard = new QFrame(this);
-    walletCard->setStyleSheet(QStringLiteral(
-        "QFrame { background: white; border: 1px solid #e8eaee; border-radius: 18px; }"
-        "QLabel { border: none; }"));
+    walletCard->setObjectName(QStringLiteral("profileCard"));
     auto *balanceTitle = new QLabel(QStringLiteral("钱包余额"), walletCard);
-    balanceTitle->setStyleSheet(QStringLiteral("color: #8a8f99;"));
+    balanceTitle->setObjectName(QStringLiteral("muted"));
     balanceTitle->setAlignment(Qt::AlignCenter);
     m_balanceLabel = new QLabel(walletCard);
     m_balanceLabel->setAlignment(Qt::AlignCenter);
-    m_balanceLabel->setStyleSheet(QStringLiteral("font-size: 28px; font-weight: bold; color: #1d5cff;"));
+    m_balanceLabel->setObjectName(QStringLiteral("balance"));
     auto *topUpButton = new ScaleButton(QStringLiteral("立即充值"), walletCard);
     topUpButton->setObjectName(QStringLiteral("primaryButton"));
 
@@ -117,11 +111,7 @@ ProfileView::ProfileView(Session &session, ApiClient &api, QWidget *parent)
     };
 
     auto *menuCard = new QFrame(this);
-    menuCard->setStyleSheet(QStringLiteral(
-        "QFrame { background: white; border: 1px solid #e8eaee; border-radius: 18px; }"
-        "QPushButton { background: transparent; border: none; border-radius: 0;"
-        " padding: 14px 16px; text-align: left; font-size: 14px; }"
-        "QPushButton:hover { background: #f5f7fa; }"));
+    menuCard->setObjectName(QStringLiteral("menuCard"));
     auto *menuLayout = new QVBoxLayout(menuCard);
     menuLayout->setContentsMargins(4, 4, 4, 4);
     menuLayout->setSpacing(0);

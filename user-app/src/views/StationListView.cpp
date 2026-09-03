@@ -57,14 +57,11 @@ StationListView::StationListView(Session &session, ApiClient &api, QWidget *pare
     m_bannerButton = new QPushButton(this);
     m_bannerButton->setObjectName(QStringLiteral("aiBanner"));
     m_bannerButton->setCursor(Qt::PointingHandCursor);
-    m_bannerButton->setStyleSheet(QStringLiteral(
-        "QPushButton { background: qlineargradient(x1:0, y1:0, x2:1, y2:0,"
-        " stop:0 #eef3ff, stop:1 #f6f0ff); color: #1d5cff;"
-        " border: 1px solid #d8e2ff; border-radius: 10px; padding: 9px 12px; text-align: left; }"));
+
     m_bannerButton->hide();
 
     m_statusLabel = new QLabel(this);
-    m_statusLabel->setStyleSheet(QStringLiteral("color: #d33;"));
+    m_statusLabel->setObjectName(QStringLiteral("error"));
     m_statusLabel->hide();
 
     m_spinner = new Spinner(this);

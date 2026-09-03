@@ -29,7 +29,7 @@ RechargeDialog::RechargeDialog(ApiClient &api, QWidget *parent)
 
     auto *title = new QLabel(QStringLiteral("账户充值"), this);
     title->setAlignment(Qt::AlignCenter);
-    title->setStyleSheet(QStringLiteral("font-size: 18px; font-weight: bold;"));
+    title->setObjectName(QStringLiteral("pageTitle"));
 
     auto *quickBox = new QGridLayout;
     const QList<int> quickAmounts = {50, 100, 200};

@@ -49,8 +49,7 @@ ComboBox::ComboBox(QWidget *parent)
     setMinimumHeight(38);
     auto *listView = new QListView(this);
     listView->setItemDelegate(new PopupDelegate(listView));
-    listView->setStyleSheet(QStringLiteral(
-        "QListView { background: white; border: 1px solid #e8eaee; border-radius: 10px; padding: 4px; outline: 0; }"));
+    listView->setObjectName(QStringLiteral("comboPopup"));
     setView(listView);
     connect(listView, &QAbstractItemView::activated, this, [this] { hidePopup(); });
     connect(listView, &QAbstractItemView::clicked, this, [this] {

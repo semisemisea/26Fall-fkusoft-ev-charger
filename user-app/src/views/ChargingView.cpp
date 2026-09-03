@@ -17,25 +17,25 @@ ChargingView::ChargingView(ApiClient &api, QWidget *parent)
 {
     m_headerLabel = new QLabel(this);
     m_headerLabel->setAlignment(Qt::AlignCenter);
-    m_headerLabel->setStyleSheet(QStringLiteral("font-size: 16px; font-weight: bold;"));
+    m_headerLabel->setObjectName(QStringLiteral("cardHeading"));
 
     m_ringWidget = new ChargeRingWidget(this);
 
     m_energyLabel = new QLabel(this);
     m_energyLabel->setAlignment(Qt::AlignCenter);
-    m_energyLabel->setStyleSheet(QStringLiteral("font-size: 34px; font-weight: bold;"));
+    m_energyLabel->setObjectName(QStringLiteral("bigNumber"));
 
     m_durationLabel = new QLabel(this);
     m_durationLabel->setAlignment(Qt::AlignCenter);
-    m_durationLabel->setStyleSheet(QStringLiteral("color: #555; font-size: 15px;"));
+    m_durationLabel->setObjectName(QStringLiteral("muted"));
 
     m_amountLabel = new QLabel(this);
     m_amountLabel->setAlignment(Qt::AlignCenter);
-    m_amountLabel->setStyleSheet(QStringLiteral("color: #e74c3c; font-size: 16px; font-weight: bold;"));
+    m_amountLabel->setObjectName(QStringLiteral("amountRed"));
 
     m_orderLabel = new QLabel(this);
     m_orderLabel->setAlignment(Qt::AlignCenter);
-    m_orderLabel->setStyleSheet(QStringLiteral("color: #aaa; font-size: 11px;"));
+    m_orderLabel->setObjectName(QStringLiteral("faint"));
 
     m_stopButton = new QPushButton(QStringLiteral("结束充电"), this);
     m_stopButton->setObjectName(QStringLiteral("dangerButton"));
