@@ -1,0 +1,15 @@
+# clangd 编译参数(与 CMake 编译命令一致)
+# Ubuntu 22.04 apt 的 Qt 6.2.4 头文件布局在 /usr/include/x86_64-linux-gnu/qt6
+# uic 生成的 ui_*.h 在 build/ 目录,必须加进 include 路径
+CompileFlags:
+  Add:
+    - -std=c++20
+    - -fPIC
+    - -I/usr/include/x86_64-linux-gnu/qt6
+    - -I/usr/include/x86_64-linux-gnu/qt6/QtCore
+    - -I/usr/include/x86_64-linux-gnu/qt6/QtGui
+    - -I/usr/include/x86_64-linux-gnu/qt6/QtWidgets
+    - -I/usr/include/x86_64-linux-gnu/qt6/QtNetwork
+    - -I/usr/include/x86_64-linux-gnu/qt6/QtCharts
+    - -I/home/semisemisea/26Fall-fkusoft-ev-charger/ops-app
+    - -I/home/semisemisea/26Fall-fkusoft-ev-charger/ops-app/build
