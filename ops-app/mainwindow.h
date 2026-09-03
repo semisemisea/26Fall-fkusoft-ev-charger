@@ -13,6 +13,7 @@ class QStackedWidget;
 class SalesPage;
 class ChargerStatusPage;
 class ChargerManagePage;
+class StationPage;
 
 class MainWindow : public QMainWindow {
 	Q_OBJECT

@@ -28,6 +28,8 @@ qt_add_executable(ops-app
     pages/chargerstatuspage.h
     pages/chargermanagepage.cpp
     pages/chargermanagepage.h
+    pages/stationpage.cpp
+    pages/stationpage.h
 )
 
 target_link_libraries(ops-app PRIVATE
