@@ -52,19 +52,39 @@ QString Charger::statusLabel(const QString &status)
 QString Charger::statusColor(const QString &status)
 {
     if (status == QLatin1String("available")) {
-        return theme::successName();
+        return theme::successInkName();
     }
     if (status == QLatin1String("reserved")) {
-        return theme::warningName();
+        return theme::warningInkName();
     }
     if (status == QLatin1String("charging")) {
-        return theme::primaryName();
+        return theme::primaryDeepName();
     }
     if (status == QLatin1String("fault")) {
-        return theme::errorName();
+        return theme::errorDeep().name();
     }
     if (status == QLatin1String("offline")) {
         return theme::neutralGray().name();
     }
     return theme::textSecondaryName();
+}
+
+QString Charger::statusBgColor(const QString &status)
+{
+    if (status == QLatin1String("available")) {
+        return theme::successBg().name();
+    }
+    if (status == QLatin1String("reserved")) {
+        return theme::warningBg().name();
+    }
+    if (status == QLatin1String("charging")) {
+        return theme::primaryBg().name();
+    }
+    if (status == QLatin1String("fault")) {
+        return theme::errorBg().name();
+    }
+    if (status == QLatin1String("offline")) {
+        return theme::fillHover().name();
+    }
+    return theme::split().name();
 }

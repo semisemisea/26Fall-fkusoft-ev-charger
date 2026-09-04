@@ -19,4 +19,5 @@ struct Charger
     static QString typeLabel(const Charger &charger);
     static QString statusLabel(const QString &status);
     static QString statusColor(const QString &status);
+    static QString statusBgColor(const QString &status);
 };

@@ -20,7 +20,7 @@ StationCard::StationCard(const Station &station, QWidget *parent)
 
     auto *shadow = new QGraphicsDropShadowEffect(this);
     shadow->setBlurRadius(18);
-    shadow->setColor(QColor(0, 0, 0, 35));
+    shadow->setColor(theme::shadowInk());
     shadow->setOffset(0, 3);
     setGraphicsEffect(shadow);
 
@@ -56,7 +56,7 @@ StationCard::StationCard(const Station &station, QWidget *parent)
                                  this);
     idleLabel->setObjectName(QStringLiteral("strong"));
     idleLabel->setStyleSheet(QStringLiteral("color: %1;")
-                                 .arg(station.availableChargerCount > 0 ? theme::successName() : theme::errorName()));
+                                 .arg(station.availableChargerCount > 0 ? theme::successInkName() : theme::errorStrongName()));
 
     auto *grid = new QGridLayout(this);
     grid->setContentsMargins(14, 12, 14, 12);

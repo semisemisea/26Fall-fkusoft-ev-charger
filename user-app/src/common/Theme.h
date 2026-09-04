@@ -7,84 +7,136 @@ namespace theme {
 
 inline QColor primary()
 {
-    return QColor(0x16, 0x77, 0xff);
+    return QColor(0x5f, 0x63, 0xf0);
 }
-inline QColor primaryHover()
+inline QColor primaryDeep()
 {
-    return QColor(0x40, 0x96, 0xff);
+    return QColor(0x4f, 0x52, 0xd9);
 }
-inline QColor primaryActive()
+inline QColor primaryPress()
 {
-    return QColor(0x09, 0x58, 0xd9);
+    return QColor(0x47, 0x49, 0xc4);
+}
+inline QColor primarySoft()
+{
+    return QColor(0x7b, 0x7f, 0xf5);
 }
 inline QColor primaryBg()
 {
-    return QColor(0xe6, 0xf4, 0xff);
+    return QColor(0xee, 0xf0, 0xff);
+}
+inline QColor primaryBorder()
+{
+    return QColor(0xd9, 0xdc, 0xff);
 }
 inline QColor success()
 {
-    return QColor(0x52, 0xc4, 0x1a);
+    return QColor(0x10, 0xb9, 0x81);
+}
+inline QColor successActive()
+{
+    return QColor(0x05, 0x96, 0x69);
+}
+inline QColor successInk()
+{
+    return QColor(0x04, 0x78, 0x57);
+}
+inline QColor successBg()
+{
+    return QColor(0xec, 0xfd, 0xf5);
 }
 inline QColor warning()
 {
-    return QColor(0xfa, 0xad, 0x14);
+    return QColor(0xf5, 0x9e, 0x0b);
+}
+inline QColor warningInk()
+{
+    return QColor(0x92, 0x40, 0x0e);
+}
+inline QColor warningBg()
+{
+    return QColor(0xfe, 0xf3, 0xc7);
 }
 inline QColor error()
 {
-    return QColor(0xff, 0x4d, 0x4f);
+    return QColor(0xf4, 0x3f, 0x5e);
+}
+inline QColor errorStrong()
+{
+    return QColor(0xe1, 0x1d, 0x48);
+}
+inline QColor errorDeep()
+{
+    return QColor(0xbe, 0x12, 0x3c);
+}
+inline QColor errorBg()
+{
+    return QColor(0xff, 0xf1, 0xf2);
 }
 inline QColor textPrimary()
 {
-    return QColor(0, 0, 0, 224);
+    return QColor(0x1e, 0x29, 0x3b);
 }
 inline QColor textSecondary()
 {
-    return QColor(0, 0, 0, 115);
+    return QColor(0x64, 0x74, 0x8d);
 }
 inline QColor textDisabled()
 {
-    return QColor(0, 0, 0, 64);
-}
-inline QColor border()
-{
-    return QColor(0xd9, 0xd9, 0xd9);
-}
-inline QColor split()
-{
-    return QColor(0xf0, 0xf0, 0xf0);
-}
-inline QColor fillHover()
-{
-    return QColor(0, 0, 0, 10);
-}
-inline QColor bgLayout()
-{
-    return QColor(0xf5, 0xf5, 0xf5);
+    return QColor(0x94, 0xa3, 0xb8);
 }
 inline QColor neutralGray()
 {
-    return QColor(0xbf, 0xbf, 0xbf);
+    return QColor(0x47, 0x55, 0x69);
+}
+inline QColor border()
+{
+    return QColor(0xcb, 0xd5, 0xe1);
+}
+inline QColor split()
+{
+    return QColor(0xe2, 0xe8, 0xf0);
+}
+inline QColor fillHover()
+{
+    return QColor(0xf1, 0xf5, 0xf9);
+}
+inline QColor bgLayout()
+{
+    return QColor(0xf8, 0xfa, 0xfc);
+}
+inline QColor shadowInk()
+{
+    return QColor(15, 23, 42, 40);
 }
 
 inline QString primaryName()
 {
     return primary().name();
 }
-inline QString successName()
+inline QString primaryDeepName()
 {
-    return success().name();
+    return primaryDeep().name();
 }
-inline QString warningName()
+inline QString successInkName()
 {
-    return warning().name();
+    return successInk().name();
+}
+inline QString warningInkName()
+{
+    return warningInk().name();
 }
 inline QString errorName()
 {
     return error().name();
 }
+inline QString errorStrongName()
+{
+    return errorStrong().name();
+}
 inline QString textSecondaryName()
 {
-    return QStringLiteral("#8c8c8c");
+    return textSecondary().name();
 }
 
 }

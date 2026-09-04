@@ -29,7 +29,7 @@ public:
             painter->setBrush(selected ? theme::primaryBg() : theme::fillHover());
             painter->drawRoundedRect(option.rect.adjusted(3, 1, -3, -1), 6, 6);
         }
-        painter->setPen(selected ? theme::primary() : theme::textPrimary());
+        painter->setPen(selected ? theme::primaryDeep() : theme::textPrimary());
         painter->drawText(option.rect.adjusted(12, 0, 0, 0), Qt::AlignVCenter | Qt::AlignLeft,
                           index.data(Qt::DisplayRole).toString());
         painter->restore();

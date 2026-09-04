@@ -173,7 +173,7 @@ void MainWindow::buildTabBar()
     pill->setObjectName(QStringLiteral("tabPill"));
     auto *shadow = new QGraphicsDropShadowEffect(pill);
     shadow->setBlurRadius(30);
-    shadow->setColor(QColor(0, 0, 0, 42));
+    shadow->setColor(theme::shadowInk());
     shadow->setOffset(0, 6);
     pill->setGraphicsEffect(shadow);
 

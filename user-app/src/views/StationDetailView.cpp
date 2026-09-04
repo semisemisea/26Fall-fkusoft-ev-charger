@@ -107,9 +107,10 @@ void StationDetailView::loadChargers()
                       codeLabel->setObjectName(QStringLiteral("strong"));
 
                       const QString color = Charger::statusColor(charger.status);
+                      const QString bgColor = Charger::statusBgColor(charger.status);
                       auto *statusLabel = new QLabel(Charger::statusLabel(charger.status), row);
                       statusLabel->setObjectName(QStringLiteral("badge"));
-                      statusLabel->setStyleSheet(QStringLiteral("background: %1;").arg(color));
+                      statusLabel->setStyleSheet(QStringLiteral("background: %1; color: %2;").arg(bgColor, color));
 
                       auto *rowLayout = new QHBoxLayout(row);
                       rowLayout->setContentsMargins(10, 6, 10, 6);

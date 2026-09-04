@@ -47,7 +47,7 @@ void showToast(QWidget *anchor, const QColor &accent, const QString &text)
 
     auto *shadow = new QGraphicsDropShadowEffect(card);
     shadow->setBlurRadius(26);
-    shadow->setColor(QColor(0, 0, 0, 46));
+    shadow->setColor(theme::shadowInk());
     shadow->setOffset(0, 4);
     card->setGraphicsEffect(shadow);
 

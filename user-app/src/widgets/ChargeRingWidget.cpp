@@ -52,7 +52,7 @@ void ChargeRingWidget::paintEvent(QPaintEvent *event)
     painter.setPen(backgroundPen);
     painter.drawEllipse(rect);
 
-    QPen progressPen(theme::success(), 9, Qt::SolidLine, Qt::RoundCap);
+    QPen progressPen(theme::successActive(), 9, Qt::SolidLine, Qt::RoundCap);
     painter.setPen(progressPen);
     painter.drawArc(rect, -m_angle * 16, -110 * 16);
 
