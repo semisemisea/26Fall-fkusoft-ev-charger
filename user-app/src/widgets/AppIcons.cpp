@@ -99,3 +99,25 @@ QPixmap AppIcons::person(const QColor &color, int size, bool badge)
     }
     return pixmap;
 }
+
+QPixmap AppIcons::search(const QColor &color, int size, bool badge)
+{
+	QPixmap pixmap = makePixmap(size);
+	QPainter painter(&pixmap);
+	painter.setRenderHint(QPainter::Antialiasing);
+	painter.scale(size / 24.0, size / 24.0);
+	painter.setPen(QPen(color, 2.2));
+	painter.setBrush(Qt::NoBrush);
+
+		   // 画圆圈（放大镜的镜片）
+	painter.drawEllipse(QPointF(9.5, 9.5), 6.0, 6.0);
+
+		   // 画手柄（放大镜的柄）
+	painter.setPen(QPen(color, 2.5));
+	painter.drawLine(QPointF(14.0, 14.0), QPointF(20.5, 20.5));
+
+	if (badge) {
+		drawBadge(painter);
+	}
+	return pixmap;
+}

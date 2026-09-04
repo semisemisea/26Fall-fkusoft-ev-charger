@@ -202,7 +202,7 @@ void MainWindow::buildTabBar()
         button->setCheckable(true);
         button->setChecked(i == 0);
         button->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
-        button->setIconSize(QSize(22, 22));
+		button->setIconSize(QSize(32, 32));
         button->setText(QString::fromUtf8(tabs[i].text));
         button->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
         group->addButton(button);

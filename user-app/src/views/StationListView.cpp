@@ -1,6 +1,8 @@
 #include "StationListView.h"
 
 #include "common/Demo.h"
+#include "common/Theme.h"
+#include "widgets/AppIcons.h"
 #include "widgets/Spinner.h"
 #include "widgets/StationCard.h"
 
@@ -39,8 +41,22 @@ StationListView::StationListView(Session &session, ApiClient &api, QWidget *pare
 	  , m_session(session)
 	  , m_api(api)
 {
-	auto *locationLabel = new QLabel(QStringLiteral("📍 当前定位（区域）"), this);
+	// ===== 定位行：图标 + 文字 =====
+	auto *locationWidget = new QWidget(this);
+	auto *locationLayout = new QHBoxLayout(locationWidget);
+	locationLayout->setContentsMargins(0, 0, 0, 0);
+	locationLayout->setSpacing(0);
+
+	auto *locationIcon = new QLabel(this);
+	QPixmap pinPixmap = AppIcons::pin(theme::textSecondary(), 18, false);
+	locationIcon->setPixmap(pinPixmap);
+
+	auto *locationLabel = new QLabel(QStringLiteral("当前定位（区域）"), this);
 	locationLabel->setObjectName(QStringLiteral("meta"));
+
+	locationLayout->addWidget(locationIcon);
+	locationLayout->addWidget(locationLabel);
+	locationLayout->addStretch();
 
 	m_locationCombo = new ComboBox(this);
 	for (const LocationPreset &preset : kLocationPresets) {
@@ -55,10 +71,16 @@ StationListView::StationListView(Session &session, ApiClient &api, QWidget *pare
 	auto *sectionTitle = new QLabel(QStringLiteral("附近充电站（按距离排序）"), this);
 	sectionTitle->setObjectName(QStringLiteral("meta"));
 
+		   // ===== 搜索框：图标在输入框内部左侧 =====
 	m_searchEdit = new QLineEdit(this);
-	m_searchEdit->setPlaceholderText(QStringLiteral("🔍 搜索电站 / 地址"));
+	m_searchEdit->setPlaceholderText(QStringLiteral("搜索电站 / 地址"));
 	m_searchEdit->setClearButtonEnabled(true);
 	connect(m_searchEdit, &QLineEdit::textChanged, this, [this] { applyFilter(); });
+
+		   // 添加搜索图标到输入框内部左侧
+	QPixmap searchPixmap = AppIcons::search(theme::textSecondary(), 18, false);
+	QIcon searchIcon(searchPixmap);
+	m_searchEdit->addAction(searchIcon, QLineEdit::LeadingPosition);
 
 	m_bannerButton = new QPushButton(this);
 	m_bannerButton->setObjectName(QStringLiteral("aiBanner"));
@@ -94,7 +116,7 @@ StationListView::StationListView(Session &session, ApiClient &api, QWidget *pare
 	auto *layout = new QVBoxLayout(this);
 	layout->setContentsMargins(12, 12, 12, 12);
 	layout->setSpacing(10);
-	layout->addWidget(locationLabel);
+	layout->addWidget(locationWidget);
 	layout->addWidget(m_locationCombo);
 	layout->addWidget(sectionTitle);
 	layout->addWidget(m_searchEdit);
