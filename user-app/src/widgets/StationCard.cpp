@@ -47,8 +47,14 @@ StationCard::StationCard(const Station &station, QWidget *parent)
     auto *addressLabel = new QLabel(station.address, this);
     addressLabel->setObjectName(QStringLiteral("meta"));
 
-    auto *priceLabel = new QLabel(QStringLiteral("￥%1/度").arg(fenToYuan(station.pricePerKwhFen)), this);
-    priceLabel->setObjectName(QStringLiteral("price"));
+	auto *priceLabel = new QLabel(this);
+	priceLabel->setObjectName(QStringLiteral("price"));
+	QString priceText = QStringLiteral(
+							"<span style='font-size:13px;'>￥</span>"
+							"<span style='font-size:17px;font-weight:bold;'>%1</span>"
+							"<span style='font-size:13px;'> 元/度</span>"
+							).arg(fenToYuan(station.pricePerKwhFen));
+	priceLabel->setText(priceText);
 
     auto *idleLabel = new QLabel(QStringLiteral("空闲 %1 / %2")
                                      .arg(station.availableChargerCount)
