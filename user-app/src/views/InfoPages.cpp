@@ -6,6 +6,7 @@
 #include "models/Reservation.h"
 #include "widgets/BackButton.h"
 #include "widgets/Spinner.h"
+#include "widgets/AppIcons.h"
 
 #include <QFrame>
 #include <QGridLayout>
@@ -338,9 +339,11 @@ CarView::CarView(QWidget *parent)
     headerRow->addWidget(backButton);
     headerRow->addStretch();
 
-    auto *iconLabel = new QLabel(QStringLiteral("🚗"), this);
-    iconLabel->setAlignment(Qt::AlignCenter);
-    iconLabel->setObjectName(QStringLiteral("heroIcon"));
+	QLabel *iconLabel = new QLabel(this);
+	iconLabel->setAlignment(Qt::AlignCenter);
+	iconLabel->setObjectName(QStringLiteral("heroIcon"));
+	QPixmap carPixmap = AppIcons::car(theme::primary(), 48, false);
+	iconLabel->setPixmap(carPixmap);
 
     auto *nameLabel = new QLabel(QStringLiteral("比亚迪 · 汉 EV"), this);
     nameLabel->setAlignment(Qt::AlignCenter);
