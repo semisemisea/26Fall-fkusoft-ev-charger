@@ -128,6 +128,11 @@ ProfileView::ProfileView(Session &session, ApiClient &api, QWidget *parent)
 			row->setIcon(icon);
 			row->setIconSize(QSize(20, 20));
 			row->setText(QStringLiteral("  历史充电订单   ›"));  // 去掉 📋，用图标替代
+		} else if (QString::fromUtf8(item.text) == QStringLiteral("📅  我的预约记录")) {
+			QIcon icon(AppIcons::calendar(theme::primary(), 20, false));  // ← 加这个
+			row->setIcon(icon);
+			row->setIconSize(QSize(20, 20));
+			row->setText(QStringLiteral("  我的预约记录   ›"));
 		} else {
 			row->setText(text);
 		}
