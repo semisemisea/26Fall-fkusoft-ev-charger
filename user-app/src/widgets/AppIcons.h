@@ -13,4 +13,5 @@ QPixmap calendar(const QColor &color, int size = 24, bool badge = false);
 QPixmap wallet(const QColor &color, int size = 24, bool badge = false);
 QPixmap car(const QColor &color, int size = 24, bool badge = false);
 QPixmap info(const QColor &color, int size = 24, bool badge = false);
+QPixmap chevronRight(const QColor &color, int size = 24, bool badge = false);
 } // namespace AppIcons

@@ -116,42 +116,63 @@ ProfileView::ProfileView(Session &session, ApiClient &api, QWidget *parent)
     auto *menuCard = new QFrame(this);
     menuCard->setObjectName(QStringLiteral("menuCard"));
     auto *menuLayout = new QVBoxLayout(menuCard);
-    menuLayout->setContentsMargins(4, 4, 4, 4);
+	menuLayout->setContentsMargins(18, 4, 4, 4);
     menuLayout->setSpacing(0);
 
 	for (const auto &item : menuItems) {
+		// 用 QPushButton 作为容器
 		auto *row = new QPushButton(menuCard);
+		row->setCursor(Qt::PointingHandCursor);
+		row->setStyleSheet(
+			"QPushButton { background: transparent; border: none; text-align: left; padding: 12px 20px;}"
+			"QPushButton:hover { background: #f8fafc; }"
+			);
 
-		QString text = QString::fromUtf8(item.text) + QStringLiteral("   ›");
+			   // 按钮内部用 QHBoxLayout 布局
+		auto *layout = new QHBoxLayout(row);
+		layout->setContentsMargins(0, 0, 0, 0);
+		layout->setSpacing(12);
+
+			   // ===== 左侧图标 =====
+		QLabel *iconLabel = new QLabel(row);
+		QPixmap iconPixmap;
 		if (QString::fromUtf8(item.text) == QStringLiteral("📋  历史充电订单")) {
-			QIcon icon(AppIcons::clock(theme::primary(), 20, false));
-			row->setIcon(icon);
-			row->setIconSize(QSize(20, 20));
-			row->setText(QStringLiteral("  历史充电订单   ›"));  // 去掉 📋，用图标替代
+			iconPixmap = AppIcons::clock(theme::primary(), 20, false);
 		} else if (QString::fromUtf8(item.text) == QStringLiteral("📅  我的预约记录")) {
-			QIcon icon(AppIcons::calendar(theme::primary(), 20, false));  // ← 加这个
-			row->setIcon(icon);
-			row->setIconSize(QSize(20, 20));
-			row->setText(QStringLiteral("  我的预约记录   ›"));
+			iconPixmap = AppIcons::calendar(theme::primary(), 20, false);
 		} else if (QString::fromUtf8(item.text) == QStringLiteral("💰  钱包流水")) {
-			QIcon icon(AppIcons::wallet(theme::primary(), 20, false));
-			row->setIcon(icon);
-			row->setIconSize(QSize(20, 20));
-			row->setText(QStringLiteral("  钱包流水   ›"));
+			iconPixmap = AppIcons::wallet(theme::primary(), 20, false);
 		} else if (QString::fromUtf8(item.text) == QStringLiteral("🚗  我的爱车")) {
-			QIcon icon(AppIcons::car(theme::primary(), 20, false));
-			row->setIcon(icon);
-			row->setIconSize(QSize(20, 20));
-			row->setText(QStringLiteral("  我的爱车   ›"));
+			iconPixmap = AppIcons::car(theme::primary(), 20, false);
 		} else if (QString::fromUtf8(item.text) == QStringLiteral("ℹ️  关于系统")) {
-			QIcon icon(AppIcons::info(theme::primary(), 20, false));
-			row->setIcon(icon);
-			row->setIconSize(QSize(20, 20));
-			row->setText(QStringLiteral("  关于系统   ›"));
-		} else {
-			row->setText(text);
+			iconPixmap = AppIcons::info(theme::primary(), 20, false);
 		}
+		iconLabel->setPixmap(iconPixmap);
+		iconLabel->setFixedSize(20, 20);
+		iconLabel->setScaledContents(true);
+
+			   // ===== 文字 =====
+		QString displayText = QString::fromUtf8(item.text);
+		displayText.remove(QRegularExpression("^[📋📅💰🚗ℹ️]\\s*"));  // 去掉 emoji 前缀
+		QLabel *textLabel = new QLabel(displayText, row);
+		textLabel->setStyleSheet("color: #1e293b; font-size: 16px; background: transparent;");
+
+			   // ===== 右侧箭头 =====
+		QLabel *chevronLabel = new QLabel(row);
+		QPixmap chevronPixmap = AppIcons::chevronRight(theme::textSecondary(), 16, false);
+		chevronLabel->setPixmap(chevronPixmap);
+		chevronLabel->setFixedSize(16, 16);
+		chevronLabel->setScaledContents(true);
+
+			   // ===== 组装 =====
+		layout->addWidget(iconLabel);
+		layout->addWidget(textLabel);
+		layout->addStretch();
+		layout->addWidget(chevronLabel);
+
+			   // ===== 点击信号 =====
 		connect(row, &QPushButton::clicked, this, item.signal);
+
 		menuLayout->addWidget(row);
 	}
 

@@ -250,3 +250,26 @@ QPixmap AppIcons::info(const QColor &color, int size, bool badge)
 	}
 	return pixmap;
 }
+
+QPixmap AppIcons::chevronRight(const QColor &color, int size, bool badge)
+{
+	QString svgTemplate = R"SVG(
+		<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+		<path d="M9 6L15 12L9 18" stroke="%1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+		</svg>
+	)SVG";
+
+	QString colorHex = color.name();
+	QString fullSvg = svgTemplate.arg(colorHex);
+
+	QSvgRenderer renderer(fullSvg.toUtf8());
+	QPixmap pixmap = makePixmap(size);
+	QPainter painter(&pixmap);
+	painter.setRenderHint(QPainter::Antialiasing);
+	renderer.render(&painter);
+
+	if (badge) {
+		drawBadge(painter);
+	}
+	return pixmap;
+}
