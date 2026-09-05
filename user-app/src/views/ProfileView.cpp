@@ -121,7 +121,7 @@ ProfileView::ProfileView(Session &session, ApiClient &api, QWidget *parent)
 
 	for (const auto &item : menuItems) {
 		auto *row = new QPushButton(menuCard);
-		// 只对 "历史充电订单" 加 clock 图标
+
 		QString text = QString::fromUtf8(item.text) + QStringLiteral("   ›");
 		if (QString::fromUtf8(item.text) == QStringLiteral("📋  历史充电订单")) {
 			QIcon icon(AppIcons::clock(theme::primary(), 20, false));
@@ -133,7 +133,12 @@ ProfileView::ProfileView(Session &session, ApiClient &api, QWidget *parent)
 			row->setIcon(icon);
 			row->setIconSize(QSize(20, 20));
 			row->setText(QStringLiteral("  我的预约记录   ›"));
-		} else {
+		} else if (QString::fromUtf8(item.text) == QStringLiteral("💰  钱包流水")) {
+			QIcon icon(AppIcons::wallet(theme::primary(), 20, false));
+			row->setIcon(icon);
+			row->setIconSize(QSize(20, 20));
+			row->setText(QStringLiteral("  钱包流水   ›"));
+		}else {
 			row->setText(text);
 		}
 		connect(row, &QPushButton::clicked, this, item.signal);

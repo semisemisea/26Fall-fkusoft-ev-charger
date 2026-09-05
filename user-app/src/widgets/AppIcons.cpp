@@ -170,3 +170,35 @@ QPixmap AppIcons::calendar(const QColor &color, int size, bool badge)
 	}
 	return pixmap;
 }
+
+QPixmap AppIcons::wallet(const QColor &color, int size, bool badge)
+{
+	// SVG 模板（用 %1 占位颜色）
+	QString svgTemplate = R"(
+		<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+		<g id="money_bag_3" data-name="money bag 3">
+		<path d="M17.67,22.5H6.33A4.83,4.83,0,0,1,1.5,17.67h0a4.83,4.83,0,0,1,1.24-3.23l7.35-8.17h3.82l7.35,8.17a4.83,4.83,0,0,1,1.24,3.23h0A4.83,4.83,0,0,1,17.67,22.5Z" stroke="%1" stroke-width="1.91" fill="none" stroke-linecap="square" stroke-miterlimit="10"/>
+		<path d="M15.82,1.5l-.39,2A3.49,3.49,0,0,1,12,6.27h0A3.49,3.49,0,0,1,8.57,3.46l-.39-2Z" stroke="%1" stroke-width="1.91" fill="none" stroke-linecap="square" stroke-miterlimit="10"/>
+		<line x1="18.68" y1="3.41" x2="14.86" y2="5.32" stroke="%1" stroke-width="1.91" fill="none" stroke-linecap="square" stroke-miterlimit="10"/>
+		<line x1="19.64" y1="6.27" x2="13.91" y2="6.27" stroke="%1" stroke-width="1.91" fill="none" stroke-linecap="square" stroke-miterlimit="10"/>
+		<path d="M10.09,17.73h2.39a1.43,1.43,0,0,0,1.43-1.43h0a1.43,1.43,0,0,0-1.43-1.44h-1a1.43,1.43,0,0,1-1.43-1.43h0A1.43,1.43,0,0,1,11.52,12h2.39" stroke="%1" stroke-width="1.91" fill="none" stroke-linecap="square" stroke-miterlimit="10"/>
+		<line x1="12" y1="11.05" x2="12" y2="12" stroke="%1" stroke-width="1.91" fill="none" stroke-linecap="square" stroke-miterlimit="10"/>
+		<line x1="12" y1="17.73" x2="12" y2="18.68" stroke="%1" stroke-width="1.91" fill="none" stroke-linecap="square" stroke-miterlimit="10"/>
+		</g>
+		</svg>
+	)";
+
+	QString colorHex = color.name();
+	QString fullSvg = svgTemplate.arg(colorHex);
+
+	QSvgRenderer renderer(fullSvg.toUtf8());
+	QPixmap pixmap = makePixmap(size);
+	QPainter painter(&pixmap);
+	painter.setRenderHint(QPainter::Antialiasing);
+	renderer.render(&painter);
+
+	if (badge) {
+		drawBadge(painter);
+	}
+	return pixmap;
+}
