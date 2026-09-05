@@ -18,11 +18,11 @@ StationCard::StationCard(const Station &station, QWidget *parent)
     setCursor(Qt::PointingHandCursor);
     setMinimumHeight(96);
 
-    auto *shadow = new QGraphicsDropShadowEffect(this);
-    shadow->setBlurRadius(18);
-    shadow->setColor(theme::shadowInk());
-    shadow->setOffset(0, 3);
-    setGraphicsEffect(shadow);
+	// auto *shadow = new QGraphicsDropShadowEffect(this);
+	// shadow->setBlurRadius(18);
+	// shadow->setColor(theme::shadowInk());
+	// shadow->setOffset(0, 3);
+	// setGraphicsEffect(shadow);
 
     auto *nameLabel = new QLabel(station.name, this);
     nameLabel->setObjectName(QStringLiteral("cardTitle"));
