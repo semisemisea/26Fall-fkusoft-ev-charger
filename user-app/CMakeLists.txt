@@ -5,7 +5,7 @@ project(user-app VERSION 0.1 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Widgets Network WebEngineWidgets)
+find_package(Qt6 REQUIRED COMPONENTS Widgets Network WebEngineWidgets Svg)
 
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
@@ -81,6 +81,7 @@ target_link_libraries(user-app PRIVATE
     Qt${QT_VERSION_MAJOR}::Widgets
     Qt${QT_VERSION_MAJOR}::Network
     Qt${QT_VERSION_MAJOR}::WebEngineWidgets
+    Qt${QT_VERSION_MAJOR}::Svg
 )
 
 set_target_properties(user-app PROPERTIES
