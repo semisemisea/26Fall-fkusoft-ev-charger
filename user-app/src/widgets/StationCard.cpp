@@ -52,7 +52,7 @@ StationCard::StationCard(const Station &station, QWidget *parent)
 	QString priceText = QStringLiteral(
 							"<span style='font-size:13px;'>￥</span>"
 							"<span style='font-size:17px;font-weight:bold;'>%1</span>"
-							"<span style='font-size:13px;'> 元/度</span>"
+							"<span style='font-size:13px;'> /度</span>"
 							).arg(fenToYuan(station.pricePerKwhFen));
 	priceLabel->setText(priceText);
 

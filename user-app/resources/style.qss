@@ -11,8 +11,8 @@ QWidget {
 }
 QMainWindow, QDialog {
     background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                                stop:0 #E4F7EB,
-                                stop:1 #F3F4F5);
+                                stop:0 #ECF9F1,
+                                stop:1 #F5F6F7);
 }
 QLabel {
     background: transparent;
