@@ -138,7 +138,17 @@ ProfileView::ProfileView(Session &session, ApiClient &api, QWidget *parent)
 			row->setIcon(icon);
 			row->setIconSize(QSize(20, 20));
 			row->setText(QStringLiteral("  钱包流水   ›"));
-		}else {
+		} else if (QString::fromUtf8(item.text) == QStringLiteral("🚗  我的爱车")) {
+			QIcon icon(AppIcons::car(theme::primary(), 20, false));
+			row->setIcon(icon);
+			row->setIconSize(QSize(20, 20));
+			row->setText(QStringLiteral("  我的爱车   ›"));
+		} else if (QString::fromUtf8(item.text) == QStringLiteral("ℹ️  关于系统")) {
+			QIcon icon(AppIcons::info(theme::primary(), 20, false));
+			row->setIcon(icon);
+			row->setIconSize(QSize(20, 20));
+			row->setText(QStringLiteral("  关于系统   ›"));
+		} else {
 			row->setText(text);
 		}
 		connect(row, &QPushButton::clicked, this, item.signal);
