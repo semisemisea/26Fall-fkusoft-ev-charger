@@ -34,6 +34,22 @@ ChargingTab::ChargingTab(Session &session, ApiClient &api, QWidget *parent)
     m_stack->addWidget(m_settleView);
     m_stack->addWidget(m_reservationPage);
 
+	/* ===设置汽车背景bg.png=== */
+	setAutoFillBackground(true);
+	QPalette pal;
+	QPixmap bg(":/backgrounds/bg.jpg");
+	pal.setBrush(QPalette::Window, QBrush(bg.scaled(390, 780, Qt::IgnoreAspectRatio, Qt::SmoothTransformation)));
+	setPalette(pal);
+
+	// 让页面背景透明（但不影响子控件）
+	m_preparePage->setAttribute(Qt::WA_TranslucentBackground);
+	m_chargingView->setAttribute(Qt::WA_TranslucentBackground);
+	m_settleView->setAttribute(Qt::WA_TranslucentBackground);
+	m_reservationPage->setAttribute(Qt::WA_TranslucentBackground);
+
+	// m_stack 保持透明
+	m_stack->setStyleSheet("QStackedWidget { background: transparent; }");
+
     auto *layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
     layout->addWidget(m_stack);
@@ -79,19 +95,19 @@ void ChargingTab::buildPreparePage()
     m_startButton->setObjectName(QStringLiteral("roundStartButton"));
     m_startButton->setFixedSize(150, 150);
 
-    auto *layout = new QVBoxLayout(page);
-    layout->setContentsMargins(32, 12, 32, 24);
-    layout->addStretch(2);
-    layout->addWidget(iconLabel);
-    layout->addWidget(titleLabel);
-    layout->addSpacing(4);
-    layout->addWidget(tipLabel);
-    layout->addSpacing(16);
-    layout->addWidget(m_codeEdit);
-    layout->addWidget(m_hintLabel);
-    layout->addSpacing(20);
-    layout->addWidget(m_startButton, 0, Qt::AlignCenter);
-    layout->addStretch(3);
+	auto *layout = new QVBoxLayout(page);
+	layout->setContentsMargins(32, 12, 32, 24);
+	layout->addStretch(1);
+	layout->addWidget(iconLabel);
+	layout->addWidget(titleLabel);
+	layout->addSpacing(70);
+	layout->addWidget(tipLabel);
+	layout->addSpacing(16);
+	layout->addWidget(m_codeEdit);
+	layout->addWidget(m_hintLabel);
+	layout->addSpacing(20);
+	layout->addWidget(m_startButton, 0, Qt::AlignCenter);
+	layout->addStretch(4);
 
     connect(m_codeEdit, &QLineEdit::returnPressed, this, &ChargingTab::startWithCode);
     connect(m_startButton, &QPushButton::clicked, this, &ChargingTab::startWithCode);

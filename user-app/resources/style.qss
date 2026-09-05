@@ -11,7 +11,7 @@ QWidget {
 }
 QMainWindow, QDialog {
     background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                                stop:0 #ECF9F1,
+                                stop:0 #F0F4FF,
                                 stop:1 #F5F6F7);
 }
 QLabel {
@@ -287,7 +287,6 @@ QLabel#error {
 }
 QLabel#price {
     color: #E67E22;
-    font-weight: bold;
 }
 QLabel#amountRed {
     color: #E67E22;
