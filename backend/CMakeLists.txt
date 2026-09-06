@@ -5,7 +5,9 @@ add_library(backend_runtime STATIC
 	src/config.cpp
 	src/database.cpp
 	src/http.cpp
+	src/resource_support.cpp
 	src/security.cpp
+	src/station_api.cpp
 	src/user_api.cpp
 )
 
@@ -40,4 +42,8 @@ if(BUILD_TESTING)
 	add_executable(backend_user_tests tests/user_tests.cpp)
 	target_link_libraries(backend_user_tests PRIVATE backend_runtime Qt6::Test)
 	add_test(NAME backend_user_tests COMMAND backend_user_tests)
+
+	add_executable(backend_station_tests tests/station_tests.cpp)
+	target_link_libraries(backend_station_tests PRIVATE backend_runtime Qt6::Test)
+	add_test(NAME backend_station_tests COMMAND backend_station_tests)
 endif()
