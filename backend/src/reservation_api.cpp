@@ -213,7 +213,7 @@ namespace Backend {
 			},
 																	   &databaseError);
 			if (!success) {
-				return databaseFailure(request.requestId);
+				return databaseFailure(request.requestId, databaseError);
 			}
 			if (idempotency.state == IdempotencyState::Reused) {
 				return jsonError(QStringLiteral("IDEMPOTENCY_KEY_REUSED"), QStringLiteral("幂等键已用于不同请求"), {}, request.requestId, 409);
@@ -286,7 +286,7 @@ namespace Backend {
 			},
 																	   &databaseError);
 			if (!success) {
-				return databaseFailure(request.requestId);
+				return databaseFailure(request.requestId, databaseError);
 			}
 			return jsonData(items, request.requestId, 200, QJsonObject{{QStringLiteral("page"), page->page}, {QStringLiteral("pageSize"), page->pageSize}, {QStringLiteral("total"), total}, {QStringLiteral("hasNext"), static_cast<qint64>(page->page) * page->pageSize < total}});
 		}
@@ -313,7 +313,7 @@ namespace Backend {
 			},
 																	   &databaseError);
 			if (!success) {
-				return databaseFailure(request.requestId);
+				return databaseFailure(request.requestId, databaseError);
 			}
 			return found ? jsonData(result, request.requestId) : jsonError(QStringLiteral("NOT_FOUND"), QStringLiteral("预约不存在"), {}, request.requestId, 404);
 		}
@@ -375,7 +375,7 @@ namespace Backend {
 			},
 																	   &databaseError);
 			if (!success) {
-				return databaseFailure(request.requestId);
+				return databaseFailure(request.requestId, databaseError);
 			}
 			if (!found) {
 				return jsonError(QStringLiteral("NOT_FOUND"), QStringLiteral("预约不存在"), {}, request.requestId, 404);

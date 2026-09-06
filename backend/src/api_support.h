@@ -37,7 +37,7 @@ namespace Backend {
 	std::optional<QJsonObject> parseJsonObject(const HttpRequest &request, HttpResponse *failure);
 	std::optional<Principal> authenticate(const HttpRequest &request, const ApiDependencies &dependencies, HttpResponse *failure);
 	QJsonObject userJson(qint64 id, const QString &phone, const QString &nickname, bool hasAvatar, qint64 balanceFen, const QString &status, const QString &createdAt);
-	HttpResponse databaseFailure(const QString &requestId);
+	HttpResponse databaseFailure(const QString &requestId, const QString &errorMessage);
 	bool beginTransaction(QSqlDatabase &database);
 	bool commitTransaction(QSqlDatabase &database);
 	bool checkIdempotency(QSqlDatabase &database, const Principal &principal, const HttpRequest &request, const QJsonObject &normalizedBody, const QDateTime &nowUtc, IdempotencyResult *result, QString *errorMessage);

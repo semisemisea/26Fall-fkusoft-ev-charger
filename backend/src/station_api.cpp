@@ -99,7 +99,7 @@ namespace Backend {
 			},
 																	   &databaseError);
 			if (!success) {
-				return databaseFailure(request.requestId);
+				return databaseFailure(request.requestId, databaseError);
 			}
 			return found ? jsonData(station, request.requestId) : jsonError(QStringLiteral("NOT_FOUND"), QStringLiteral("电站不存在"), {}, request.requestId, 404);
 		}
@@ -193,7 +193,7 @@ namespace Backend {
 			},
 																	   &databaseError);
 			if (!success) {
-				return databaseFailure(request.requestId);
+				return databaseFailure(request.requestId, databaseError);
 			}
 			std::sort(candidates.begin(), candidates.end(), [&](const Candidate &left, const Candidate &right) {
 				if (sort == QStringLiteral("price") && left.price != right.price) {
@@ -319,7 +319,7 @@ namespace Backend {
 				return true;
 			},
 																	   &databaseError);
-			return success ? jsonData(result, request.requestId, 201) : databaseFailure(request.requestId);
+			return success ? jsonData(result, request.requestId, 201) : databaseFailure(request.requestId, databaseError);
 		}
 
 		HttpResponse adminStationDetail(const HttpRequest &request, const ApiDependencies &dependencies) {
@@ -343,7 +343,7 @@ namespace Backend {
 			},
 																	   &databaseError);
 			if (!success) {
-				return databaseFailure(request.requestId);
+				return databaseFailure(request.requestId, databaseError);
 			}
 			return found ? jsonData(station, request.requestId) : jsonError(QStringLiteral("NOT_FOUND"), QStringLiteral("电站不存在"), {}, request.requestId, 404);
 		}
@@ -428,7 +428,7 @@ namespace Backend {
 				return commitTransaction(database);
 			},
 																	   &databaseError);
-			return success ? jsonData(items, request.requestId, 200, pageMeta(*page, total)) : databaseFailure(request.requestId);
+			return success ? jsonData(items, request.requestId, 200, pageMeta(*page, total)) : databaseFailure(request.requestId, databaseError);
 		}
 
 		HttpResponse updateStation(const HttpRequest &request, const ApiDependencies &dependencies) {
@@ -516,7 +516,7 @@ namespace Backend {
 			},
 																	   &databaseError);
 			if (!success) {
-				return databaseFailure(request.requestId);
+				return databaseFailure(request.requestId, databaseError);
 			}
 			return found ? jsonData(result, request.requestId) : jsonError(QStringLiteral("NOT_FOUND"), QStringLiteral("电站不存在"), {}, request.requestId, 404);
 		}
@@ -589,7 +589,7 @@ namespace Backend {
 			},
 																	   &databaseError);
 			if (!success) {
-				return databaseFailure(request.requestId);
+				return databaseFailure(request.requestId, databaseError);
 			}
 			if (!found) {
 				return jsonError(QStringLiteral("NOT_FOUND"), QStringLiteral("电站不存在"), {}, request.requestId, 404);

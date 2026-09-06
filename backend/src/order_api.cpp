@@ -208,7 +208,7 @@ namespace Backend {
 			},
 																	   &databaseError);
 			if (!success) {
-				return databaseFailure(request.requestId);
+				return databaseFailure(request.requestId, databaseError);
 			}
 			if (idempotency.state == IdempotencyState::Reused) {
 				return idempotencyConflict(request);
@@ -249,7 +249,7 @@ namespace Backend {
 			},
 																	   &databaseError);
 			if (!success) {
-				return databaseFailure(request.requestId);
+				return databaseFailure(request.requestId, databaseError);
 			}
 			return jsonData(found ? QJsonValue(result) : QJsonValue(QJsonValue::Null), request.requestId);
 		}
@@ -276,7 +276,7 @@ namespace Backend {
 			},
 																	   &databaseError);
 			if (!success) {
-				return databaseFailure(request.requestId);
+				return databaseFailure(request.requestId, databaseError);
 			}
 			return found ? jsonData(result, request.requestId) : jsonError(QStringLiteral("NOT_FOUND"), QStringLiteral("订单不存在"), {}, request.requestId, 404);
 		}
@@ -376,7 +376,7 @@ namespace Backend {
 			},
 																	   &databaseError);
 			if (!success) {
-				return databaseFailure(request.requestId);
+				return databaseFailure(request.requestId, databaseError);
 			}
 			if (idempotency.state == IdempotencyState::Reused) {
 				return idempotencyConflict(request);
@@ -506,7 +506,7 @@ namespace Backend {
 			},
 																	   &databaseError);
 			if (!success) {
-				return databaseFailure(request.requestId);
+				return databaseFailure(request.requestId, databaseError);
 			}
 			if (idempotency.state == IdempotencyState::Reused) {
 				return idempotencyConflict(request);
@@ -623,7 +623,7 @@ namespace Backend {
 			},
 																	   &databaseError);
 			if (!success) {
-				return databaseFailure(request.requestId);
+				return databaseFailure(request.requestId, databaseError);
 			}
 			return jsonData(items, request.requestId, 200, QJsonObject{{QStringLiteral("page"), page->page}, {QStringLiteral("pageSize"), page->pageSize}, {QStringLiteral("total"), total}, {QStringLiteral("hasNext"), static_cast<qint64>(page->page) * page->pageSize < total}});
 		}

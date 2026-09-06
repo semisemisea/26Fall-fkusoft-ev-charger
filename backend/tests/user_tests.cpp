@@ -18,6 +18,7 @@ class UserTests : public QObject {
 private slots:
 	void managesProfileAndAvatar();
 	void topUpIsAtomicAndIdempotent();
+	void databaseWriteTimeoutIsServiceUnavailable();
 };
 
 namespace {
@@ -33,8 +34,8 @@ namespace {
 		Backend::Router router;
 		QString token;
 
-		Fixture()
-			: database(std::make_shared<Backend::Database>(directory.filePath(QStringLiteral("test.sqlite3")), 5000)), clock(std::make_shared<EvCharger::FixedClock>(QDateTime(QDate(2026, 9, 1), QTime(8, 0), Qt::UTC))) {
+		explicit Fixture(int busyTimeoutMs = 5000)
+			: database(std::make_shared<Backend::Database>(directory.filePath(QStringLiteral("test.sqlite3")), busyTimeoutMs)), clock(std::make_shared<EvCharger::FixedClock>(QDateTime(QDate(2026, 9, 1), QTime(8, 0), Qt::UTC))) {
 			QString error;
 			if (!database->initialize(clock->nowUtc(), QString(), &error)) {
 				qFatal("Database setup failed: %s", qPrintable(error));
@@ -150,6 +151,29 @@ void UserTests::topUpIsAtomicAndIdempotent() {
 	fixture.freezeUser();
 	const Backend::HttpResponse frozenTopUp = fixture.json(QStringLiteral("POST"), QStringLiteral("/api/v1/me/wallet/topups"), QJsonObject{{QStringLiteral("amountFen"), 100}}, fixture.token, QByteArrayLiteral("topup-3"));
 	QCOMPARE(frozenTopUp.status, 201);
+}
+
+void UserTests::databaseWriteTimeoutIsServiceUnavailable() {
+	Fixture fixture(10);
+	const QString connectionName = QStringLiteral("user-test-write-lock");
+	{
+		QSqlDatabase lock = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), connectionName);
+		lock.setDatabaseName(fixture.directory.filePath(QStringLiteral("test.sqlite3")));
+		QVERIFY(lock.open());
+		QSqlQuery hold(lock);
+		QVERIFY(hold.exec(QStringLiteral("PRAGMA journal_mode=WAL")));
+		QVERIFY(hold.exec(QStringLiteral("BEGIN IMMEDIATE")));
+		QVERIFY(hold.exec(QStringLiteral("UPDATE users SET nickname=nickname")));
+
+		const Backend::HttpResponse response = fixture.json(QStringLiteral("POST"), QStringLiteral("/api/v1/me/wallet/topups"), QJsonObject{{QStringLiteral("amountFen"), 500}}, fixture.token, QByteArrayLiteral("locked-topup"));
+		QCOMPARE(response.status, 503);
+		QCOMPARE(object(response).value(QStringLiteral("error")).toObject().value(QStringLiteral("code")).toString(), QStringLiteral("SERVICE_UNAVAILABLE"));
+		QVERIFY(lock.rollback());
+		lock.close();
+	}
+	QSqlDatabase::removeDatabase(connectionName);
+	QCOMPARE(fixture.request(QStringLiteral("GET"), QStringLiteral("/api/v1/me/wallet/transactions")).status, 200);
+	QCOMPARE(object(fixture.request(QStringLiteral("GET"), QStringLiteral("/api/v1/me/wallet/transactions"))).value(QStringLiteral("data")).toArray().size(), 0);
 }
 
 QTEST_APPLESS_MAIN(UserTests)

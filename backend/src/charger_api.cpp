@@ -187,7 +187,7 @@ namespace Backend {
 			},
 																	   &databaseError);
 			if (!success) {
-				return databaseFailure(request.requestId);
+				return databaseFailure(request.requestId, databaseError);
 			}
 			if (!stationFound) {
 				return jsonError(QStringLiteral("NOT_FOUND"), QStringLiteral("电站不存在"), {}, request.requestId, 404);
@@ -226,7 +226,7 @@ namespace Backend {
 			},
 																	   &databaseError);
 			if (!success) {
-				return databaseFailure(request.requestId);
+				return databaseFailure(request.requestId, databaseError);
 			}
 			return found ? jsonData(charger, request.requestId) : jsonError(QStringLiteral("NOT_FOUND"), QStringLiteral("电桩不存在"), {}, request.requestId, 404);
 		}
@@ -299,7 +299,7 @@ namespace Backend {
 			},
 																	   &databaseError);
 			if (!success) {
-				return databaseFailure(request.requestId);
+				return databaseFailure(request.requestId, databaseError);
 			}
 			return stationFound ? jsonData(result, request.requestId, 201) : jsonError(QStringLiteral("NOT_FOUND"), QStringLiteral("电站不存在"), {}, request.requestId, 404);
 		}
@@ -403,7 +403,7 @@ namespace Backend {
 			},
 																	   &databaseError);
 			if (!success) {
-				return databaseFailure(request.requestId);
+				return databaseFailure(request.requestId, databaseError);
 			}
 			return found ? jsonData(result, request.requestId) : jsonError(QStringLiteral("NOT_FOUND"), QStringLiteral("电桩不存在"), {}, request.requestId, 404);
 		}
@@ -460,7 +460,7 @@ namespace Backend {
 			},
 																	   &databaseError);
 			if (!success) {
-				return databaseFailure(request.requestId);
+				return databaseFailure(request.requestId, databaseError);
 			}
 			if (!found) {
 				return jsonError(QStringLiteral("NOT_FOUND"), QStringLiteral("电桩不存在"), {}, request.requestId, 404);
@@ -531,7 +531,7 @@ namespace Backend {
 			},
 																	   &databaseError);
 			if (!success) {
-				return databaseFailure(request.requestId);
+				return databaseFailure(request.requestId, databaseError);
 			}
 			if (!found) {
 				return jsonError(QStringLiteral("NOT_FOUND"), QStringLiteral("电桩不存在"), {}, request.requestId, 404);

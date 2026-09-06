@@ -89,7 +89,7 @@ namespace Backend {
 		},
 																   &databaseError);
 		if (!success) {
-			*failure = databaseFailure(request.requestId);
+			*failure = databaseFailure(request.requestId, databaseError);
 			return std::nullopt;
 		}
 		if (!found) {
@@ -111,7 +111,11 @@ namespace Backend {
 		};
 	}
 
-	HttpResponse databaseFailure(const QString &requestId) {
+	HttpResponse databaseFailure(const QString &requestId, const QString &errorMessage) {
+		const QString normalized = errorMessage.toLower();
+		if (normalized.contains(QStringLiteral("database is locked")) || normalized.contains(QStringLiteral("database is busy")) || normalized.contains(QStringLiteral("database table is locked"))) {
+			return jsonError(QStringLiteral("SERVICE_UNAVAILABLE"), QStringLiteral("数据库暂时繁忙"), {}, requestId, 503);
+		}
 		return jsonError(QStringLiteral("INTERNAL_ERROR"), QStringLiteral("服务内部错误"), {}, requestId, 500);
 	}
 

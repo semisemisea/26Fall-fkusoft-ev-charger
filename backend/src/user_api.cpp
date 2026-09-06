@@ -86,7 +86,7 @@ namespace Backend {
 			},
 																	   &databaseError);
 			if (!success) {
-				return databaseFailure(request.requestId);
+				return databaseFailure(request.requestId, databaseError);
 			}
 			return found ? jsonData(profile, request.requestId) : jsonError(QStringLiteral("NOT_FOUND"), QStringLiteral("用户不存在"), {}, request.requestId, 404);
 		}
@@ -119,7 +119,7 @@ namespace Backend {
 				return false;
 			},
 																	   &databaseError);
-			return success ? getProfile(request, dependencies) : databaseFailure(request.requestId);
+			return success ? getProfile(request, dependencies) : databaseFailure(request.requestId, databaseError);
 		}
 
 		struct AvatarPart {
@@ -203,7 +203,7 @@ namespace Backend {
 				return true;
 			},
 																	   &databaseError);
-			return success ? jsonData(QJsonObject{{QStringLiteral("hasAvatar"), true}, {QStringLiteral("mimeType"), QString::fromLatin1(avatar->mimeType)}}, request.requestId) : databaseFailure(request.requestId);
+			return success ? jsonData(QJsonObject{{QStringLiteral("hasAvatar"), true}, {QStringLiteral("mimeType"), QString::fromLatin1(avatar->mimeType)}}, request.requestId) : databaseFailure(request.requestId, databaseError);
 		}
 
 		HttpResponse getAvatar(const HttpRequest &request, const ApiDependencies &dependencies) {
@@ -231,7 +231,7 @@ namespace Backend {
 			},
 																	   &databaseError);
 			if (!success) {
-				return databaseFailure(request.requestId);
+				return databaseFailure(request.requestId, databaseError);
 			}
 			return mimeType.isEmpty() ? jsonError(QStringLiteral("NOT_FOUND"), QStringLiteral("尚未上传头像"), {}, request.requestId, 404) : HttpResponse{200, mimeType, bytes, {}};
 		}
@@ -255,7 +255,7 @@ namespace Backend {
 				return false;
 			},
 																	   &databaseError);
-			return success ? HttpResponse{204, {}, {}, {}} : databaseFailure(request.requestId);
+			return success ? HttpResponse{204, {}, {}, {}} : databaseFailure(request.requestId, databaseError);
 		}
 
 		HttpResponse getWallet(const HttpRequest &request, const ApiDependencies &dependencies) {
@@ -278,7 +278,7 @@ namespace Backend {
 				return true;
 			},
 																	   &databaseError);
-			return success ? jsonData(QJsonObject{{QStringLiteral("balanceFen"), balance}}, request.requestId) : databaseFailure(request.requestId);
+			return success ? jsonData(QJsonObject{{QStringLiteral("balanceFen"), balance}}, request.requestId) : databaseFailure(request.requestId, databaseError);
 		}
 
 		QJsonObject walletTransactionJson(const QSqlQuery &query) {
@@ -329,7 +329,7 @@ namespace Backend {
 			},
 																	   &databaseError);
 			if (!success) {
-				return databaseFailure(request.requestId);
+				return databaseFailure(request.requestId, databaseError);
 			}
 			return jsonData(items, request.requestId, 200, QJsonObject{
 															   {QStringLiteral("page"), pagination->page},
@@ -425,7 +425,12 @@ namespace Backend {
 				transaction.addBindValue(amount);
 				transaction.addBindValue(newBalance);
 				transaction.addBindValue(toDatabaseTimestamp(now));
-				if (!update.exec() || !transaction.exec()) {
+				if (!update.exec()) {
+					*operationError = update.lastError().text();
+					database.rollback();
+					return false;
+				}
+				if (!transaction.exec()) {
 					*operationError = transaction.lastError().text();
 					database.rollback();
 					return false;
@@ -456,7 +461,7 @@ namespace Backend {
 			},
 																	   &databaseError);
 			if (!success) {
-				return databaseFailure(request.requestId);
+				return databaseFailure(request.requestId, databaseError);
 			}
 			return hasBusinessFailure ? businessFailure : jsonData(result, request.requestId, resultStatus);
 		}

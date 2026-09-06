@@ -150,7 +150,7 @@ namespace Backend {
 				return true;
 			},
 																	   &databaseError);
-			return success ? jsonData(items, request.requestId, 200, pageMeta(*pagination, total)) : databaseFailure(request.requestId);
+			return success ? jsonData(items, request.requestId, 200, pageMeta(*pagination, total)) : databaseFailure(request.requestId, databaseError);
 		}
 
 		HttpResponse userDetail(const HttpRequest &request, const ApiDependencies &dependencies) {
@@ -193,7 +193,7 @@ namespace Backend {
 			},
 																	   &databaseError);
 			if (!success) {
-				return databaseFailure(request.requestId);
+				return databaseFailure(request.requestId, databaseError);
 			}
 			return found ? jsonData(user, request.requestId) : jsonError(QStringLiteral("NOT_FOUND"), QStringLiteral("用户不存在"), {}, request.requestId, 404);
 		}
@@ -269,7 +269,7 @@ namespace Backend {
 			},
 																	   &databaseError);
 			if (!success) {
-				return databaseFailure(request.requestId);
+				return databaseFailure(request.requestId, databaseError);
 			}
 			return found ? jsonData(user, request.requestId) : jsonError(QStringLiteral("NOT_FOUND"), QStringLiteral("用户不存在"), {}, request.requestId, 404);
 		}
@@ -338,7 +338,7 @@ namespace Backend {
 			},
 																	   &databaseError);
 			if (!success) {
-				return databaseFailure(request.requestId);
+				return databaseFailure(request.requestId, databaseError);
 			}
 			return found ? jsonData(items, request.requestId, 200, pageMeta(*pagination, total)) : jsonError(QStringLiteral("NOT_FOUND"), QStringLiteral("用户不存在"), {}, request.requestId, 404);
 		}

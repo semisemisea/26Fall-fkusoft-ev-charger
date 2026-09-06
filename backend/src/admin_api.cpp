@@ -185,7 +185,7 @@ namespace Backend {
 			},
 																	   &databaseError);
 			if (!success) {
-				return databaseFailure(request.requestId);
+				return databaseFailure(request.requestId, databaseError);
 			}
 			return jsonData(QJsonObject{
 								{QStringLiteral("from"), range->from.has_value() ? QJsonValue(toDatabaseTimestamp(*range->from)) : QJsonValue(QJsonValue::Null)},
@@ -242,7 +242,7 @@ namespace Backend {
 			},
 																	   &databaseError);
 			if (!success) {
-				return databaseFailure(request.requestId);
+				return databaseFailure(request.requestId, databaseError);
 			}
 
 			QJsonArray points;
@@ -298,7 +298,7 @@ namespace Backend {
 			},
 																	   &databaseError);
 			if (!success) {
-				return databaseFailure(request.requestId);
+				return databaseFailure(request.requestId, databaseError);
 			}
 			return jsonData(QJsonObject{
 								{QStringLiteral("total"), counts.at(0)},
@@ -387,7 +387,7 @@ namespace Backend {
 				return true;
 			},
 																	   &databaseError);
-			return success ? jsonData(items, request.requestId, 200, pageMeta(*pagination, total)) : databaseFailure(request.requestId);
+			return success ? jsonData(items, request.requestId, 200, pageMeta(*pagination, total)) : databaseFailure(request.requestId, databaseError);
 		}
 
 	} // namespace
