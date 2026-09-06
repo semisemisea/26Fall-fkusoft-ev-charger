@@ -153,7 +153,7 @@ ProfileView::ProfileView(Session &session, ApiClient &api, QWidget *parent)
 
 			   // ===== 文字 =====
 		QString displayText = QString::fromUtf8(item.text);
-		displayText.remove(QRegularExpression("^[📋📅💰🚗ℹ️]\\s*"));  // 去掉 emoji 前缀
+		displayText.remove(QRegularExpression("^(📋|📅|💰|🚗|ℹ️)\\s*"));  // 去掉 emoji 前缀
 		QLabel *textLabel = new QLabel(displayText, row);
 		textLabel->setStyleSheet("color: #1e293b; font-size: 16px; background: transparent;");
 

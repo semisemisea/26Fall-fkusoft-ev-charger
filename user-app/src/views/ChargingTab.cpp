@@ -37,7 +37,7 @@ ChargingTab::ChargingTab(Session &session, ApiClient &api, QWidget *parent)
 	/* ===设置汽车背景bg.png=== */
 	setAutoFillBackground(true);
 	QPalette pal;
-	QPixmap bg(":/backgrounds/bg.jpg");
+	QPixmap bg(":/backgrounds/bg.png");
 	pal.setBrush(QPalette::Window, QBrush(bg.scaled(390, 780, Qt::IgnoreAspectRatio, Qt::SmoothTransformation)));
 	setPalette(pal);
 
