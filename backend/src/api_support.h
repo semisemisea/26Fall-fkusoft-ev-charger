@@ -30,6 +30,7 @@ namespace Backend {
 
 	void registerHealthRoutes(Router &router, const ApiDependencies &dependencies);
 	void registerAuthRoutes(Router &router, const ApiDependencies &dependencies);
+	void registerUserRoutes(Router &router, const ApiDependencies &dependencies);
 
 } // namespace Backend
 
