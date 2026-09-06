@@ -32,7 +32,7 @@ namespace Backend {
 			if (!principal.has_value()) {
 				return std::nullopt;
 			}
-			const bool allowed = principal->type == QStringLiteral("admin") && (principal->role == QStringLiteral("ADMIN") || (!write && principal->role == QStringLiteral("ADMIN_READONLY")));
+			const bool allowed = principal->type == QStringLiteral("admin") && principal->status == QStringLiteral("active") && (principal->role == QStringLiteral("ADMIN") || (!write && principal->role == QStringLiteral("ADMIN_READONLY")));
 			if (!allowed) {
 				*failure = jsonError(QStringLiteral("FORBIDDEN"), QStringLiteral("当前身份无权执行此操作"), {}, request.requestId, 403);
 				return std::nullopt;

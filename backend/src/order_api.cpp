@@ -265,7 +265,7 @@ namespace Backend {
 			if (!principal.has_value()) {
 				return failure;
 			}
-			if (principal->role != QStringLiteral("USER") && principal->role != QStringLiteral("ADMIN")) {
+			if ((principal->role != QStringLiteral("USER") && principal->role != QStringLiteral("ADMIN")) || (principal->role == QStringLiteral("ADMIN") && principal->status != QStringLiteral("active"))) {
 				return jsonError(QStringLiteral("FORBIDDEN"), QStringLiteral("当前身份无权访问订单"), {}, request.requestId, 403);
 			}
 			const auto orderId = positiveId(request.pathParameters.value(QStringLiteral("orderId")));

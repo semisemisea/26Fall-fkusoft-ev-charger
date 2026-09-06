@@ -32,7 +32,7 @@ namespace Backend {
 			if (!principal.has_value()) {
 				return std::nullopt;
 			}
-			if (principal->type != QStringLiteral("admin") || (write ? principal->role != QStringLiteral("ADMIN") : (principal->role != QStringLiteral("ADMIN") && principal->role != QStringLiteral("ADMIN_READONLY")))) {
+			if (principal->type != QStringLiteral("admin") || principal->status != QStringLiteral("active") || (write ? principal->role != QStringLiteral("ADMIN") : (principal->role != QStringLiteral("ADMIN") && principal->role != QStringLiteral("ADMIN_READONLY")))) {
 				*failure = jsonError(QStringLiteral("FORBIDDEN"), QStringLiteral("当前身份无权执行此操作"), {}, request.requestId, 403);
 				return std::nullopt;
 			}
@@ -206,7 +206,8 @@ namespace Backend {
 				if (!principal.has_value()) {
 					return failure;
 				}
-				if (principal->role != QStringLiteral("USER") && principal->role != QStringLiteral("ADMIN") && principal->role != QStringLiteral("ADMIN_READONLY")) {
+				const bool allowed = principal->role == QStringLiteral("USER") || (principal->status == QStringLiteral("active") && (principal->role == QStringLiteral("ADMIN") || principal->role == QStringLiteral("ADMIN_READONLY")));
+				if (!allowed) {
 					return jsonError(QStringLiteral("FORBIDDEN"), QStringLiteral("当前身份无权访问此资源"), {}, request.requestId, 403);
 				}
 			}

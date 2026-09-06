@@ -178,6 +178,8 @@ namespace Backend {
 			QStringLiteral("SELECT charger_id FROM orders WHERE status = 'charging' GROUP BY charger_id HAVING COUNT(*) > 1 LIMIT 1"),
 			QStringLiteral("SELECT user_id FROM reservations WHERE status = 'active' GROUP BY user_id HAVING COUNT(*) > 1 LIMIT 1"),
 			QStringLiteral("SELECT charger_id FROM reservations WHERE status = 'active' GROUP BY charger_id HAVING COUNT(*) > 1 LIMIT 1"),
+			QStringLiteral("SELECT r.id FROM reservations r JOIN orders o ON o.user_id=r.user_id WHERE r.status='active' AND o.status IN ('charging','awaiting_payment') LIMIT 1"),
+			QStringLiteral("SELECT r.id FROM reservations r JOIN orders o ON o.charger_id=r.charger_id WHERE r.status='active' AND o.status='charging' LIMIT 1"),
 			QStringLiteral("SELECT o.id FROM orders o LEFT JOIN chargers c ON c.id = o.charger_id WHERE o.status = 'charging' AND (c.id IS NULL OR c.deleted_at IS NOT NULL) LIMIT 1"),
 		};
 		for (const QString &sql : checks) {

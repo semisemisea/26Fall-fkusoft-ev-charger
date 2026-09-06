@@ -19,6 +19,7 @@ private slots:
 	void managesProfileAndAvatar();
 	void topUpIsAtomicAndIdempotent();
 	void databaseWriteTimeoutIsServiceUnavailable();
+	void failedCompositeWriteRollsBack();
 };
 
 namespace {
@@ -188,6 +189,53 @@ void UserTests::databaseWriteTimeoutIsServiceUnavailable() {
 	QSqlDatabase::removeDatabase(connectionName);
 	QCOMPARE(fixture.request(QStringLiteral("GET"), QStringLiteral("/api/v1/me/wallet/transactions")).status, 200);
 	QCOMPARE(object(fixture.request(QStringLiteral("GET"), QStringLiteral("/api/v1/me/wallet/transactions"))).value(QStringLiteral("data")).toArray().size(), 0);
+}
+
+void UserTests::failedCompositeWriteRollsBack() {
+	Fixture fixture;
+	QString error;
+	QVERIFY2(fixture.database->withConnection([](QSqlDatabase &database, QString *operationError) {
+		QSqlQuery query(database);
+		if (query.exec(QStringLiteral("CREATE TRIGGER fail_topup BEFORE INSERT ON wallet_transactions WHEN NEW.type='top_up' BEGIN SELECT RAISE(ABORT,'forced failure'); END"))) {
+			return true;
+		}
+		*operationError = query.lastError().text();
+		return false;
+	},
+											  &error),
+			 qPrintable(error));
+
+	const Backend::HttpResponse failed = fixture.json(QStringLiteral("POST"), QStringLiteral("/api/v1/me/wallet/topups"), QJsonObject{{QStringLiteral("amountFen"), 500}}, fixture.token, QByteArrayLiteral("rollback-topup"));
+	QCOMPARE(failed.status, 500);
+	QVERIFY(!failed.body.contains(QByteArrayLiteral("forced failure")));
+
+	qint64 balance = -1;
+	qint64 transactionCount = -1;
+	qint64 idempotencyCount = -1;
+	QVERIFY2(fixture.database->withConnection([&](QSqlDatabase &database, QString *operationError) {
+		QSqlQuery query(database);
+		if (!query.exec(QStringLiteral("SELECT balance_fen FROM users LIMIT 1")) || !query.next()) {
+			*operationError = query.lastError().text();
+			return false;
+		}
+		balance = query.value(0).toLongLong();
+		if (!query.exec(QStringLiteral("SELECT COUNT(*) FROM wallet_transactions")) || !query.next()) {
+			*operationError = query.lastError().text();
+			return false;
+		}
+		transactionCount = query.value(0).toLongLong();
+		if (!query.exec(QStringLiteral("SELECT COUNT(*) FROM idempotency_records WHERE idempotency_key='rollback-topup'")) || !query.next()) {
+			*operationError = query.lastError().text();
+			return false;
+		}
+		idempotencyCount = query.value(0).toLongLong();
+		return true;
+	},
+											  &error),
+			 qPrintable(error));
+	QCOMPARE(balance, qint64(0));
+	QCOMPARE(transactionCount, qint64(0));
+	QCOMPARE(idempotencyCount, qint64(0));
 }
 
 QTEST_APPLESS_MAIN(UserTests)

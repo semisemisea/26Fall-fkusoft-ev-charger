@@ -1,6 +1,7 @@
 #include "backend/api.h"
 #include "backend/database.h"
 #include "backend/http.h"
+#include "backend/security.h"
 #include "evcharger/clock.h"
 
 #include <QJsonArray>
@@ -22,6 +23,7 @@ private slots:
 	void rejectsInvalidDashboardRequests();
 	void filtersAdministrativeOrders();
 	void managesUsersAndCancelsReservations();
+	void enforcesReadOnlyAdministratorBoundary();
 };
 
 namespace {
@@ -289,6 +291,36 @@ void AdminTests::managesUsersAndCancelsReservations() {
 	QCOMPARE(fixture.send(QStringLiteral("GET"), QStringLiteral("/api/v1/admin/users?status=frozen"), {}, fixture.adminToken).status, 200);
 	QCOMPARE(fixture.send(QStringLiteral("GET"), QStringLiteral("/api/v1/admin/users/999999"), {}, fixture.adminToken).status, 404);
 	QCOMPARE(fixture.send(QStringLiteral("PATCH"), QStringLiteral("/api/v1/admin/users/%1").arg(fixture.userId), QJsonObject{{QStringLiteral("status"), QStringLiteral("disabled")}}, fixture.adminToken).status, 400);
+}
+
+void AdminTests::enforcesReadOnlyAdministratorBoundary() {
+	Fixture fixture;
+	QString error;
+	QVERIFY2(fixture.database->withConnection([&](QSqlDatabase &database, QString *operationError) {
+		const QByteArray salt = Backend::Security::randomBytes(16);
+		QSqlQuery query(database);
+		query.prepare(QStringLiteral("INSERT INTO admins(username,display_name,password_salt,password_hash,role,status,created_at,updated_at) VALUES ('auditor','只读管理员',?,?,'ADMIN_READONLY','active',?,?)"));
+		query.addBindValue(salt);
+		query.addBindValue(Backend::Security::passwordHash(QStringLiteral("secret"), salt));
+		query.addBindValue(Backend::toDatabaseTimestamp(fixture.clock->nowUtc()));
+		query.addBindValue(Backend::toDatabaseTimestamp(fixture.clock->nowUtc()));
+		if (query.exec()) {
+			return true;
+		}
+		*operationError = query.lastError().text();
+		return false;
+	},
+											  &error),
+			 qPrintable(error));
+	const QString readOnlyToken = fixture.login(QStringLiteral("/api/v1/auth/admin/login"), QJsonObject{{QStringLiteral("username"), QStringLiteral("auditor")}, {QStringLiteral("password"), QStringLiteral("secret")}});
+
+	QCOMPARE(fixture.send(QStringLiteral("GET"), QStringLiteral("/api/v1/admin/dashboard/revenue"), {}, readOnlyToken).status, 200);
+	QCOMPARE(fixture.send(QStringLiteral("GET"), QStringLiteral("/api/v1/admin/stations"), {}, readOnlyToken).status, 200);
+	QCOMPARE(fixture.send(QStringLiteral("GET"), QStringLiteral("/api/v1/admin/chargers"), {}, readOnlyToken).status, 200);
+	QCOMPARE(fixture.send(QStringLiteral("POST"), QStringLiteral("/api/v1/admin/stations"), QJsonObject{}, readOnlyToken).status, 403);
+	QCOMPARE(fixture.send(QStringLiteral("GET"), QStringLiteral("/api/v1/admin/orders"), {}, readOnlyToken).status, 403);
+	QCOMPARE(fixture.send(QStringLiteral("GET"), QStringLiteral("/api/v1/admin/users"), {}, readOnlyToken).status, 403);
+	QCOMPARE(fixture.send(QStringLiteral("GET"), QStringLiteral("/api/v1/orders/1"), {}, readOnlyToken).status, 403);
 }
 
 QTEST_APPLESS_MAIN(AdminTests)

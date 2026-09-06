@@ -14,6 +14,7 @@ private slots:
 	void initializesSchemaAndHashedDefaultAdmin();
 	void configuresEveryConnection();
 	void startupRecoversReservationsAndChargingOccupancy();
+	void startupRejectsCrossTableOccupancyConflict();
 };
 
 namespace {
@@ -158,6 +159,23 @@ void DatabaseTests::startupRecoversReservationsAndChargingOccupancy() {
 	QCOMPARE(reservationStatuses, QStringList({QStringLiteral("expired"), QStringLiteral("cancelled")}));
 	QCOMPARE(chargerStatuses, QStringList({QStringLiteral("available"), QStringLiteral("available"), QStringLiteral("charging")}));
 	QCOMPARE(chargerOperationalStatus, QStringLiteral("fault"));
+}
+
+void DatabaseTests::startupRejectsCrossTableOccupancyConflict() {
+	QTemporaryDir directory;
+	Backend::Database database(directory.filePath(QStringLiteral("test.sqlite3")), 5000);
+	QString error;
+	const QDateTime now(QDate(2026, 9, 1), QTime(8, 0), Qt::UTC);
+	const QString timestamp = Backend::toDatabaseTimestamp(now);
+	QVERIFY2(database.initialize(now, QString(), &error), qPrintable(error));
+	QVERIFY2(database.withConnection([&](QSqlDatabase &connection, QString *operationError) {
+		return execute(connection, QStringLiteral("INSERT INTO users(phone,nickname,status,created_at,updated_at) VALUES ('13800138001','u1','active','%1','%1'),('13800138002','u2','active','%1','%1')").arg(timestamp), operationError) && execute(connection, QStringLiteral("INSERT INTO stations(name,address,latitude,longitude,price_fen_per_kwh,status,created_at,updated_at) VALUES ('s','a',1,1,100,'active','%1','%1')").arg(timestamp), operationError) && execute(connection, QStringLiteral("INSERT INTO chargers(station_id,type,power_w,occupancy_status,operational_status,created_at,updated_at) VALUES (1,'fast',60000,'reserved','online','%1','%1')").arg(timestamp), operationError) && execute(connection, QStringLiteral("INSERT INTO reservations(user_id,station_id,charger_id,status,created_at,expires_at,updated_at) VALUES (1,1,1,'active','%1','%2','%1')").arg(timestamp, Backend::toDatabaseTimestamp(now.addSecs(60))), operationError) && execute(connection, QStringLiteral("INSERT INTO orders(user_id,station_id,charger_id,status,power_w,unit_price_fen_per_kwh,started_at,created_at,updated_at) VALUES (2,1,1,'charging',60000,100,'%1','%1','%1')").arg(timestamp), operationError);
+	},
+									 &error),
+			 qPrintable(error));
+
+	QVERIFY(!database.initialize(now.addSecs(1), QString(), &error));
+	QCOMPARE(error, QStringLiteral("Database business consistency check failed"));
 }
 
 QTEST_APPLESS_MAIN(DatabaseTests)
