@@ -1,5 +1,6 @@
 add_library(backend_runtime STATIC
 	src/admin_api.cpp
+	src/admin_user_api.cpp
 	src/api.cpp
 	src/api_support.cpp
 	src/auth_api.cpp

@@ -8,6 +8,7 @@ namespace Backend {
 		registerHealthRoutes(router, dependencies);
 		registerAuthRoutes(router, dependencies);
 		registerAdminRoutes(router, dependencies);
+		registerAdminUserRoutes(router, dependencies);
 		registerUserRoutes(router, dependencies);
 		registerStationRoutes(router, dependencies);
 		registerChargerRoutes(router, dependencies);

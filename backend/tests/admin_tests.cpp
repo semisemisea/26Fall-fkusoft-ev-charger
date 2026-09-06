@@ -20,6 +20,8 @@ class AdminTests : public QObject {
 private slots:
 	void reportsRevenueSeriesAndChargerFacts();
 	void rejectsInvalidDashboardRequests();
+	void filtersAdministrativeOrders();
+	void managesUsersAndCancelsReservations();
 };
 
 namespace {
@@ -65,7 +67,7 @@ namespace {
 			otherStationId = createStation(QStringLiteral("其他站"));
 		}
 
-		Backend::HttpResponse send(const QString &method, const QString &target, const QJsonObject &body = {}, const QString &token = {}) const {
+		Backend::HttpResponse send(const QString &method, const QString &target, const QJsonObject &body = {}, const QString &token = {}, const QByteArray &idempotencyKey = {}) const {
 			const QUrl url(target);
 			Backend::HttpRequest request;
 			request.method = method;
@@ -74,6 +76,9 @@ namespace {
 			request.requestId = QStringLiteral("77777777-7777-4777-8777-777777777777");
 			if (!token.isEmpty()) {
 				request.headers.insert(QByteArrayLiteral("authorization"), QByteArrayLiteral("Bearer ") + token.toUtf8());
+			}
+			if (!idempotencyKey.isEmpty()) {
+				request.headers.insert(QByteArrayLiteral("idempotency-key"), idempotencyKey);
 			}
 			if (method == QStringLiteral("POST") || method == QStringLiteral("PATCH")) {
 				request.headers.insert(QByteArrayLiteral("content-type"), QByteArrayLiteral("application/json"));
@@ -214,6 +219,76 @@ void AdminTests::rejectsInvalidDashboardRequests() {
 	QCOMPARE(fixture.send(QStringLiteral("GET"), QStringLiteral("/api/v1/admin/dashboard/revenue?from=2026-09-01T00%3A00%3A00Z"), {}, fixture.adminToken).status, 400);
 	QCOMPARE(fixture.send(QStringLiteral("GET"), QStringLiteral("/api/v1/admin/dashboard/revenue-series?from=2026-09-01T00%3A00%3A00Z&to=2026-09-02T00%3A00%3A00Z&utcOffset=%2B14%3A01"), {}, fixture.adminToken).status, 400);
 	QCOMPARE(fixture.send(QStringLiteral("GET"), QStringLiteral("/api/v1/admin/dashboard/charger-status?stationId=0"), {}, fixture.adminToken).status, 400);
+}
+
+void AdminTests::filtersAdministrativeOrders() {
+	Fixture fixture;
+	const qint64 charger = fixture.createCharger(fixture.stationId);
+	const qint64 otherCharger = fixture.createCharger(fixture.otherStationId);
+	fixture.insertSettledOrder(fixture.stationId, charger, QStringLiteral("2026-09-01T09:00:00.000Z"), 100);
+	fixture.insertSettledOrder(fixture.otherStationId, otherCharger, QStringLiteral("2026-09-02T09:00:00.000Z"), 200);
+
+	const QString filter = QStringLiteral("?status=settled&userId=%1&stationId=%2&chargerId=%3&from=2026-09-01T00:00:00Z&to=2026-09-02T00:00:00Z").arg(fixture.userId).arg(fixture.stationId).arg(charger);
+	const Backend::HttpResponse response = fixture.send(QStringLiteral("GET"), QStringLiteral("/api/v1/admin/orders") + filter, {}, fixture.adminToken);
+	QCOMPARE(response.status, 200);
+	const QJsonObject envelope = object(response);
+	QCOMPARE(envelope.value(QStringLiteral("data")).toArray().size(), 1);
+	QCOMPARE(envelope.value(QStringLiteral("meta")).toObject().value(QStringLiteral("total")).toInteger(), qint64(1));
+	QCOMPARE(envelope.value(QStringLiteral("data")).toArray().at(0).toObject().value(QStringLiteral("amountFen")).toInteger(), qint64(100));
+	QCOMPARE(fixture.send(QStringLiteral("GET"), QStringLiteral("/api/v1/admin/orders"), {}, fixture.userToken).status, 403);
+	QCOMPARE(fixture.send(QStringLiteral("GET"), QStringLiteral("/api/v1/admin/orders?status=invalid"), {}, fixture.adminToken).status, 400);
+}
+
+void AdminTests::managesUsersAndCancelsReservations() {
+	Fixture fixture;
+	const qint64 charger = fixture.createCharger(fixture.stationId);
+	const Backend::HttpResponse reservation = fixture.send(QStringLiteral("POST"), QStringLiteral("/api/v1/reservations"), QJsonObject{{QStringLiteral("chargerId"), charger}, {QStringLiteral("holdMinutes"), 30}}, fixture.userToken, QByteArrayLiteral("admin-freeze-reservation"));
+	QCOMPARE(reservation.status, 201);
+	QCOMPARE(fixture.send(QStringLiteral("POST"), QStringLiteral("/api/v1/me/wallet/topups"), QJsonObject{{QStringLiteral("amountFen"), 500}}, fixture.userToken, QByteArrayLiteral("admin-wallet")).status, 201);
+	fixture.insertSettledOrder(fixture.stationId, charger, QStringLiteral("2026-09-01T09:00:00.000Z"), 100);
+
+	const Backend::HttpResponse users = fixture.send(QStringLiteral("GET"), QStringLiteral("/api/v1/admin/users?phone=800&status=active"), {}, fixture.adminToken);
+	QCOMPARE(users.status, 200);
+	QCOMPARE(object(users).value(QStringLiteral("meta")).toObject().value(QStringLiteral("total")).toInteger(), qint64(1));
+	const Backend::HttpResponse detail = fixture.send(QStringLiteral("GET"), QStringLiteral("/api/v1/admin/users/%1").arg(fixture.userId), {}, fixture.adminToken);
+	QCOMPARE(detail.status, 200);
+	QCOMPARE(object(detail).value(QStringLiteral("data")).toObject().value(QStringLiteral("recentOrder")).toObject().value(QStringLiteral("amountFen")).toInteger(), qint64(100));
+	const Backend::HttpResponse transactions = fixture.send(QStringLiteral("GET"), QStringLiteral("/api/v1/admin/users/%1/wallet/transactions").arg(fixture.userId), {}, fixture.adminToken);
+	QCOMPARE(transactions.status, 200);
+	QCOMPARE(object(transactions).value(QStringLiteral("data")).toArray().size(), 1);
+
+	const QJsonObject frozen{{QStringLiteral("status"), QStringLiteral("frozen")}};
+	const Backend::HttpResponse freeze = fixture.send(QStringLiteral("PATCH"), QStringLiteral("/api/v1/admin/users/%1").arg(fixture.userId), frozen, fixture.adminToken);
+	QCOMPARE(freeze.status, 200);
+	QCOMPARE(object(freeze).value(QStringLiteral("data")).toObject().value(QStringLiteral("status")).toString(), QStringLiteral("frozen"));
+	QCOMPARE(fixture.send(QStringLiteral("PATCH"), QStringLiteral("/api/v1/admin/users/%1").arg(fixture.userId), frozen, fixture.adminToken).status, 200);
+
+	QString reservationStatus;
+	QString occupancyStatus;
+	QString error;
+	QVERIFY2(fixture.database->withConnection([&](QSqlDatabase &database, QString *operationError) {
+		QSqlQuery query(database);
+		if (!query.exec(QStringLiteral("SELECT status FROM reservations LIMIT 1")) || !query.next()) {
+			*operationError = query.lastError().text();
+			return false;
+		}
+		reservationStatus = query.value(0).toString();
+		query.prepare(QStringLiteral("SELECT occupancy_status FROM chargers WHERE id=?"));
+		query.addBindValue(charger);
+		if (!query.exec() || !query.next()) {
+			*operationError = query.lastError().text();
+			return false;
+		}
+		occupancyStatus = query.value(0).toString();
+		return true;
+	},
+											  &error),
+			 qPrintable(error));
+	QCOMPARE(reservationStatus, QStringLiteral("cancelled"));
+	QCOMPARE(occupancyStatus, QStringLiteral("available"));
+	QCOMPARE(fixture.send(QStringLiteral("GET"), QStringLiteral("/api/v1/admin/users?status=frozen"), {}, fixture.adminToken).status, 200);
+	QCOMPARE(fixture.send(QStringLiteral("GET"), QStringLiteral("/api/v1/admin/users/999999"), {}, fixture.adminToken).status, 404);
+	QCOMPARE(fixture.send(QStringLiteral("PATCH"), QStringLiteral("/api/v1/admin/users/%1").arg(fixture.userId), QJsonObject{{QStringLiteral("status"), QStringLiteral("disabled")}}, fixture.adminToken).status, 400);
 }
 
 QTEST_APPLESS_MAIN(AdminTests)

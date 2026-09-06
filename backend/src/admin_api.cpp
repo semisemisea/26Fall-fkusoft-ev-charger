@@ -1,7 +1,9 @@
 #include "api_support.h"
 
 #include "backend/database.h"
+#include "evcharger/clock.h"
 #include "evcharger/validation.h"
+#include "order_support.h"
 
 #include <QDate>
 #include <QJsonArray>
@@ -11,18 +13,20 @@
 #include <QSqlQuery>
 #include <QTime>
 
+#include <limits>
 #include <optional>
 
 namespace Backend {
 	namespace {
 
-		std::optional<Principal> requireDashboardAdmin(const HttpRequest &request, const ApiDependencies &dependencies, HttpResponse *failure) {
+		std::optional<Principal> requireAdmin(const HttpRequest &request, const ApiDependencies &dependencies, bool allowReadOnly, HttpResponse *failure) {
 			const auto principal = authenticate(request, dependencies, failure);
 			if (!principal.has_value()) {
 				return std::nullopt;
 			}
-			if (principal->type != QStringLiteral("admin") || principal->status != QStringLiteral("active") || (principal->role != QStringLiteral("ADMIN") && principal->role != QStringLiteral("ADMIN_READONLY"))) {
-				*failure = jsonError(QStringLiteral("FORBIDDEN"), QStringLiteral("当前身份无权访问管理统计"), {}, request.requestId, 403);
+			const bool allowedRole = principal->role == QStringLiteral("ADMIN") || (allowReadOnly && principal->role == QStringLiteral("ADMIN_READONLY"));
+			if (principal->type != QStringLiteral("admin") || principal->status != QStringLiteral("active") || !allowedRole) {
+				*failure = jsonError(QStringLiteral("FORBIDDEN"), QStringLiteral("当前身份无权访问此管理资源"), {}, request.requestId, 403);
 				return std::nullopt;
 			}
 			return principal;
@@ -32,6 +36,62 @@ namespace Backend {
 			std::optional<QDateTime> from;
 			std::optional<QDateTime> to;
 		};
+
+		struct Pagination {
+			int page = 1;
+			int pageSize = 20;
+		};
+
+		std::optional<qint64> positiveId(const QString &value) {
+			bool ok = false;
+			const qint64 id = value.toLongLong(&ok);
+			return ok && id > 0 ? std::optional<qint64>(id) : std::nullopt;
+		}
+
+		std::optional<qint64> parseOptionalId(const HttpRequest &request, const QString &name, HttpResponse *failure) {
+			if (!request.query.hasQueryItem(name)) {
+				return qint64(0);
+			}
+			const auto id = positiveId(request.query.queryItemValue(name));
+			if (!id.has_value()) {
+				*failure = jsonError(QStringLiteral("VALIDATION_ERROR"), QStringLiteral("ID 筛选参数无效"), QJsonObject{{name, QStringLiteral("必须是正整数")}}, request.requestId, 400);
+				return std::nullopt;
+			}
+			return id;
+		}
+
+		std::optional<Pagination> parsePagination(const HttpRequest &request, HttpResponse *failure) {
+			Pagination pagination;
+			auto parse = [&](const QString &name, int fallback, int maximum) -> std::optional<int> {
+				if (!request.query.hasQueryItem(name)) {
+					return fallback;
+				}
+				bool ok = false;
+				const int value = request.query.queryItemValue(name).toInt(&ok);
+				if (!ok || value < 1 || value > maximum) {
+					*failure = jsonError(QStringLiteral("VALIDATION_ERROR"), QStringLiteral("分页参数无效"), QJsonObject{{name, QStringLiteral("超出合法范围")}}, request.requestId, 400);
+					return std::nullopt;
+				}
+				return value;
+			};
+			const auto page = parse(QStringLiteral("page"), 1, std::numeric_limits<int>::max());
+			const auto pageSize = parse(QStringLiteral("pageSize"), 20, 100);
+			if (!page.has_value() || !pageSize.has_value()) {
+				return std::nullopt;
+			}
+			pagination.page = *page;
+			pagination.pageSize = *pageSize;
+			return pagination;
+		}
+
+		QJsonObject pageMeta(const Pagination &pagination, qint64 total) {
+			return QJsonObject{
+				{QStringLiteral("page"), pagination.page},
+				{QStringLiteral("pageSize"), pagination.pageSize},
+				{QStringLiteral("total"), total},
+				{QStringLiteral("hasNext"), static_cast<qint64>(pagination.page) * pagination.pageSize < total},
+			};
+		}
 
 		std::optional<TimeRange> parseTimeRange(const HttpRequest &request, bool required, HttpResponse *failure) {
 			const bool hasFrom = request.query.hasQueryItem(QStringLiteral("from"));
@@ -86,7 +146,7 @@ namespace Backend {
 
 		HttpResponse revenue(const HttpRequest &request, const ApiDependencies &dependencies) {
 			HttpResponse failure;
-			if (!requireDashboardAdmin(request, dependencies, &failure).has_value()) {
+			if (!requireAdmin(request, dependencies, true, &failure).has_value()) {
 				return failure;
 			}
 			const auto range = parseTimeRange(request, false, &failure);
@@ -138,7 +198,7 @@ namespace Backend {
 
 		HttpResponse revenueSeries(const HttpRequest &request, const ApiDependencies &dependencies) {
 			HttpResponse failure;
-			if (!requireDashboardAdmin(request, dependencies, &failure).has_value()) {
+			if (!requireAdmin(request, dependencies, true, &failure).has_value()) {
 				return failure;
 			}
 			const auto range = parseTimeRange(request, true, &failure);
@@ -207,7 +267,7 @@ namespace Backend {
 
 		HttpResponse chargerStatus(const HttpRequest &request, const ApiDependencies &dependencies) {
 			HttpResponse failure;
-			if (!requireDashboardAdmin(request, dependencies, &failure).has_value()) {
+			if (!requireAdmin(request, dependencies, true, &failure).has_value()) {
 				return failure;
 			}
 			const auto stationId = parseStationId(request, &failure);
@@ -248,12 +308,95 @@ namespace Backend {
 							request.requestId);
 		}
 
+		HttpResponse listAdminOrders(const HttpRequest &request, const ApiDependencies &dependencies) {
+			HttpResponse failure;
+			if (!requireAdmin(request, dependencies, false, &failure).has_value()) {
+				return failure;
+			}
+			const auto pagination = parsePagination(request, &failure);
+			const auto range = parseTimeRange(request, false, &failure);
+			const auto userId = parseOptionalId(request, QStringLiteral("userId"), &failure);
+			const auto stationId = parseOptionalId(request, QStringLiteral("stationId"), &failure);
+			const auto chargerId = parseOptionalId(request, QStringLiteral("chargerId"), &failure);
+			if (!pagination.has_value() || !range.has_value() || !userId.has_value() || !stationId.has_value() || !chargerId.has_value()) {
+				return failure;
+			}
+			const QString status = request.query.queryItemValue(QStringLiteral("status"));
+			if (!status.isEmpty() && status != QStringLiteral("charging") && status != QStringLiteral("awaiting_payment") && status != QStringLiteral("settled")) {
+				return jsonError(QStringLiteral("VALIDATION_ERROR"), QStringLiteral("订单状态筛选无效"), QJsonObject{{QStringLiteral("status"), QStringLiteral("不支持的状态")}}, request.requestId, 400);
+			}
+
+			QString filter = QStringLiteral(" WHERE 1=1");
+			QVariantList bindings;
+			auto addIdFilter = [&](const QString &column, qint64 id) {
+				if (id != 0) {
+					filter += QStringLiteral(" AND ") + column + QStringLiteral("=?");
+					bindings.append(id);
+				}
+			};
+			if (!status.isEmpty()) {
+				filter += QStringLiteral(" AND status=?");
+				bindings.append(status);
+			}
+			addIdFilter(QStringLiteral("user_id"), *userId);
+			addIdFilter(QStringLiteral("station_id"), *stationId);
+			addIdFilter(QStringLiteral("charger_id"), *chargerId);
+			if (range->from.has_value()) {
+				filter += QStringLiteral(" AND created_at>=? AND created_at<?");
+				bindings.append(toDatabaseTimestamp(*range->from));
+				bindings.append(toDatabaseTimestamp(*range->to));
+			}
+
+			QJsonArray items;
+			qint64 total = 0;
+			QString databaseError;
+			const bool success = dependencies.database->withConnection([&](QSqlDatabase &database, QString *operationError) {
+				auto bindFilters = [&](QSqlQuery &query) {
+					for (const QVariant &binding : bindings) {
+						query.addBindValue(binding);
+					}
+				};
+				QSqlQuery count(database);
+				count.prepare(QStringLiteral("SELECT COUNT(*) FROM orders") + filter);
+				bindFilters(count);
+				if (!count.exec() || !count.next()) {
+					*operationError = count.lastError().text();
+					return false;
+				}
+				total = count.value(0).toLongLong();
+
+				QSqlQuery ids(database);
+				ids.prepare(QStringLiteral("SELECT id FROM orders") + filter + QStringLiteral(" ORDER BY created_at DESC,id DESC LIMIT ? OFFSET ?"));
+				bindFilters(ids);
+				ids.addBindValue(pagination->pageSize);
+				ids.addBindValue(static_cast<qint64>(pagination->page - 1) * pagination->pageSize);
+				if (!ids.exec()) {
+					*operationError = ids.lastError().text();
+					return false;
+				}
+				while (ids.next()) {
+					QJsonObject order;
+					bool found = false;
+					if (!loadOrderJson(database, ids.value(0).toLongLong(), std::nullopt, dependencies.clock->nowUtc(), &order, &found, operationError)) {
+						return false;
+					}
+					if (found) {
+						items.append(order);
+					}
+				}
+				return true;
+			},
+																	   &databaseError);
+			return success ? jsonData(items, request.requestId, 200, pageMeta(*pagination, total)) : databaseFailure(request.requestId);
+		}
+
 	} // namespace
 
 	void registerAdminRoutes(Router &router, const ApiDependencies &dependencies) {
 		router.add(QStringLiteral("GET"), QStringLiteral("/api/v1/admin/dashboard/revenue"), [dependencies](const HttpRequest &request) { return revenue(request, dependencies); });
 		router.add(QStringLiteral("GET"), QStringLiteral("/api/v1/admin/dashboard/revenue-series"), [dependencies](const HttpRequest &request) { return revenueSeries(request, dependencies); });
 		router.add(QStringLiteral("GET"), QStringLiteral("/api/v1/admin/dashboard/charger-status"), [dependencies](const HttpRequest &request) { return chargerStatus(request, dependencies); });
+		router.add(QStringLiteral("GET"), QStringLiteral("/api/v1/admin/orders"), [dependencies](const HttpRequest &request) { return listAdminOrders(request, dependencies); });
 	}
 
 } // namespace Backend
