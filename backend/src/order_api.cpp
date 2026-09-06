@@ -118,6 +118,14 @@ namespace Backend {
 					database.rollback();
 					return true;
 				}
+				auto failBusiness = [&](const QString &code, const QString &message) {
+					businessCode = code;
+					if (!storeIdempotency(database, *principal, request, normalized, now, dependencies.config.idempotencyRetentionHours, 409, idempotencyError(code, message), operationError) || !commitTransaction(database)) {
+						database.rollback();
+						return false;
+					}
+					return true;
+				};
 				QSqlQuery openOrder(database);
 				openOrder.prepare(QStringLiteral("SELECT 1 FROM orders WHERE user_id=? AND status IN ('charging','awaiting_payment') LIMIT 1"));
 				openOrder.addBindValue(principal->id);
@@ -127,9 +135,7 @@ namespace Backend {
 					return false;
 				}
 				if (openOrder.next()) {
-					businessCode = QStringLiteral("ACTIVE_ORDER_EXISTS");
-					database.rollback();
-					return true;
+					return failBusiness(QStringLiteral("ACTIVE_ORDER_EXISTS"), QStringLiteral("用户已有未完成订单"));
 				}
 				QSqlQuery activeReservation(database);
 				activeReservation.prepare(QStringLiteral("SELECT id,charger_id FROM reservations WHERE user_id=? AND status='active' LIMIT 1"));
@@ -141,9 +147,7 @@ namespace Backend {
 				}
 				const bool hasActiveReservation = activeReservation.next();
 				if ((hasActiveReservation && (!reservationId.has_value() || activeReservation.value(0).toLongLong() != *reservationId || activeReservation.value(1).toLongLong() != *chargerId)) || (!hasActiveReservation && reservationId.has_value())) {
-					businessCode = QStringLiteral("INVALID_STATE_TRANSITION");
-					database.rollback();
-					return true;
+					return failBusiness(QStringLiteral("INVALID_STATE_TRANSITION"), QStringLiteral("预约与启动请求不匹配"));
 				}
 				QSqlQuery charger(database);
 				charger.prepare(QStringLiteral("SELECT c.station_id,c.power_w,s.price_fen_per_kwh,c.occupancy_status FROM chargers c JOIN stations s ON s.id=c.station_id WHERE c.id=? AND c.deleted_at IS NULL AND s.deleted_at IS NULL AND s.status='active' AND c.operational_status='online'"));
@@ -155,9 +159,7 @@ namespace Backend {
 				}
 				const QString expectedOccupancy = hasActiveReservation ? QStringLiteral("reserved") : QStringLiteral("available");
 				if (!charger.next() || charger.value(3).toString() != expectedOccupancy) {
-					businessCode = QStringLiteral("CHARGER_UNAVAILABLE");
-					database.rollback();
-					return true;
+					return failBusiness(QStringLiteral("CHARGER_UNAVAILABLE"), QStringLiteral("电桩当前不可用"));
 				}
 				const qint64 stationId = charger.value(0).toLongLong();
 				const qint64 powerW = charger.value(1).toLongLong();
@@ -167,10 +169,13 @@ namespace Backend {
 				occupy.addBindValue(toDatabaseTimestamp(now));
 				occupy.addBindValue(*chargerId);
 				occupy.addBindValue(expectedOccupancy);
-				if (!occupy.exec() || occupy.numRowsAffected() != 1) {
-					businessCode = QStringLiteral("CHARGER_UNAVAILABLE");
+				if (!occupy.exec()) {
+					*operationError = occupy.lastError().text();
 					database.rollback();
-					return true;
+					return false;
+				}
+				if (occupy.numRowsAffected() != 1) {
+					return failBusiness(QStringLiteral("CHARGER_UNAVAILABLE"), QStringLiteral("电桩当前不可用"));
 				}
 				QSqlQuery insert(database);
 				insert.prepare(QStringLiteral("INSERT INTO orders(user_id,station_id,charger_id,reservation_id,status,power_w,unit_price_fen_per_kwh,started_at,created_at,updated_at) VALUES (?,?,?,?,'charging',?,?,?,?,?)"));
@@ -214,7 +219,7 @@ namespace Backend {
 				return idempotencyConflict(request);
 			}
 			if (idempotency.state == IdempotencyState::Replay) {
-				return jsonData(idempotency.data, request.requestId, idempotency.status);
+				return replayIdempotency(idempotency, request.requestId);
 			}
 			if (!businessCode.isEmpty()) {
 				const QString message = businessCode == QStringLiteral("ACTIVE_ORDER_EXISTS")	? QStringLiteral("用户已有未完成订单")
@@ -322,7 +327,10 @@ namespace Backend {
 					return false;
 				}
 				if (!current.next()) {
-					database.rollback();
+					if (!storeIdempotency(database, *principal, request, normalized, now, dependencies.config.idempotencyRetentionHours, 404, idempotencyError(QStringLiteral("NOT_FOUND"), QStringLiteral("订单不存在")), operationError) || !commitTransaction(database)) {
+						database.rollback();
+						return false;
+					}
 					return true;
 				}
 				found = true;
@@ -382,7 +390,7 @@ namespace Backend {
 				return idempotencyConflict(request);
 			}
 			if (idempotency.state == IdempotencyState::Replay) {
-				return jsonData(idempotency.data, request.requestId, idempotency.status);
+				return replayIdempotency(idempotency, request.requestId);
 			}
 			return found ? jsonData(result, request.requestId) : jsonError(QStringLiteral("NOT_FOUND"), QStringLiteral("订单不存在"), {}, request.requestId, 404);
 		}
@@ -421,6 +429,13 @@ namespace Backend {
 					database.rollback();
 					return true;
 				}
+				auto failBusiness = [&](const QString &code, const QString &message, int status) {
+					if (!storeIdempotency(database, *principal, request, normalized, now, dependencies.config.idempotencyRetentionHours, status, idempotencyError(code, message), operationError) || !commitTransaction(database)) {
+						database.rollback();
+						return false;
+					}
+					return true;
+				};
 				QSqlQuery order(database);
 				order.prepare(QStringLiteral("SELECT status,amount_fen FROM orders WHERE id=? AND user_id=?"));
 				order.addBindValue(*orderId);
@@ -431,8 +446,7 @@ namespace Backend {
 					return false;
 				}
 				if (!order.next()) {
-					database.rollback();
-					return true;
+					return failBusiness(QStringLiteral("NOT_FOUND"), QStringLiteral("订单不存在"), 404);
 				}
 				found = true;
 				const QString status = order.value(0).toString();
@@ -440,8 +454,7 @@ namespace Backend {
 				qint64 balanceAfter = 0;
 				if (status == QStringLiteral("charging")) {
 					invalidState = true;
-					database.rollback();
-					return true;
+					return failBusiness(QStringLiteral("INVALID_STATE_TRANSITION"), QStringLiteral("订单尚未停止"), 409);
 				}
 				if (status == QStringLiteral("settled")) {
 					QSqlQuery debit(database);
@@ -465,8 +478,7 @@ namespace Backend {
 					const qint64 balance = user.value(0).toLongLong();
 					if (balance < amount) {
 						insufficient = true;
-						database.rollback();
-						return true;
+						return failBusiness(QStringLiteral("INSUFFICIENT_BALANCE"), QStringLiteral("钱包余额不足"), 422);
 					}
 					balanceAfter = balance - amount;
 					QSqlQuery updateUser(database);
@@ -512,7 +524,7 @@ namespace Backend {
 				return idempotencyConflict(request);
 			}
 			if (idempotency.state == IdempotencyState::Replay) {
-				return jsonData(idempotency.data, request.requestId, idempotency.status);
+				return replayIdempotency(idempotency, request.requestId);
 			}
 			if (!found) {
 				return jsonError(QStringLiteral("NOT_FOUND"), QStringLiteral("订单不存在"), {}, request.requestId, 404);

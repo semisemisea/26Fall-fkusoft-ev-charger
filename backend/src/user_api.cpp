@@ -358,7 +358,8 @@ namespace Backend {
 			if (idempotencyKey.isEmpty() || idempotencyKey.size() > 200) {
 				return jsonError(QStringLiteral("VALIDATION_ERROR"), QStringLiteral("缺少或无效的 Idempotency-Key"), QJsonObject{{QStringLiteral("Idempotency-Key"), QStringLiteral("必须提供")}}, request.requestId, 400);
 			}
-			const QByteArray requestHash = QCryptographicHash::hash(QJsonDocument(QJsonObject{{QStringLiteral("amountFen"), amount}}).toJson(QJsonDocument::Compact), QCryptographicHash::Sha256);
+			const QJsonObject normalized{{QStringLiteral("amountFen"), amount}};
+			const QByteArray requestHash = QCryptographicHash::hash(QJsonDocument(normalized).toJson(QJsonDocument::Compact), QCryptographicHash::Sha256);
 			const QDateTime now = dependencies.clock->nowUtc();
 			QJsonObject result;
 			int resultStatus = 201;
@@ -408,9 +409,14 @@ namespace Backend {
 				}
 				const qint64 balance = user.value(0).toLongLong();
 				if (balance > dependencies.config.maxWalletBalanceFen - amount) {
-					database.rollback();
+					resultStatus = 422;
+					result = idempotencyError(QStringLiteral("BALANCE_LIMIT_EXCEEDED"), QStringLiteral("充值后余额将超过上限"));
 					hasBusinessFailure = true;
 					businessFailure = jsonError(QStringLiteral("BALANCE_LIMIT_EXCEEDED"), QStringLiteral("充值后余额将超过上限"), {}, request.requestId, 422);
+					if (!storeIdempotency(database, *principal, request, normalized, now, dependencies.config.idempotencyRetentionHours, resultStatus, result, operationError) || !commitTransaction(database)) {
+						database.rollback();
+						return false;
+					}
 					return true;
 				}
 				const qint64 newBalance = balance + amount;
@@ -462,6 +468,9 @@ namespace Backend {
 																	   &databaseError);
 			if (!success) {
 				return databaseFailure(request.requestId, databaseError);
+			}
+			if (!hasBusinessFailure && result.contains(QStringLiteral("_idempotencyError"))) {
+				return replayIdempotency(IdempotencyResult{IdempotencyState::Replay, resultStatus, result}, request.requestId);
 			}
 			return hasBusinessFailure ? businessFailure : jsonData(result, request.requestId, resultStatus);
 		}

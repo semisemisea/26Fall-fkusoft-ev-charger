@@ -132,6 +132,9 @@ void OrderTests::completesReservedChargingFlowExactlyOnce() {
 	const Backend::HttpResponse insufficient = fixture.send(QStringLiteral("POST"), QStringLiteral("/api/v1/orders/%1/settle").arg(orderId), QJsonObject{{QStringLiteral("paymentMethod"), QStringLiteral("wallet")}}, fixture.userToken, QByteArrayLiteral("settle-insufficient"));
 	QCOMPARE(insufficient.status, 422);
 	QCOMPARE(fixture.send(QStringLiteral("POST"), QStringLiteral("/api/v1/me/wallet/topups"), QJsonObject{{QStringLiteral("amountFen"), 500}}, fixture.userToken, QByteArrayLiteral("topup-order")).status, 201);
+	const Backend::HttpResponse replayedInsufficient = fixture.send(QStringLiteral("POST"), QStringLiteral("/api/v1/orders/%1/settle").arg(orderId), QJsonObject{{QStringLiteral("paymentMethod"), QStringLiteral("wallet")}}, fixture.userToken, QByteArrayLiteral("settle-insufficient"));
+	QCOMPARE(replayedInsufficient.status, 422);
+	QCOMPARE(object(replayedInsufficient).value(QStringLiteral("error")).toObject().value(QStringLiteral("code")).toString(), QStringLiteral("INSUFFICIENT_BALANCE"));
 
 	auto firstSettle = std::async(std::launch::async, [&]() { return fixture.send(QStringLiteral("POST"), QStringLiteral("/api/v1/orders/%1/settle").arg(orderId), QJsonObject{{QStringLiteral("paymentMethod"), QStringLiteral("wallet")}}, fixture.userToken, QByteArrayLiteral("settle-1")); });
 	auto secondSettle = std::async(std::launch::async, [&]() { return fixture.send(QStringLiteral("POST"), QStringLiteral("/api/v1/orders/%1/settle").arg(orderId), QJsonObject{{QStringLiteral("paymentMethod"), QStringLiteral("wallet")}}, fixture.userToken, QByteArrayLiteral("settle-2")); });

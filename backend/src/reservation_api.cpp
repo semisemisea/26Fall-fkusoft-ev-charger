@@ -142,6 +142,14 @@ namespace Backend {
 					database.rollback();
 					return true;
 				}
+				auto failBusiness = [&](const QString &code, const QString &message, int status) {
+					businessCode = code;
+					if (!storeIdempotency(database, *principal, request, normalized, now, dependencies.config.idempotencyRetentionHours, status, idempotencyError(code, message), operationError) || !commitTransaction(database)) {
+						database.rollback();
+						return false;
+					}
+					return true;
+				};
 				QSqlQuery active(database);
 				active.prepare(QStringLiteral("SELECT 1 FROM reservations WHERE user_id=? AND status='active' LIMIT 1"));
 				active.addBindValue(principal->id);
@@ -151,9 +159,7 @@ namespace Backend {
 					return false;
 				}
 				if (active.next()) {
-					businessCode = QStringLiteral("INVALID_STATE_TRANSITION");
-					database.rollback();
-					return true;
+					return failBusiness(QStringLiteral("INVALID_STATE_TRANSITION"), QStringLiteral("当前状态不允许创建预约"), 409);
 				}
 				QSqlQuery openOrder(database);
 				openOrder.prepare(QStringLiteral("SELECT 1 FROM orders WHERE user_id=? AND status IN ('charging','awaiting_payment') LIMIT 1"));
@@ -164,9 +170,7 @@ namespace Backend {
 					return false;
 				}
 				if (openOrder.next()) {
-					businessCode = QStringLiteral("ACTIVE_ORDER_EXISTS");
-					database.rollback();
-					return true;
+					return failBusiness(QStringLiteral("ACTIVE_ORDER_EXISTS"), QStringLiteral("用户已有未完成订单"), 409);
 				}
 				QSqlQuery charger(database);
 				charger.prepare(QStringLiteral("SELECT c.station_id FROM chargers c JOIN stations s ON s.id=c.station_id WHERE c.id=? AND c.deleted_at IS NULL AND s.deleted_at IS NULL AND s.status='active' AND c.occupancy_status='available' AND c.operational_status='online'"));
@@ -177,19 +181,20 @@ namespace Backend {
 					return false;
 				}
 				if (!charger.next()) {
-					businessCode = QStringLiteral("CHARGER_UNAVAILABLE");
-					database.rollback();
-					return true;
+					return failBusiness(QStringLiteral("CHARGER_UNAVAILABLE"), QStringLiteral("电桩当前不可用"), 409);
 				}
 				const qint64 stationId = charger.value(0).toLongLong();
 				QSqlQuery occupy(database);
 				occupy.prepare(QStringLiteral("UPDATE chargers SET occupancy_status='reserved',updated_at=? WHERE id=? AND occupancy_status='available' AND operational_status='online' AND deleted_at IS NULL"));
 				occupy.addBindValue(toDatabaseTimestamp(now));
 				occupy.addBindValue(*chargerId);
-				if (!occupy.exec() || occupy.numRowsAffected() != 1) {
-					businessCode = QStringLiteral("CHARGER_UNAVAILABLE");
+				if (!occupy.exec()) {
+					*operationError = occupy.lastError().text();
 					database.rollback();
-					return true;
+					return false;
+				}
+				if (occupy.numRowsAffected() != 1) {
+					return failBusiness(QStringLiteral("CHARGER_UNAVAILABLE"), QStringLiteral("电桩当前不可用"), 409);
 				}
 				QSqlQuery insert(database);
 				insert.prepare(QStringLiteral("INSERT INTO reservations(user_id,station_id,charger_id,status,created_at,expires_at,updated_at) VALUES (?,?,?,'active',?,?,?)"));
@@ -219,7 +224,7 @@ namespace Backend {
 				return jsonError(QStringLiteral("IDEMPOTENCY_KEY_REUSED"), QStringLiteral("幂等键已用于不同请求"), {}, request.requestId, 409);
 			}
 			if (idempotency.state == IdempotencyState::Replay) {
-				return jsonData(idempotency.data, request.requestId, idempotency.status);
+				return replayIdempotency(idempotency, request.requestId);
 			}
 			if (businessCode == QStringLiteral("ACTIVE_ORDER_EXISTS")) {
 				return jsonError(QStringLiteral("ACTIVE_ORDER_EXISTS"), QStringLiteral("用户已有未完成订单"), {}, request.requestId, 409);

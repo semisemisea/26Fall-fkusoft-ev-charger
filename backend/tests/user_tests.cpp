@@ -148,6 +148,20 @@ void UserTests::topUpIsAtomicAndIdempotent() {
 
 	const Backend::HttpResponse overLimit = fixture.json(QStringLiteral("POST"), QStringLiteral("/api/v1/me/wallet/topups"), QJsonObject{{QStringLiteral("amountFen"), 10'000}}, fixture.token, QByteArrayLiteral("topup-2"));
 	QCOMPARE(overLimit.status, 422);
+	QString error;
+	QVERIFY2(fixture.database->withConnection([](QSqlDatabase &database, QString *operationError) {
+		QSqlQuery query(database);
+		if (query.exec(QStringLiteral("UPDATE users SET balance_fen=0"))) {
+			return true;
+		}
+		*operationError = query.lastError().text();
+		return false;
+	},
+											  &error),
+			 qPrintable(error));
+	const Backend::HttpResponse replayedLimit = fixture.json(QStringLiteral("POST"), QStringLiteral("/api/v1/me/wallet/topups"), QJsonObject{{QStringLiteral("amountFen"), 10'000}}, fixture.token, QByteArrayLiteral("topup-2"));
+	QCOMPARE(replayedLimit.status, 422);
+	QCOMPARE(object(replayedLimit).value(QStringLiteral("error")).toObject().value(QStringLiteral("code")).toString(), QStringLiteral("BALANCE_LIMIT_EXCEEDED"));
 	fixture.freezeUser();
 	const Backend::HttpResponse frozenTopUp = fixture.json(QStringLiteral("POST"), QStringLiteral("/api/v1/me/wallet/topups"), QJsonObject{{QStringLiteral("amountFen"), 100}}, fixture.token, QByteArrayLiteral("topup-3"));
 	QCOMPARE(frozenTopUp.status, 201);

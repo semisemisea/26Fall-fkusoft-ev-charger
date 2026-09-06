@@ -192,6 +192,25 @@ namespace Backend {
 		return false;
 	}
 
+	QJsonObject idempotencyError(const QString &code, const QString &message, const QJsonObject &details) {
+		return QJsonObject{
+			{QStringLiteral("_idempotencyError"), QJsonObject{
+													  {QStringLiteral("code"), code},
+													  {QStringLiteral("message"), message},
+													  {QStringLiteral("details"), details},
+												  }},
+		};
+	}
+
+	HttpResponse replayIdempotency(const IdempotencyResult &result, const QString &requestId) {
+		const QJsonValue storedError = result.data.value(QStringLiteral("_idempotencyError"));
+		if (storedError.isObject()) {
+			const QJsonObject stored = storedError.toObject();
+			return jsonError(stored.value(QStringLiteral("code")).toString(), stored.value(QStringLiteral("message")).toString(), stored.value(QStringLiteral("details")).toObject(), requestId, result.status);
+		}
+		return jsonData(result.data, requestId, result.status);
+	}
+
 	void registerHealthRoutes(Router &router, const ApiDependencies &dependencies) {
 		router.add(QStringLiteral("GET"), QStringLiteral("/health"), [database = dependencies.database](const HttpRequest &request) {
 			QString databaseError;

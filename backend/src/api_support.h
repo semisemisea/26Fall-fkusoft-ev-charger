@@ -42,6 +42,8 @@ namespace Backend {
 	bool commitTransaction(QSqlDatabase &database);
 	bool checkIdempotency(QSqlDatabase &database, const Principal &principal, const HttpRequest &request, const QJsonObject &normalizedBody, const QDateTime &nowUtc, IdempotencyResult *result, QString *errorMessage);
 	bool storeIdempotency(QSqlDatabase &database, const Principal &principal, const HttpRequest &request, const QJsonObject &normalizedBody, const QDateTime &nowUtc, int retentionHours, int status, const QJsonObject &data, QString *errorMessage);
+	QJsonObject idempotencyError(const QString &code, const QString &message, const QJsonObject &details = {});
+	HttpResponse replayIdempotency(const IdempotencyResult &result, const QString &requestId);
 
 	void registerHealthRoutes(Router &router, const ApiDependencies &dependencies);
 	void registerAuthRoutes(Router &router, const ApiDependencies &dependencies);
