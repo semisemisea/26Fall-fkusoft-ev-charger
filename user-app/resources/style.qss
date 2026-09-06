@@ -32,7 +32,6 @@ QLineEdit {
 }
 QLineEdit:focus {
     border-color: #22C586;
-    box-shadow: 0 0 0 3px rgba(34, 197, 134, 0.15);
 }
 QLineEdit::placeholder {
     color: #94a3b8;
@@ -214,7 +213,6 @@ QFrame#tabPill {
     border: 1px solid rgba(255, 255, 255, 1);
     border-top: 1px solid rgba(255, 255, 255, 1);
     border-radius: 26px;
-    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.06);
 }
 QToolButton#tabBarButton {
     background: transparent;
@@ -423,7 +421,6 @@ StationCard {
 }
 StationCard:hover {
     border-color: #22C586;
-    box-shadow: 0 4px 16px rgba(34, 197, 134, 0.12);
 }
 StationCard QLabel {
     border: none;
