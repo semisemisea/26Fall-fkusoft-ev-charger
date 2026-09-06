@@ -10,6 +10,7 @@ namespace Backend {
 
 	bool expireDueReservations(QSqlDatabase &database, const QDateTime &nowUtc, QString *errorMessage);
 	bool loadStationJson(QSqlDatabase &database, qint64 stationId, bool includeInactive, bool includeDeleted, QJsonObject *station, bool *found, QString *errorMessage);
+	bool loadChargerJson(QSqlDatabase &database, qint64 chargerId, bool includeDeleted, QJsonObject *charger, bool *found, QString *errorMessage);
 
 } // namespace Backend
 

@@ -9,6 +9,7 @@ namespace Backend {
 		registerAuthRoutes(router, dependencies);
 		registerUserRoutes(router, dependencies);
 		registerStationRoutes(router, dependencies);
+		registerChargerRoutes(router, dependencies);
 	}
 
 } // namespace Backend

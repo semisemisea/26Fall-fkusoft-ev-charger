@@ -2,6 +2,7 @@ add_library(backend_runtime STATIC
 	src/api.cpp
 	src/api_support.cpp
 	src/auth_api.cpp
+	src/charger_api.cpp
 	src/config.cpp
 	src/database.cpp
 	src/http.cpp
@@ -46,4 +47,8 @@ if(BUILD_TESTING)
 	add_executable(backend_station_tests tests/station_tests.cpp)
 	target_link_libraries(backend_station_tests PRIVATE backend_runtime Qt6::Test)
 	add_test(NAME backend_station_tests COMMAND backend_station_tests)
+
+	add_executable(backend_charger_tests tests/charger_tests.cpp)
+	target_link_libraries(backend_charger_tests PRIVATE backend_runtime Qt6::Test)
+	add_test(NAME backend_charger_tests COMMAND backend_charger_tests)
 endif()

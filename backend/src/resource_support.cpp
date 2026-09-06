@@ -72,4 +72,39 @@ namespace Backend {
 		return true;
 	}
 
+	bool loadChargerJson(QSqlDatabase &database, qint64 chargerId, bool includeDeleted, QJsonObject *charger, bool *found, QString *errorMessage) {
+		QSqlQuery query(database);
+		QString sql = QStringLiteral("SELECT id,station_id,type,power_w,occupancy_status,operational_status,total_charge_count,total_charge_seconds,created_at,updated_at,deleted_at FROM chargers WHERE id=?");
+		if (!includeDeleted) {
+			sql += QStringLiteral(" AND deleted_at IS NULL");
+		}
+		query.prepare(sql);
+		query.addBindValue(chargerId);
+		if (!query.exec()) {
+			*errorMessage = query.lastError().text();
+			return false;
+		}
+		if (!query.next()) {
+			*found = false;
+			return true;
+		}
+		const qint64 seconds = query.value(7).toLongLong();
+		*charger = QJsonObject{
+			{QStringLiteral("id"), query.value(0).toLongLong()},
+			{QStringLiteral("stationId"), query.value(1).toLongLong()},
+			{QStringLiteral("type"), query.value(2).toString()},
+			{QStringLiteral("powerKw"), query.value(3).toLongLong() / 1000.0},
+			{QStringLiteral("occupancyStatus"), query.value(4).toString()},
+			{QStringLiteral("operationalStatus"), query.value(5).toString()},
+			{QStringLiteral("totalChargeCount"), query.value(6).toLongLong()},
+			{QStringLiteral("totalChargeSeconds"), seconds},
+			{QStringLiteral("totalChargeMinutes"), seconds / 60},
+			{QStringLiteral("createdAt"), query.value(8).toString()},
+			{QStringLiteral("updatedAt"), query.value(9).toString()},
+			{QStringLiteral("deletedAt"), query.isNull(10) ? QJsonValue(QJsonValue::Null) : QJsonValue(query.value(10).toString())},
+		};
+		*found = true;
+		return true;
+	}
+
 } // namespace Backend
