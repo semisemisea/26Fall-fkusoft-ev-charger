@@ -52,8 +52,11 @@ ChargerStatusPage::ChargerStatusPage(ops::ApiClient *api, QWidget *parent)
 					return;
 				}
 				qint64 total = 0;
-				for (const auto &r : rows)
-					total += r.count;
+				for (const auto &r : rows) {
+					if (r.status == QLatin1String("available") || r.status == QLatin1String("reserved") || r.status == QLatin1String("charging")) {
+						total += r.count;
+					}
+				}
 				m_totalLabel->setText(tr("电桩总数: %1").arg(total));
 				m_table->setRowCount(rows.size());
 				for (int i = 0; i < rows.size(); ++i) {

@@ -1,13 +1,52 @@
 #include "apiclient.h"
 
+#include <QDateTime>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
+#include <QSharedPointer>
+#include <QTime>
+#include <QTimeZone>
 #include <QUuid>
 
 namespace ops {
+	namespace {
+
+		Charger chargerFromJson(const QJsonObject &object) {
+			Charger charger;
+			charger.id = jsonI64(object, "id");
+			charger.stationId = jsonI64(object, "stationId");
+			charger.code = QString::number(charger.id);
+			charger.type = jsonStr(object, "type");
+			charger.powerKw = jsonDbl(object, "powerKw");
+			const QString operational = jsonStr(object, "operationalStatus");
+			charger.status = operational == QLatin1String("online")
+								 ? jsonStr(object, "occupancyStatus")
+								 : operational;
+			charger.totalChargeCount = jsonI64(object, "totalChargeCount");
+			charger.totalChargeMinutes = jsonI64(object, "totalChargeMinutes");
+			return charger;
+		}
+
+		QUrlQuery intervalQuery(const QDateTime &from, const QDateTime &to) {
+			QUrlQuery query;
+			query.addQueryItem(QStringLiteral("from"), from.toUTC().toString(Qt::ISODate));
+			query.addQueryItem(QStringLiteral("to"), to.toUTC().toString(Qt::ISODate));
+			return query;
+		}
+
+		QString utcOffset(const QDateTime &dateTime) {
+			const int offsetSeconds = dateTime.offsetFromUtc();
+			const int absoluteMinutes = qAbs(offsetSeconds) / 60;
+			return QStringLiteral("%1%2:%3")
+				.arg(offsetSeconds < 0 ? QLatin1String("-") : QLatin1String("+"))
+				.arg(absoluteMinutes / 60, 2, 10, QLatin1Char('0'))
+				.arg(absoluteMinutes % 60, 2, 10, QLatin1Char('0'));
+		}
+
+	} // namespace
 
 	QList<QJsonObject> ApiResult::items() const {
 		QList<QJsonObject> list;
@@ -128,7 +167,7 @@ namespace ops {
 					 return;
 				 }
 				 m_token = jsonStr(r.data, "accessToken");
-				 const QJsonObject user = r.data.value(QLatin1String("user")).toObject();
+				 const QJsonObject user = r.data.value(QLatin1String("admin")).toObject();
 				 m_role = jsonStr(user, "role", QStringLiteral("ADMIN"));
 				 AdminUser admin;
 				 admin.id = jsonI64(user, "id");
@@ -151,28 +190,84 @@ namespace ops {
 	// ---- 看板 ----
 
 	void ApiClient::fetchDashboardSummary() {
-		send(QStringLiteral("GET"), QStringLiteral("/admin/dashboard/summary"), {}, {},
-			 [this](const ApiResult &r) {
-				 if (!r.ok) {
-					 emit dashboardSummaryFetched(DashboardSummary{}, r.errorCode);
-					 return;
-				 }
-				 DashboardSummary s;
-				 s.asOf = jsonStr(r.data, "asOf");
-				 s.todayRevenueFen = jsonI64(r.data, "todayRevenueFen");
-				 s.monthRevenueFen = jsonI64(r.data, "monthRevenueFen");
-				 s.totalRevenueFen = jsonI64(r.data, "totalRevenueFen");
-				 s.userCount = jsonI64(r.data, "userCount");
-				 s.stationCount = jsonI64(r.data, "stationCount");
-				 s.chargerCount = jsonI64(r.data, "chargerCount");
-				 s.onlineRate = jsonDbl(r.data, "onlineRate");
-				 emit dashboardSummaryFetched(s, {});
+		struct SummaryState {
+			DashboardSummary summary;
+			QString errorCode;
+			int pending = 0;
+		};
+
+		const QDateTime now = QDateTime::currentDateTime();
+		const QDateTime todayStart(now.date(), QTime(0, 0), now.timeZone());
+		const QDateTime monthStart(QDate(now.date().year(), now.date().month(), 1),
+								   QTime(0, 0), now.timeZone());
+		auto state = QSharedPointer<SummaryState>::create();
+		state->summary.asOf = now.toUTC().toString(Qt::ISODate);
+		state->pending = canWrite() ? 6 : 5;
+		const auto complete = [this, state](const ApiResult &result, const auto &apply) {
+			if (result.ok) {
+				apply(result);
+			} else if (state->errorCode.isEmpty()) {
+				state->errorCode = result.errorCode;
+			}
+			if (--state->pending == 0) {
+				emit dashboardSummaryFetched(state->summary, state->errorCode);
+			}
+		};
+
+		send(QStringLiteral("GET"), QStringLiteral("/admin/dashboard/revenue"), {}, {},
+			 [complete, state](const ApiResult &result) {
+				 complete(result, [state](const ApiResult &value) {
+					 state->summary.totalRevenueFen = jsonI64(value.data, "revenueFen");
+				 });
 			 });
+		send(QStringLiteral("GET"), QStringLiteral("/admin/dashboard/revenue"),
+			 intervalQuery(todayStart, now), {}, [complete, state](const ApiResult &result) {
+				 complete(result, [state](const ApiResult &value) {
+					 state->summary.todayRevenueFen = jsonI64(value.data, "revenueFen");
+				 });
+			 });
+		send(QStringLiteral("GET"), QStringLiteral("/admin/dashboard/revenue"),
+			 intervalQuery(monthStart, now), {}, [complete, state](const ApiResult &result) {
+				 complete(result, [state](const ApiResult &value) {
+					 state->summary.monthRevenueFen = jsonI64(value.data, "revenueFen");
+				 });
+			 });
+		QUrlQuery pageQuery;
+		pageQuery.addQueryItem(QStringLiteral("pageSize"), QStringLiteral("1"));
+		send(QStringLiteral("GET"), QStringLiteral("/admin/stations"), pageQuery, {},
+			 [complete, state](const ApiResult &result) {
+				 complete(result, [state](const ApiResult &value) {
+					 state->summary.stationCount = value.meta.total;
+				 });
+			 });
+		send(QStringLiteral("GET"), QStringLiteral("/admin/dashboard/charger-status"), {}, {},
+			 [complete, state](const ApiResult &result) {
+				 complete(result, [state](const ApiResult &value) {
+					 state->summary.chargerCount = jsonI64(value.data, "total");
+					 const qint64 online = jsonI64(
+						 value.data.value(QLatin1String("operational")).toObject(), "online");
+					 if (state->summary.chargerCount > 0) {
+						 state->summary.onlineRate =
+							 static_cast<double>(online) / state->summary.chargerCount;
+					 }
+				 });
+			 });
+		if (canWrite()) {
+			send(QStringLiteral("GET"), QStringLiteral("/admin/users"), pageQuery, {},
+				 [complete, state](const ApiResult &result) {
+					 complete(result, [state](const ApiResult &value) {
+						 state->summary.userCount = value.meta.total;
+					 });
+				 });
+		}
 	}
 
 	void ApiClient::fetchRevenueSeries(const QString &range) {
-		QUrlQuery seriesQuery;
-		seriesQuery.addQueryItem(QStringLiteral("range"), range);
+		const QDateTime now = QDateTime::currentDateTime();
+		const int days = range == QLatin1String("30d") ? 30 : 7;
+		const QDateTime from(now.date().addDays(1 - days), QTime(0, 0), now.timeZone());
+		QUrlQuery seriesQuery = intervalQuery(from, now);
+		seriesQuery.addQueryItem(QStringLiteral("utcOffset"), utcOffset(now));
 		send(QStringLiteral("GET"), QStringLiteral("/admin/dashboard/revenue-series"), seriesQuery, {},
 			 [this, range](const ApiResult &r) {
 				 if (!r.ok) {
@@ -200,16 +295,24 @@ namespace ops {
 					 emit chargerStatusFetched({}, r.errorCode);
 					 return;
 				 }
+				 const qint64 total = jsonI64(r.data, "total");
 				 QList<ChargerStatusCount> rows;
-				 const auto arr = r.data.value(QLatin1String("items")).toArray();
-				 for (const auto &e : arr) {
-					 const QJsonObject o = e.toObject();
+				 const auto append = [&rows, total](const QJsonObject &group, const char *name) {
 					 ChargerStatusCount row;
-					 row.status = jsonStr(o, "status");
-					 row.count = jsonI64(o, "count");
-					 row.percent = jsonDbl(o, "percent");
+					 row.status = QLatin1String(name);
+					 row.count = jsonI64(group, name);
+					 row.percent = total > 0 ? static_cast<double>(row.count) / total : 0.0;
 					 rows.append(row);
-				 }
+				 };
+				 const QJsonObject occupancy =
+					 r.data.value(QLatin1String("occupancy")).toObject();
+				 const QJsonObject operational =
+					 r.data.value(QLatin1String("operational")).toObject();
+				 append(occupancy, "available");
+				 append(occupancy, "reserved");
+				 append(occupancy, "charging");
+				 append(operational, "fault");
+				 append(operational, "offline");
 				 emit chargerStatusFetched(rows, {});
 			 });
 	}
@@ -218,8 +321,10 @@ namespace ops {
 
 	void ApiClient::fetchChargers(const QString &statusFilter, int page) {
 		QUrlQuery query;
-		if (!statusFilter.isEmpty())
-			query.addQueryItem(QStringLiteral("status"), statusFilter);
+		if (statusFilter == QLatin1String("fault") || statusFilter == QLatin1String("offline"))
+			query.addQueryItem(QStringLiteral("operationalStatus"), statusFilter);
+		else if (!statusFilter.isEmpty())
+			query.addQueryItem(QStringLiteral("occupancyStatus"), statusFilter);
 		query.addQueryItem(QStringLiteral("page"), QString::number(qMax(1, page)));
 		send(QStringLiteral("GET"), QStringLiteral("/admin/chargers"), query, {},
 			 [this](const ApiResult &r) {
@@ -230,27 +335,16 @@ namespace ops {
 				 QList<Charger> chargers;
 				 for (const auto &e : r.data.value(QLatin1String("items")).toArray()) {
 					 const QJsonObject o = e.toObject();
-					 Charger c;
-					 c.id = jsonI64(o, "id");
-					 c.stationId = jsonI64(o, "stationId");
-					 c.code = jsonStr(o, "code");
-					 c.type = jsonStr(o, "type");
-					 c.powerKw = jsonDbl(o, "powerKw");
-					 c.status = jsonStr(o, "status");
-					 c.totalChargeCount = jsonI64(o, "totalChargeCount");
-					 c.totalChargeMinutes = jsonI64(o, "totalChargeMinutes");
-					 chargers.append(c);
+					 chargers.append(chargerFromJson(o));
 				 }
 				 emit chargersFetched(chargers, r.meta, {});
 			 });
 	}
 
 	void ApiClient::restartCharger(qint64 chargerId, const QString &reason) {
-		QJsonObject body;
-		body.insert(QStringLiteral("type"), QStringLiteral("restart"));
-		body.insert(QStringLiteral("reason"), reason);
-		send(QStringLiteral("POST"), QStringLiteral("/admin/chargers/%1/commands").arg(chargerId), {},
-			 body, [this, chargerId](const ApiResult &r) {
+		Q_UNUSED(reason)
+		send(QStringLiteral("POST"), QStringLiteral("/admin/chargers/%1/restart").arg(chargerId),
+			 {}, {}, [this, chargerId](const ApiResult &r) {
 				 emit commandFinished(chargerId, r.ok,
 									  r.ok ? QStringLiteral("重启指令已下发") : r.errorMessage);
 			 });
@@ -261,7 +355,7 @@ namespace ops {
 	void ApiClient::fetchStations(const QString &search, int page) {
 		QUrlQuery query;
 		if (!search.isEmpty())
-			query.addQueryItem(QStringLiteral("search"), search);
+			query.addQueryItem(QStringLiteral("name"), search);
 		query.addQueryItem(QStringLiteral("page"), QString::number(qMax(1, page)));
 		send(QStringLiteral("GET"), QStringLiteral("/admin/stations"), query, {},
 			 [this](const ApiResult &r) {
@@ -278,34 +372,56 @@ namespace ops {
 					 s.address = jsonStr(o, "address");
 					 s.latitude = jsonDbl(o, "latitude");
 					 s.longitude = jsonDbl(o, "longitude");
-					 s.pricePerKwhFen = jsonI64(o, "pricePerKwhFen");
+					 s.pricePerKwhFen = jsonI64(o, "priceFenPerKwh");
 					 s.chargerCount = jsonI64(o, "chargerCount");
 					 s.availableChargerCount = jsonI64(o, "availableChargerCount");
-					 s.onlineRate = jsonDbl(o, "onlineRate");
 					 s.status = jsonStr(o, "status");
 					 stations.append(s);
 				 }
-				 emit stationsFetched(stations, r.meta, {});
+				 if (stations.isEmpty()) {
+					 emit stationsFetched(stations, r.meta, {});
+					 return;
+				 }
+				 struct StationState {
+					 QList<StationSummary> stations;
+					 PageMeta meta;
+					 int pending = 0;
+				 };
+				 auto state = QSharedPointer<StationState>::create();
+				 state->stations = stations;
+				 state->meta = r.meta;
+				 state->pending = stations.size();
+				 for (qsizetype index = 0; index < stations.size(); ++index) {
+					 QUrlQuery onlineQuery;
+					 onlineQuery.addQueryItem(QStringLiteral("operationalStatus"),
+											  QStringLiteral("online"));
+					 onlineQuery.addQueryItem(QStringLiteral("pageSize"), QStringLiteral("1"));
+					 send(QStringLiteral("GET"),
+						  QStringLiteral("/admin/stations/%1/chargers").arg(stations.at(index).id),
+						  onlineQuery, {}, [this, state, index](const ApiResult &onlineResult) {
+							  if (onlineResult.ok && state->stations[index].chargerCount > 0) {
+								  state->stations[index].onlineRate =
+									  static_cast<double>(onlineResult.meta.total) / state->stations[index].chargerCount;
+							  }
+							  if (--state->pending == 0) {
+								  emit stationsFetched(state->stations, state->meta, {});
+							  }
+						  });
+				 }
 			 });
 	}
 
 	void ApiClient::fetchStationChargers(qint64 stationId) {
-		send(QStringLiteral("GET"), QStringLiteral("/stations/%1/chargers").arg(stationId), {}, {},
+		QUrlQuery query;
+		query.addQueryItem(QStringLiteral("pageSize"), QStringLiteral("100"));
+		send(QStringLiteral("GET"), QStringLiteral("/admin/stations/%1/chargers").arg(stationId),
+			 query, {},
 			 [this, stationId](const ApiResult &r) {
 				 QList<Charger> chargers;
 				 if (r.ok) {
 					 for (const auto &e : r.data.value(QLatin1String("items")).toArray()) {
 						 const QJsonObject o = e.toObject();
-						 Charger c;
-						 c.id = jsonI64(o, "id");
-						 c.stationId = jsonI64(o, "stationId");
-						 c.code = jsonStr(o, "code");
-						 c.type = jsonStr(o, "type");
-						 c.powerKw = jsonDbl(o, "powerKw");
-						 c.status = jsonStr(o, "status");
-						 c.totalChargeCount = jsonI64(o, "totalChargeCount");
-						 c.totalChargeMinutes = jsonI64(o, "totalChargeMinutes");
-						 chargers.append(c);
+						 chargers.append(chargerFromJson(o));
 					 }
 				 }
 				 emit stationChargersFetched(stationId, chargers, r.errorCode);
@@ -318,10 +434,10 @@ namespace ops {
 		body.insert(QStringLiteral("address"), form.address);
 		body.insert(QStringLiteral("latitude"), form.latitude);
 		body.insert(QStringLiteral("longitude"), form.longitude);
-		body.insert(QStringLiteral("pricePerKwhFen"), static_cast<double>(form.pricePerKwhFen));
+		body.insert(QStringLiteral("priceFenPerKwh"), static_cast<double>(form.pricePerKwhFen));
 
 		// 按界面收集的数量生成电桩清单;编号先占位,由服务端保证唯一
-		QJsonArray chargers;
+		QList<QJsonObject> chargers;
 		for (qint64 i = 0; i < form.fastCount && chargers.size() < 64; ++i) {
 			QJsonObject c;
 			c.insert(QStringLiteral("type"), QStringLiteral("fast"));
@@ -335,10 +451,35 @@ namespace ops {
 			c.insert(QStringLiteral("powerKw"), form.slowPowerKw);
 			chargers.append(c);
 		}
-		body.insert(QStringLiteral("chargers"), chargers);
-
 		send(QStringLiteral("POST"), QStringLiteral("/admin/stations"), {}, body,
-			 [this](const ApiResult &r) { emit stationCreated(r.ok, r.errorCode); });
+			 [this, chargers](const ApiResult &r) {
+				 if (!r.ok) {
+					 emit stationCreated(false, r.errorCode);
+					 return;
+				 }
+				 createStationChargers(jsonI64(r.data, "id"), chargers, 0);
+			 });
+	}
+
+	void ApiClient::createStationChargers(qint64 stationId,
+										  const QList<QJsonObject> &chargers, qsizetype index) {
+		if (index >= chargers.size()) {
+			emit stationCreated(true, {});
+			return;
+		}
+		send(QStringLiteral("POST"),
+			 QStringLiteral("/admin/stations/%1/chargers").arg(stationId), {}, chargers.at(index),
+			 [this, stationId, chargers, index](const ApiResult &result) {
+				 if (result.ok) {
+					 createStationChargers(stationId, chargers, index + 1);
+					 return;
+				 }
+				 const QString errorCode = result.errorCode;
+				 send(QStringLiteral("DELETE"), QStringLiteral("/admin/stations/%1").arg(stationId),
+					  {}, {}, [this, errorCode](const ApiResult &) {
+						  emit stationCreated(false, errorCode);
+					  });
+			 });
 	}
 
 	// ---- 用户 ----

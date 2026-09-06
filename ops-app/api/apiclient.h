@@ -102,6 +102,8 @@ namespace ops {
 				  const QJsonObject &body, const std::function<void(const ApiResult &)> &handler);
 		void handleEnvelope(QNetworkReply *reply, const std::function<void(const ApiResult &)> &handler);
 		QUrl buildUrl(const QString &path, const QUrlQuery &query = {}) const;
+		void createStationChargers(qint64 stationId, const QList<QJsonObject> &chargers,
+								   qsizetype index);
 
 		QNetworkAccessManager *m_nam = nullptr;
 		QString m_baseUrl = QStringLiteral("http://localhost:8080/api/v1");
