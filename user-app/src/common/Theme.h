@@ -3,8 +3,10 @@
 #include <QColor>
 #include <QString>
 
+// 设计令牌：界面颜色一律引用此处，禁止硬编码（规范见 DESIGN.md）
 namespace theme {
 
+	// 主色系（品牌绿）：常规/深色/按压/亮调/浅底/浅边框
 	inline QColor primary()
 	{
 		return QColor(0x22, 0xC5, 0x86);
@@ -29,6 +31,7 @@ namespace theme {
 	{
 		return QColor(0xB8, 0xE6, 0xCC);
 	}
+	// 状态色 - 成功：常规/激活/文字/浅底
 	inline QColor success()
 	{
 		return QColor(0x10, 0xb9, 0x81);
@@ -45,6 +48,7 @@ namespace theme {
 	{
 		return QColor(0xec, 0xfd, 0xf5);
 	}
+	// 状态色 - 警告：常规/文字/浅底
 	inline QColor warning()
 	{
 		return QColor(0xf5, 0x9e, 0x0b);
@@ -57,6 +61,7 @@ namespace theme {
 	{
 		return QColor(0xfe, 0xf3, 0xc7);
 	}
+	// 状态色 - 错误：常规/强调/深色/浅底
 	inline QColor error()
 	{
 		return QColor(0xf4, 0x3f, 0x5e);
@@ -73,6 +78,7 @@ namespace theme {
 	{
 		return QColor(0xff, 0xf1, 0xf2);
 	}
+	// 文本色：主/次/禁用，以及中性灰
 	inline QColor textPrimary()
 	{
 		return QColor(0x1e, 0x29, 0x3b);
@@ -89,6 +95,7 @@ namespace theme {
 	{
 		return QColor(0x47, 0x55, 0x69);
 	}
+	// 边框、分割线、悬停填充、页面背景、阴影（带透明度）
 	inline QColor border()
 	{
 		return QColor(0xcb, 0xd5, 0xe1);
@@ -110,6 +117,7 @@ namespace theme {
 		return QColor(15, 23, 42, 40);
 	}
 
+	// 上述颜色的十六进制字符串形式，便于拼接 qss
 	inline QString primaryName()
 	{
 		return primary().name();

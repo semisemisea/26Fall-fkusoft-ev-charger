@@ -18,9 +18,11 @@
 #include <QVBoxLayout>
 
 namespace {
+// 金额输入限制：最多 5 位整数 + 2 位小数
 const QRegularExpression kAmountPattern{QLatin1String("\\d{1,5}(\\.\\d{0,2})?")};
 }
 
+// 搭建快捷金额按钮（50/100/200 元）、自定义金额输入框与支付按钮
 RechargeDialog::RechargeDialog(ApiClient &api, QWidget *parent)
     : QDialog(parent)
     , m_api(api)
@@ -61,6 +63,7 @@ RechargeDialog::RechargeDialog(ApiClient &api, QWidget *parent)
     connect(m_payButton, &QPushButton::clicked, this, &RechargeDialog::pay);
 }
 
+// 元转分提交；成功发 succeeded 并关闭，失败 Toast 提示；请求期间禁用按钮防重复提交
 void RechargeDialog::pay()
 {
     bool ok = false;
@@ -89,6 +92,7 @@ void RechargeDialog::pay()
                });
 }
 
+// 首次显示播放 160ms 淡入，结束后移除透明度效果以免干扰后续绘制
 void RechargeDialog::showEvent(QShowEvent *event)
 {
     QDialog::showEvent(event);

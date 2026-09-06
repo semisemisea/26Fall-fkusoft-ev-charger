@@ -30,12 +30,15 @@
 #include "widgets/AppIcons.h"
 #include "widgets/Toast.h"
 
+// 手机隐喻视口：固定 390x780
 namespace {
 constexpr int kPhoneWidth = 390;
 constexpr int kPhoneHeight = 780;
+// 演示后端地址（本地 mock server，契约见 docs/apis.md）
 const QLatin1String kDefaultBaseUrl{"http://localhost:8080/api/v1"};
 }
 
+// 构造函数：固定手机视口尺寸，装配状态栏/Tab/全部页面，并统一编排页面跳转信号
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
@@ -48,6 +51,7 @@ MainWindow::MainWindow(QWidget *parent)
     buildStatusBar();
     buildTabBar();
 
+    // 登录态与网络层联动：登录注入令牌，退出清空令牌并回到登录页
     connect(m_session, &Session::signedIn, this, [this] { m_api->setAccessToken(m_session->accessToken()); });
     connect(m_session, &Session::signedOut, this, [this] {
         m_api->setAccessToken(QString());
@@ -137,11 +141,13 @@ MainWindow::MainWindow(QWidget *parent)
     ui->pages->setCurrentWidget(loginView);
 }
 
+// 析构：仅释放 Designer 生成的 ui 对象，其余控件由 Qt 父子树管理
 MainWindow::~MainWindow()
 {
     delete ui;
 }
 
+// 构建顶部状态栏：时间每秒刷新，信号/电量为静态示意
 void MainWindow::buildStatusBar()
 {
     m_timeLabel = new QLabel(ui->statusBar);
@@ -168,6 +174,7 @@ void MainWindow::buildStatusBar()
     m_timeLabel->setText(QTime::currentTime().toString(QStringLiteral("HH:mm")));
 }
 
+// 构建底部胶囊 Tab 栏：互斥按钮组，切到“充电”页时主动检查进行中的订单
 void MainWindow::buildTabBar()
 {
     auto *pill = new QFrame(ui->tabBar);
@@ -221,6 +228,7 @@ void MainWindow::buildTabBar()
     updateTabIcons();
 }
 
+// 刷新 Tab 图标：自绘选中态圆底，充电 Tab 在有进行中订单时叠加红点
 void MainWindow::updateTabIcons()
 {
     const QColor active = QColor(0x00, 0xE6, 0x76);
@@ -268,6 +276,7 @@ void MainWindow::updateTabIcons()
     }
 }
 
+// 切换主 Tab 并确保显示主内容区与底部 Tab 栏
 void MainWindow::showTab(int index)
 {
     m_tabStack->setCurrentIndex(index);
@@ -279,6 +288,7 @@ void MainWindow::showTab(int index)
     ui->tabBar->show();
 }
 
+// 进入覆盖页：隐藏 Tab 栏；导航页跳过淡入，其余页面播放淡入动画后移除效果
 void MainWindow::enterOverlay(QWidget *page)
 {
     ui->pages->setCurrentWidget(page);
@@ -299,6 +309,7 @@ void MainWindow::enterOverlay(QWidget *page)
     anim->start(QAbstractAnimation::DeleteWhenStopped);
 }
 
+// 打开导航页并记录返回目标（详情页或主页），供返回按钮使用
 void MainWindow::navigateTo(const Station &station, QWidget *returnPage)
 {
     m_navigationReturnPage = returnPage;
@@ -306,6 +317,7 @@ void MainWindow::navigateTo(const Station &station, QWidget *returnPage)
     enterOverlay(m_navigationView);
 }
 
+// 从详情页立即充电：确认后 POST /orders；已有进行中订单时直接切到充电页
 void MainWindow::startChargingFromDetail(const Charger &charger)
 {
     const auto choice = QMessageBox::question(this, QStringLiteral("选择电桩"),
@@ -331,6 +343,7 @@ void MainWindow::startChargingFromDetail(const Charger &charger)
                 });
 }
 
+// 从详情页预约电桩：确认后 POST /reservations（保留 15 分钟），处理已有订单冲突
 void MainWindow::handleReservationFromDetail(const Charger &charger)
 {
     const auto choice = QMessageBox::question(this, QStringLiteral("预约电桩"),
@@ -356,6 +369,7 @@ void MainWindow::handleReservationFromDetail(const Charger &charger)
                 });
 }
 
+// 结算完成后拉取 GET /me 刷新 Session 中的余额（失败静默忽略）
 void MainWindow::refreshBalance()
 {
     m_api->get(QStringLiteral("/me"),

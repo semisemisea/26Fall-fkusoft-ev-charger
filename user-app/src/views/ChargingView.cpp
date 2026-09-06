@@ -12,6 +12,7 @@
 #include <QTime>
 #include <QVBoxLayout>
 
+// 构造：搭建充电环与各数值标签，创建轮询线程并连接停止按钮
 ChargingView::ChargingView(ApiClient &api, QWidget *parent)
     : QWidget(parent)
     , m_api(api)
@@ -63,6 +64,7 @@ ChargingView::ChargingView(ApiClient &api, QWidget *parent)
     connect(m_stopButton, &QPushButton::clicked, this, &ChargingView::stopCharging);
 }
 
+// 打开订单：立即刷新一次显示，并配置、启动 5 秒轮询线程
 void ChargingView::open(const Order &order)
 {
     m_order = order;
@@ -71,12 +73,14 @@ void ChargingView::open(const Order &order)
     m_pollThread->start();
 }
 
+// 页面隐藏时请求停止轮询线程
 void ChargingView::hideEvent(QHideEvent *event)
 {
     QWidget::hideEvent(event);
     m_pollThread->requestStop();
 }
 
+// 用订单数据刷新标题、电量、时长单价、预估费用与订单号
 void ChargingView::updateDisplay(const Order &order)
 {
     m_headerLabel->setText(QStringLiteral("⚡ 充电中 · %1 · 电桩 %2")
@@ -90,6 +94,7 @@ void ChargingView::updateDisplay(const Order &order)
     m_orderLabel->setText(QStringLiteral("订单号 %1").arg(order.orderNo));
 }
 
+// 弹确认框后请求停止充电；失败时恢复轮询并提示错误
 void ChargingView::stopCharging()
 {
     const auto choice = QMessageBox::question(this, QStringLiteral("停止充电"),
@@ -113,6 +118,7 @@ void ChargingView::stopCharging()
                });
 }
 
+// 分钟数转 HH:mm:ss 文本
 QString ChargingView::formatDuration(int minutes)
 {
     const QTime duration = QTime(0, 0).addSecs(minutes * 60);

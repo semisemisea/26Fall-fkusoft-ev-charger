@@ -28,6 +28,7 @@ const QLatin1String kDefaultAvatarStyle{
     "QLabel { background: rgba(255,255,255,0.35); border-radius: 36px; color: white; font-size: 36px; }"};
 const QLatin1String kAvatarPixmapStyle{"QLabel { border-radius: 36px; }"};
 
+// 手机号脱敏：11 位号码中间四位替换为 ****
 QString maskedPhone(const QString &phone)
 {
     return phone.length() == 11
@@ -36,6 +37,7 @@ QString maskedPhone(const QString &phone)
 }
 }
 
+// 构造：搭建资料卡、钱包卡、菜单列表与退出按钮，并连接相关信号
 ProfileView::ProfileView(Session &session, ApiClient &api, QWidget *parent)
     : QWidget(parent)
     , m_session(session)
@@ -194,12 +196,14 @@ ProfileView::ProfileView(Session &session, ApiClient &api, QWidget *parent)
     connect(&m_session, &Session::userChanged, this, &ProfileView::refreshProfile);
 }
 
+// 页面显示时刷新资料
 void ProfileView::showEvent(QShowEvent *event)
 {
     QWidget::showEvent(event);
     refreshProfile();
 }
 
+// 拦截头像标签的鼠标点击，触发更换头像
 bool ProfileView::eventFilter(QObject *watched, QEvent *event)
 {
     if (watched == m_avatarLabel && event->type() == QEvent::MouseButtonRelease) {
@@ -209,6 +213,7 @@ bool ProfileView::eventFilter(QObject *watched, QEvent *event)
     return QWidget::eventFilter(watched, event);
 }
 
+// 用会话用户信息刷新界面；头像 URL 变化时才重新下载
 void ProfileView::refreshProfile()
 {
     const User &user = m_session.user();
@@ -220,6 +225,7 @@ void ProfileView::refreshProfile()
     }
 }
 
+// 下载头像图片；无地址或下载失败时回退到默认 👤 样式
 void ProfileView::loadAvatar()
 {
     m_loadedAvatarUrl = m_session.user().avatarUrl;
@@ -245,6 +251,7 @@ void ProfileView::loadAvatar()
                    });
 }
 
+// 选择图片并以 multipart 表单上传为新头像，成功后更新会话用户
 void ProfileView::changeAvatar()
 {
     const QString path = QFileDialog::getOpenFileName(this, QStringLiteral("选择头像"), QString(),
@@ -279,6 +286,7 @@ void ProfileView::changeAvatar()
                  });
 }
 
+// 输入新昵称并提交 PATCH /me，成功后更新会话用户
 void ProfileView::changeNickname()
 {
     bool ok = false;
@@ -299,6 +307,7 @@ void ProfileView::changeNickname()
                 });
 }
 
+// 打开充值对话框，成功后更新会话余额
 void ProfileView::openRecharge()
 {
     auto *dialog = new RechargeDialog(m_api, this);
@@ -309,6 +318,7 @@ void ProfileView::openRecharge()
     dialog->open();
 }
 
+// 确认后调用会话退出登录
 void ProfileView::signOut()
 {
     const auto choice = QMessageBox::question(this, QStringLiteral("退出登录"),

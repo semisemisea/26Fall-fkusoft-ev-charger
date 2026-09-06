@@ -2,6 +2,7 @@
 
 #include <QJsonObject>
 
+// 逐字段解析 JSON；expiresAt 为 ISO 格式时间串，转为 QDateTime 便于倒计时
 Reservation Reservation::fromJson(const QJsonObject &object)
 {
     Reservation reservation;
@@ -18,6 +19,7 @@ Reservation Reservation::fromJson(const QJsonObject &object)
     return reservation;
 }
 
+// 状态枚举到中文文案的映射：active/used/cancelled/expired
 QString Reservation::statusLabel(const QString &status)
 {
     if (status == QLatin1String("active")) {

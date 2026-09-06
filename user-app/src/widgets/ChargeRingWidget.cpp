@@ -9,12 +9,14 @@
 #include <QShowEvent>
 #include <QVariantAnimation>
 
+// 固定 132x132 尺寸
 ChargeRingWidget::ChargeRingWidget(QWidget *parent)
     : QWidget(parent)
 {
     setFixedSize(132, 132);
 }
 
+// 显示时启动无限循环的角度动画；时长经 demo::ms 适配演示模式
 void ChargeRingWidget::showEvent(QShowEvent *event)
 {
     QWidget::showEvent(event);
@@ -31,6 +33,7 @@ void ChargeRingWidget::showEvent(QShowEvent *event)
     animation->start(QAbstractAnimation::DeleteWhenStopped);
 }
 
+// 隐藏时停止并销毁全部动画，避免后台空转
 void ChargeRingWidget::hideEvent(QHideEvent *event)
 {
     QWidget::hideEvent(event);
@@ -41,6 +44,7 @@ void ChargeRingWidget::hideEvent(QHideEvent *event)
     }
 }
 
+// 绘制灰色底盘环与 110 度进度弧；drawArc 角度单位为 1/16 度
 void ChargeRingWidget::paintEvent(QPaintEvent *event)
 {
     Q_UNUSED(event)

@@ -4,6 +4,7 @@
 
 class QJsonObject;
 
+// 电站：位置、单价与电桩统计（距离由服务端球面计算，客户端不自行推断）
 struct Station
 {
     int id = 0;
@@ -18,5 +19,6 @@ struct Station
     double distanceKm = 0;
     QString status;
 
+    // 从服务端 JSON 对象构造 Station
     static Station fromJson(const QJsonObject &object);
 };

@@ -11,6 +11,7 @@
 #include <QPushButton>
 #include <QVBoxLayout>
 
+// 组装名称/地址/距离/导航按钮/单价/空闲数的网格布局；空闲数按余量着绿/红
 StationCard::StationCard(const Station &station, QWidget *parent)
     : QFrame(parent)
     , m_station(station)
@@ -76,6 +77,7 @@ StationCard::StationCard(const Station &station, QWidget *parent)
     grid->setColumnStretch(0, 1);
 }
 
+// 空过滤词恒匹配
 bool StationCard::matches(const QString &filter) const
 {
     if (filter.isEmpty()) {
@@ -85,6 +87,7 @@ bool StationCard::matches(const QString &filter) const
         || m_station.address.contains(filter, Qt::CaseInsensitive);
 }
 
+// 仅在卡片矩形内松开才发 clicked，防止按下后拖出误触发
 void StationCard::mouseReleaseEvent(QMouseEvent *event)
 {
     if (rect().contains(event->pos())) {
@@ -93,6 +96,7 @@ void StationCard::mouseReleaseEvent(QMouseEvent *event)
     QFrame::mouseReleaseEvent(event);
 }
 
+// 距离标签点击视为导航请求并吞掉事件，避免同时触发卡片点击
 bool StationCard::eventFilter(QObject *watched, QEvent *event)
 {
     if (watched == m_distanceLabel && event->type() == QEvent::MouseButtonRelease) {

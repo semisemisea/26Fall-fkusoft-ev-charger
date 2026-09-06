@@ -7,6 +7,7 @@
 #include <QPixmap>
 
 namespace {
+// 自绘左向 chevron 箭头图标（主题主文字色、圆角笔帽）
 QIcon makeChevronIcon()
 {
     const QSize size(24, 24);
@@ -31,6 +32,7 @@ QIcon makeChevronIcon()
 }
 } // namespace
 
+// 固定尺寸、手型光标，外观样式由 qss 中 roundBackButton 控制
 BackButton::BackButton(QWidget *parent)
     : QPushButton(parent)
 {

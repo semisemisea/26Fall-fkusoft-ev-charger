@@ -18,6 +18,7 @@
 #include <QPainter>
 #include <QVBoxLayout>
 
+// 构造函数：搭建详情页全部控件与布局；按钮只发信号，实际下单/预约由 MainWindow 处理
 StationDetailView::StationDetailView(ApiClient &api, QWidget *parent)
     : QWidget(parent)
     , m_api(api)
@@ -148,6 +149,7 @@ StationDetailView::StationDetailView(ApiClient &api, QWidget *parent)
         m_bgSpacer->setFixedHeight(m_bgPixmap.height() * width() / m_bgPixmap.width());
 }
 
+// 打开电站：填充名称/地址/距离/价格/空闲标签，随后加载电桩列表
 void StationDetailView::open(const Station &station)
 {
     m_station = station;
@@ -170,6 +172,7 @@ void StationDetailView::open(const Station &station)
     loadChargers();
 }
 
+// 拉取站内电桩并逐行渲染（编号、状态徽标、类型、功率）；行可点击选中
 void StationDetailView::loadChargers()
 {
     m_spinner->show();
@@ -265,6 +268,7 @@ void StationDetailView::loadChargers()
               });
 }
 
+// 处理电桩行点击：取消旧选中样式，记录选中电桩并高亮该行
 bool StationDetailView::eventFilter(QObject *obj, QEvent *event)
 {
     if (event->type() == QEvent::MouseButtonPress) {
@@ -292,6 +296,7 @@ bool StationDetailView::eventFilter(QObject *obj, QEvent *event)
     return QWidget::eventFilter(obj, event);
 }
 
+// 仅当选中的电桩为 available 时启用预约/充电按钮，并切换对应配色
 void StationDetailView::updateBottomButtons()
 {
     bool available = m_hasSelection &&
@@ -317,6 +322,7 @@ void StationDetailView::updateBottomButtons()
     }
 }
 
+// 按控件宽度等比绘制顶部背景图，图片下方用渐变补齐剩余高度
 void StationDetailView::paintEvent(QPaintEvent *event)
 {
     QWidget::paintEvent(event);
@@ -335,6 +341,7 @@ void StationDetailView::paintEvent(QPaintEvent *event)
     }
 }
 
+// 尺寸变化时同步调整背景占位高度，保证背景图不被内容遮挡变形
 void StationDetailView::resizeEvent(QResizeEvent *event)
 {
     QWidget::resizeEvent(event);

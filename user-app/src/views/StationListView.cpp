@@ -36,6 +36,7 @@ namespace {
 		};
 }
 
+// 构造函数：搭建定位切换、搜索框、AI 推荐横幅与电站卡片滚动列表
 StationListView::StationListView(Session &session, ApiClient &api, QWidget *parent)
 	: QWidget(parent)
 	  , m_session(session)
@@ -131,12 +132,14 @@ StationListView::StationListView(Session &session, ApiClient &api, QWidget *pare
 	});
 }
 
+// 页面显示时自动刷新列表
 void StationListView::showEvent(QShowEvent *event)
 {
 	QWidget::showEvent(event);
 	reload();
 }
 
+// 按当前定位请求附近电站并重建卡片；首屏成功后播放一次淡入动画，再触发 AI 推荐
 void StationListView::reload()
 {
 	const LocationPreset &preset = kLocationPresets[m_locationCombo->currentIndex()];
@@ -193,6 +196,7 @@ void StationListView::reload()
 			  });
 }
 
+// 按搜索关键字逐卡片匹配（名称/地址），仅切换可见性
 void StationListView::applyFilter()
 {
 	const QString filter = m_searchEdit->text().trimmed();
@@ -201,6 +205,7 @@ void StationListView::applyFilter()
 	}
 }
 
+// AI 推荐：取 1 小时预测中“预计空闲最多、置信度最高”的电站；接口失败时按当前空闲率本地兜底
 void StationListView::loadRecommendation()
 {
 	m_api.get(QStringLiteral("/forecasts?horizon=1h"),

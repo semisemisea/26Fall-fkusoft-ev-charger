@@ -2,6 +2,7 @@
 
 #include <QJsonObject>
 
+// 逐字段解析 JSON；金额与单价均为整数（分/每度）
 Order Order::fromJson(const QJsonObject &object)
 {
     Order order;
@@ -22,6 +23,7 @@ Order Order::fromJson(const QJsonObject &object)
     return order;
 }
 
+// 状态枚举到中文文案的映射：charging/awaiting_payment/settled/cancelled/failed
 QString Order::statusLabel(const QString &status)
 {
     if (status == QLatin1String("charging")) {

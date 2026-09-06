@@ -8,18 +8,21 @@
 #include <QStyle>
 #include <QStyleOptionButton>
 
+// 创建驱动 scale 属性的动画对象
 ScaleButton::ScaleButton(const QString &text, QWidget *parent)
     : QPushButton(text, parent)
 {
     m_anim = new QPropertyAnimation(this, "scale", this);
 }
 
+// 记录缩放值并触发重绘
 void ScaleButton::setScale(qreal scale)
 {
     m_scale = scale;
     update();
 }
 
+// 打断进行中的动画，从当前值平滑过渡到目标值
 void ScaleButton::animateTo(qreal target, int duration, QEasingCurve::Type curve)
 {
     m_anim->stop();
@@ -30,6 +33,7 @@ void ScaleButton::animateTo(qreal target, int duration, QEasingCurve::Type curve
     m_anim->start();
 }
 
+// 左键按下时缩小（幅度由演示模式决定）
 void ScaleButton::mousePressEvent(QMouseEvent *event)
 {
     QPushButton::mousePressEvent(event);
@@ -38,12 +42,14 @@ void ScaleButton::mousePressEvent(QMouseEvent *event)
     }
 }
 
+// 松开回弹到原尺寸
 void ScaleButton::mouseReleaseEvent(QMouseEvent *event)
 {
     QPushButton::mouseReleaseEvent(event);
     animateTo(1.0, demo::ms(140), QEasingCurve::OutQuint);
 }
 
+// 指针移出时若未按住也回弹，避免卡在缩小态
 void ScaleButton::leaveEvent(QEvent *event)
 {
     QPushButton::leaveEvent(event);
@@ -52,6 +58,7 @@ void ScaleButton::leaveEvent(QEvent *event)
     }
 }
 
+// 缩放为 1 时走默认绘制；否则以中心为原点缩放后交给 QStyle 绘制
 void ScaleButton::paintEvent(QPaintEvent *event)
 {
     if (qFuzzyCompare(m_scale, 1.0)) {

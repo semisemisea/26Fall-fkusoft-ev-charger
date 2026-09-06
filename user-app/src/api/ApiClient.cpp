@@ -20,26 +20,31 @@ ApiClient::ApiClient(QString baseUrl, QObject *parent)
 {
 }
 
+// 保存令牌，后续请求自动携带
 void ApiClient::setAccessToken(const QString &token)
 {
     m_accessToken = token;
 }
 
+// 无请求体的 GET
 void ApiClient::get(const QString &path, Success onSuccess, Failure onFailure)
 {
     send(path, Verb::Get, nullptr, std::move(onSuccess), std::move(onFailure));
 }
 
+// 带 JSON 请求体的 POST
 void ApiClient::post(const QString &path, const QJsonObject &body, Success onSuccess, Failure onFailure)
 {
     send(path, Verb::Post, &body, std::move(onSuccess), std::move(onFailure));
 }
 
+// 带 JSON 请求体的 PATCH（sendCustomRequest 实现）
 void ApiClient::patch(const QString &path, const QJsonObject &body, Success onSuccess, Failure onFailure)
 {
     send(path, Verb::Patch, &body, std::move(onSuccess), std::move(onFailure));
 }
 
+// 统一发送入口：注入令牌与请求 ID，按契约拆 data/meta 信封，失败解析为 ApiError
 void ApiClient::send(const QString &path, Verb verb, const QJsonObject *body, Success onSuccess, Failure onFailure)
 {
     QNetworkRequest request{QUrl(m_baseUrl + path)};
@@ -97,6 +102,7 @@ void ApiClient::send(const QString &path, Verb verb, const QJsonObject *body, Su
             });
 }
 
+// multipart 上传：multiPart 挂到 reply 下随响应一起释放
 void ApiClient::upload(const QString &path, QHttpMultiPart *multiPart, Success onSuccess, Failure onFailure)
 {
     QNetworkRequest request{QUrl(m_baseUrl + path)};
@@ -137,6 +143,7 @@ void ApiClient::upload(const QString &path, QHttpMultiPart *multiPart, Success o
             });
 }
 
+// 下载二进制内容：相对地址按 baseUrl 解析，成功回调原始字节流
 void ApiClient::download(const QUrl &url, DownloadSuccess onSuccess, Failure onFailure)
 {
     QNetworkRequest request{QUrl(m_baseUrl).resolved(url)};

@@ -2,6 +2,7 @@
 
 #include <QJsonObject>
 
+// 逐字段解析 JSON；distanceKm 由服务端计算，列表接口才有值
 Station Station::fromJson(const QJsonObject &object)
 {
     Station station;

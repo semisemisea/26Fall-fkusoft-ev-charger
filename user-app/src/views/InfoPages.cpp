@@ -19,6 +19,7 @@
 #include <QVBoxLayout>
 
 namespace {
+// 搭建通用页面骨架：返回键 + 标题 + 加载指示 + 滚动列表，返回状态标签
 QLabel *makePageShell(const QString &title, const std::function<void()> &onBack,
                       QVBoxLayout **listLayout, Spinner **spinnerOut, QWidget *parent)
 {
@@ -70,6 +71,7 @@ QLabel *makePageShell(const QString &title, const std::function<void()> &onBack,
     return statusLabel;
 }
 
+// 清空列表中的卡片（保留状态行与底部 stretch）
 void clearCards(QVBoxLayout *listLayout)
 {
     while (listLayout->count() > 2) {
@@ -80,6 +82,7 @@ void clearCards(QVBoxLayout *listLayout)
 }
 } // namespace
 
+// 构造历史订单页骨架
 OrderHistoryView::OrderHistoryView(ApiClient &api, QWidget *parent)
     : QWidget(parent)
     , m_api(api)
@@ -90,12 +93,14 @@ OrderHistoryView::OrderHistoryView(ApiClient &api, QWidget *parent)
     m_listLayout = listLayout;
 }
 
+// 页面显示时加载订单列表
 void OrderHistoryView::showEvent(QShowEvent *event)
 {
     QWidget::showEvent(event);
     load();
 }
 
+// 拉取历史订单（GET /orders）并按状态着色渲染卡片
 void OrderHistoryView::load()
 {
     m_spinner->show();
@@ -161,6 +166,7 @@ void OrderHistoryView::load()
               });
 }
 
+// 构造钱包流水页骨架
 TransactionsView::TransactionsView(ApiClient &api, QWidget *parent)
     : QWidget(parent)
     , m_api(api)
@@ -171,12 +177,14 @@ TransactionsView::TransactionsView(ApiClient &api, QWidget *parent)
     m_listLayout = listLayout;
 }
 
+// 页面显示时加载流水列表
 void TransactionsView::showEvent(QShowEvent *event)
 {
     QWidget::showEvent(event);
     load();
 }
 
+// 拉取钱包流水并渲染卡片，金额正负用绿 / 红区分
 void TransactionsView::load()
 {
     m_spinner->show();
@@ -251,6 +259,7 @@ void TransactionsView::load()
               });
 }
 
+// 构造预约记录页骨架
 ReservationHistoryView::ReservationHistoryView(ApiClient &api, QWidget *parent)
     : QWidget(parent)
     , m_api(api)
@@ -261,12 +270,14 @@ ReservationHistoryView::ReservationHistoryView(ApiClient &api, QWidget *parent)
     m_listLayout = listLayout;
 }
 
+// 页面显示时加载预约记录
 void ReservationHistoryView::showEvent(QShowEvent *event)
 {
     QWidget::showEvent(event);
     load();
 }
 
+// 拉取预约记录（GET /reservations）并按状态着色渲染卡片
 void ReservationHistoryView::load()
 {
     m_spinner->show();
@@ -332,6 +343,7 @@ void ReservationHistoryView::load()
               });
 }
 
+// 构造“我的爱车”静态展示页
 CarView::CarView(QWidget *parent)
     : QWidget(parent)
 {
@@ -371,6 +383,7 @@ CarView::CarView(QWidget *parent)
     layout->addStretch();
 }
 
+// 构造“关于系统”静态展示页
 AboutView::AboutView(QWidget *parent)
     : QWidget(parent)
 {

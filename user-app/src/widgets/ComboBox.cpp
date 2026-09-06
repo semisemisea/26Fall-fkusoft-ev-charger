@@ -18,6 +18,7 @@ class PopupDelegate : public QStyledItemDelegate
 public:
     using QStyledItemDelegate::QStyledItemDelegate;
 
+    // 自绘选项：选中/悬停画圆角底色，文字着色区分
     void paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const override
     {
         painter->save();
@@ -35,6 +36,7 @@ public:
         painter->restore();
     }
 
+    // 固定选项行高 34
     QSize sizeHint(const QStyleOptionViewItem &option, const QModelIndex &index) const override
     {
         QSize size = QStyledItemDelegate::sizeHint(option, index);
@@ -45,6 +47,7 @@ public:
 
 } // namespace
 
+// 使用自定义 QListView + PopupDelegate 作为弹层；选中项后立即关闭弹层
 ComboBox::ComboBox(QWidget *parent)
     : QComboBox(parent)
 {
@@ -59,6 +62,7 @@ ComboBox::ComboBox(QWidget *parent)
     });
 }
 
+// 用多边形遮罩把弹层裁成 10px 圆角
 void ComboBox::showPopup()
 {
     QComboBox::showPopup();
@@ -70,6 +74,7 @@ void ComboBox::showPopup()
     }
 }
 
+// 右侧预留 46px 箭头区，最小高度 38
 QSize ComboBox::sizeHint() const
 {
     QSize size = QComboBox::sizeHint();
@@ -78,6 +83,7 @@ QSize ComboBox::sizeHint() const
     return size;
 }
 
+// 自绘圆角边框（聚焦/悬停时高亮）、省略文本与 chevron 箭头
 void ComboBox::paintEvent(QPaintEvent *event)
 {
     Q_UNUSED(event);

@@ -27,6 +27,7 @@ const ModeOption kModeOptions[] = {
     {"步行", "walking"},
 };
 
+// 检测 QtWebEngineProcess 是否存在，用于判断当前环境能否加载地图
 bool webEngineAvailable()
 {
     const QString dir = QLibraryInfo::path(QLibraryInfo::LibraryExecutablesPath);
@@ -34,6 +35,7 @@ bool webEngineAvailable()
         || QFile::exists(dir + QStringLiteral("/QtWebEngineProcess.exe"));
 }
 
+// 自定义地图页面：新窗口在当前页打开，且仅允许 http(s) 导航
 class MapPage : public QWebEnginePage
 {
 public:
@@ -55,6 +57,7 @@ protected:
     }
 };
 
+// 注入的触屏桥接脚本：把鼠标按下 / 抬起转换为 touchstart / touchend，让桌面鼠标也能拖动移动端地图
 const char kTouchBridgeScript[] = R"JS(
 (function(){
   function fire(type, e){
@@ -73,6 +76,7 @@ const char kTouchBridgeScript[] = R"JS(
 )JS";
 }
 
+// 构造：搭建标题栏、出行方式选择与提示区；切换出行方式时若已加载过则自动重新规划
 NavigationView::NavigationView(Session &session, ApiClient &api, QWidget *parent)
     : QWidget(parent)
     , m_session(session)
@@ -132,6 +136,7 @@ NavigationView::NavigationView(Session &session, ApiClient &api, QWidget *parent
     });
 }
 
+// 以目标站点打开本页：重置路线信息与地图，等待用户点击“开始导航”
 void NavigationView::open(const Station &station)
 {
     m_station = station;
@@ -146,6 +151,7 @@ void NavigationView::open(const Station &station)
     m_hintLabel->show();
 }
 
+// 请求路线规划：显示距离 / 时长摘要，首次成功时创建 WebEngine 视图并加载地图链接
 void NavigationView::requestRoute()
 {
     m_navigateButton->setEnabled(false);

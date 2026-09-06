@@ -2,6 +2,7 @@
 
 #include <QJsonObject>
 
+// 逐字段解析 JSON；余额 walletBalanceFen 为整数（分）
 User User::fromJson(const QJsonObject &object)
 {
     User user;

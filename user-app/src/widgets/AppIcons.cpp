@@ -7,6 +7,7 @@
 #include <QSvgRenderer>
 
 namespace {
+// 创建透明底色的正方形画布
 QPixmap makePixmap(int size)
 {
     QPixmap pixmap(size, size);
@@ -14,6 +15,7 @@ QPixmap makePixmap(int size)
     return pixmap;
 }
 
+// 右上角红点角标：白底外圈 + 错误色实心圆
 void drawBadge(QPainter &painter)
 {
     painter.setPen(Qt::NoPen);
@@ -24,6 +26,7 @@ void drawBadge(QPainter &painter)
 }
 } // namespace
 
+// 定位图钉：QPainterPath 拼出圆形头部 + 三角尾部，中心镂空
 QPixmap AppIcons::pin(const QColor &color, int size, bool badge)
 {
     QPixmap pixmap = makePixmap(size);
@@ -52,6 +55,7 @@ QPixmap AppIcons::pin(const QColor &color, int size, bool badge)
     return pixmap;
 }
 
+// 闪电：多边形路径一次填充
 QPixmap AppIcons::bolt(const QColor &color, int size, bool badge)
 {
     QPixmap pixmap = makePixmap(size);
@@ -77,6 +81,7 @@ QPixmap AppIcons::bolt(const QColor &color, int size, bool badge)
     return pixmap;
 }
 
+// 人形：圆头 + 贝塞尔曲线肩部
 QPixmap AppIcons::person(const QColor &color, int size, bool badge)
 {
     QPixmap pixmap = makePixmap(size);
@@ -101,6 +106,7 @@ QPixmap AppIcons::person(const QColor &color, int size, bool badge)
     return pixmap;
 }
 
+// 放大镜：描边圆圈 + 斜线手柄
 QPixmap AppIcons::search(const QColor &color, int size, bool badge)
 {
 	QPixmap pixmap = makePixmap(size);
@@ -123,6 +129,7 @@ QPixmap AppIcons::search(const QColor &color, int size, bool badge)
 	return pixmap;
 }
 
+// 时钟：内嵌 SVG 模板替换颜色后由 QSvgRenderer 渲染
 QPixmap AppIcons::clock(const QColor &color, int size, bool badge)
 {
 	// SVG 模板（用 %1 占位颜色）
@@ -147,6 +154,7 @@ QPixmap AppIcons::clock(const QColor &color, int size, bool badge)
 	return pixmap;
 }
 
+// 日历：SVG 模板渲染
 QPixmap AppIcons::calendar(const QColor &color, int size, bool badge)
 {
 	// SVG 模板（用 %1 占位颜色）
@@ -171,6 +179,7 @@ QPixmap AppIcons::calendar(const QColor &color, int size, bool badge)
 	return pixmap;
 }
 
+// 钱袋：SVG 模板渲染
 QPixmap AppIcons::wallet(const QColor &color, int size, bool badge)
 {
 	// SVG 模板（用 %1 占位颜色）
@@ -203,6 +212,7 @@ QPixmap AppIcons::wallet(const QColor &color, int size, bool badge)
 	return pixmap;
 }
 
+// 车辆：SVG 模板渲染
 QPixmap AppIcons::car(const QColor &color, int size, bool badge)
 {
 	QString svgTemplate = R"SVG(
@@ -226,6 +236,7 @@ QPixmap AppIcons::car(const QColor &color, int size, bool badge)
 	return pixmap;
 }
 
+// 信息图标：SVG 模板渲染
 QPixmap AppIcons::info(const QColor &color, int size, bool badge)
 {
 	QString svgTemplate = R"SVG(
@@ -251,6 +262,7 @@ QPixmap AppIcons::info(const QColor &color, int size, bool badge)
 	return pixmap;
 }
 
+// 右向尖括号：SVG 模板渲染
 QPixmap AppIcons::chevronRight(const QColor &color, int size, bool badge)
 {
 	QString svgTemplate = R"SVG(
@@ -274,6 +286,7 @@ QPixmap AppIcons::chevronRight(const QColor &color, int size, bool badge)
 	return pixmap;
 }
 
+// 右转箭头：SVG 模板渲染
 QPixmap AppIcons::turnRight(const QColor &color, int size, bool badge)
 {
 	QString svgTemplate = R"SVG(

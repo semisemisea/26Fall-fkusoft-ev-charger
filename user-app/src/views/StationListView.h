@@ -16,23 +16,31 @@ class Spinner;
 class QVBoxLayout;
 class StationCard;
 
+// 找桩页：附近电站列表（GET /stations/nearby，按距离排序）、定位切换、搜索与 AI 推荐横幅
 class StationListView : public QWidget
 {
     Q_OBJECT
 
 public:
+    // 构造函数：搭建定位/搜索/列表/推荐横幅界面
     explicit StationListView(Session &session, ApiClient &api, QWidget *parent = nullptr);
 
 signals:
+    // 用户点击某电站卡片（含 AI 推荐横幅），请求打开详情页
     void stationSelected(const Station &station);
+    // 用户请求导航到某电站，由 MainWindow 打开导航页
     void navigateRequested(const Station &station);
 
 protected:
+    // 页面每次显示时刷新附近电站列表
     void showEvent(QShowEvent *event) override;
 
 private:
+    // 重新加载附近电站（GET /stations/nearby）并重建卡片列表
     void reload();
+    // 按搜索框关键字过滤卡片可见性
     void applyFilter();
+    // 拉取 AI 推荐（GET /forecasts?horizon=1h），失败时退化为按空闲率本地推荐
     void loadRecommendation();
 
     Session &m_session;

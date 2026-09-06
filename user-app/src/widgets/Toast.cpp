@@ -14,6 +14,7 @@
 
 namespace {
 
+// 在 anchor 所在窗口顶部居中弹出提示：替换旧提示，淡入下滑入场，2.4s 后淡出销毁
 void showToast(QWidget *anchor, const QColor &accent, const QString &text)
 {
     QWidget *host = anchor ? anchor->window() : nullptr;
@@ -96,6 +97,7 @@ void showToast(QWidget *anchor, const QColor &accent, const QString &text)
 
 namespace Toast {
 
+// 三种级别仅提示点颜色不同
 void success(QWidget *anchor, const QString &text)
 {
     showToast(anchor, theme::success(), text);
@@ -110,5 +112,4 @@ void info(QWidget *anchor, const QString &text)
 {
     showToast(anchor, theme::primary(), text);
 }
-
 }

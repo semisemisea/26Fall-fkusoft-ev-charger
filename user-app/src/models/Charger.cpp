@@ -4,6 +4,7 @@
 
 #include <QJsonObject>
 
+// 逐字段解析 JSON
 Charger Charger::fromJson(const QJsonObject &object)
 {
     Charger charger;
@@ -18,6 +19,7 @@ Charger Charger::fromJson(const QJsonObject &object)
     return charger;
 }
 
+// fast -> 快充，slow -> 慢充
 QString Charger::typeLabel(const Charger &charger)
 {
     if (charger.type == QLatin1String("fast")) {
@@ -29,6 +31,7 @@ QString Charger::typeLabel(const Charger &charger)
     return QStringLiteral("未知类型");
 }
 
+// 状态枚举到中文文案的映射
 QString Charger::statusLabel(const QString &status)
 {
     if (status == QLatin1String("available")) {
@@ -49,6 +52,7 @@ QString Charger::statusLabel(const QString &status)
     return QStringLiteral("未知状态");
 }
 
+// 徽章文字色：available 绿、reserved/charging 黄、fault 红、offline 灰
 QString Charger::statusColor(const QString &status)
 {
     if (status == QLatin1String("available")) {
@@ -69,6 +73,7 @@ QString Charger::statusColor(const QString &status)
     return theme::textSecondaryName();
 }
 
+// 徽章背景色，与 statusColor 配色一一对应
 QString Charger::statusBgColor(const QString &status)
 {
     if (status == QLatin1String("available")) {
