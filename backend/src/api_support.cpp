@@ -4,6 +4,7 @@
 #include "backend/security.h"
 #include "evcharger/clock.h"
 
+#include <QCryptographicHash>
 #include <QJsonDocument>
 #include <QSqlError>
 #include <QSqlQuery>
@@ -123,6 +124,67 @@ namespace Backend {
 			return true;
 		}
 		database.rollback();
+		return false;
+	}
+
+	namespace {
+
+		QByteArray normalizedHash(const QJsonObject &body) {
+			return QCryptographicHash::hash(QJsonDocument(body).toJson(QJsonDocument::Compact), QCryptographicHash::Sha256);
+		}
+
+	} // namespace
+
+	bool checkIdempotency(QSqlDatabase &database, const Principal &principal, const HttpRequest &request, const QJsonObject &normalizedBody, const QDateTime &nowUtc, IdempotencyResult *result, QString *errorMessage) {
+		QSqlQuery cleanup(database);
+		cleanup.prepare(QStringLiteral("DELETE FROM idempotency_records WHERE expires_at <= ?"));
+		cleanup.addBindValue(toDatabaseTimestamp(nowUtc));
+		if (!cleanup.exec()) {
+			*errorMessage = cleanup.lastError().text();
+			return false;
+		}
+		QSqlQuery existing(database);
+		existing.prepare(QStringLiteral("SELECT request_hash,http_status,response_data FROM idempotency_records WHERE principal_type=? AND principal_id=? AND method=? AND path=? AND idempotency_key=?"));
+		existing.addBindValue(principal.type);
+		existing.addBindValue(principal.id);
+		existing.addBindValue(request.method);
+		existing.addBindValue(request.path);
+		existing.addBindValue(QString::fromUtf8(request.headers.value(QByteArrayLiteral("idempotency-key"))));
+		if (!existing.exec()) {
+			*errorMessage = existing.lastError().text();
+			return false;
+		}
+		if (!existing.next()) {
+			result->state = IdempotencyState::Missing;
+			return true;
+		}
+		if (existing.value(0).toByteArray() != normalizedHash(normalizedBody)) {
+			result->state = IdempotencyState::Reused;
+			return true;
+		}
+		result->state = IdempotencyState::Replay;
+		result->status = existing.value(1).toInt();
+		result->data = QJsonDocument::fromJson(existing.value(2).toByteArray()).object();
+		return true;
+	}
+
+	bool storeIdempotency(QSqlDatabase &database, const Principal &principal, const HttpRequest &request, const QJsonObject &normalizedBody, const QDateTime &nowUtc, int retentionHours, int status, const QJsonObject &data, QString *errorMessage) {
+		QSqlQuery remember(database);
+		remember.prepare(QStringLiteral("INSERT INTO idempotency_records(principal_type,principal_id,method,path,idempotency_key,request_hash,http_status,response_data,created_at,expires_at) VALUES (?,?,?,?,?,?,?,?,?,?)"));
+		remember.addBindValue(principal.type);
+		remember.addBindValue(principal.id);
+		remember.addBindValue(request.method);
+		remember.addBindValue(request.path);
+		remember.addBindValue(QString::fromUtf8(request.headers.value(QByteArrayLiteral("idempotency-key"))));
+		remember.addBindValue(normalizedHash(normalizedBody));
+		remember.addBindValue(status);
+		remember.addBindValue(QJsonDocument(data).toJson(QJsonDocument::Compact));
+		remember.addBindValue(toDatabaseTimestamp(nowUtc));
+		remember.addBindValue(toDatabaseTimestamp(nowUtc.addSecs(static_cast<qint64>(retentionHours) * 3600)));
+		if (remember.exec()) {
+			return true;
+		}
+		*errorMessage = remember.lastError().text();
 		return false;
 	}
 

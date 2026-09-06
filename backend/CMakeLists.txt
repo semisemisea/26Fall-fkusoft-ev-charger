@@ -6,6 +6,7 @@ add_library(backend_runtime STATIC
 	src/config.cpp
 	src/database.cpp
 	src/http.cpp
+	src/reservation_api.cpp
 	src/resource_support.cpp
 	src/security.cpp
 	src/station_api.cpp
@@ -51,4 +52,8 @@ if(BUILD_TESTING)
 	add_executable(backend_charger_tests tests/charger_tests.cpp)
 	target_link_libraries(backend_charger_tests PRIVATE backend_runtime Qt6::Test)
 	add_test(NAME backend_charger_tests COMMAND backend_charger_tests)
+
+	add_executable(backend_reservation_tests tests/reservation_tests.cpp)
+	target_link_libraries(backend_reservation_tests PRIVATE backend_runtime Qt6::Test)
+	add_test(NAME backend_reservation_tests COMMAND backend_reservation_tests)
 endif()
