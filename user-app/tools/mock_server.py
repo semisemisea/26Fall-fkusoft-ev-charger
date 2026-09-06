@@ -37,7 +37,7 @@ CHARGERS = {
     1: [
         {"id": 11, "code": "S01-001", "type": "fast", "powerKw": 120.0, "status": "available", "totalChargeCount": 231, "totalChargeMinutes": 18420},
         {"id": 12, "code": "S01-002", "type": "fast", "powerKw": 120.0, "status": "charging", "totalChargeCount": 198, "totalChargeMinutes": 15031},
-        {"id": 13, "code": "S01-003", "type": "slow", "powerKw": 7.0, "status": "available", "totalChargeCount": 87, "totalChargeMinutes": 22400},
+        {"id": 13, "code": "S01-003", "type": "slow", "powerKw": 7.0, "status": "reserved", "totalChargeCount": 87, "totalChargeMinutes": 22400},
         {"id": 14, "code": "S01-004", "type": "slow", "powerKw": 7.0, "status": "fault", "totalChargeCount": 64, "totalChargeMinutes": 15980},
     ],
     2: [

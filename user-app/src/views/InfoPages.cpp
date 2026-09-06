@@ -127,12 +127,13 @@ void OrderHistoryView::load()
                       statusLabel->setObjectName(QStringLiteral("statusStrong"));
                       statusLabel->setStyleSheet(QStringLiteral("color: %1;").arg(statusColor));
                       auto *detailLabel = new QLabel(
-                          QStringLiteral("电桩 %1 · %2 · %3 分钟")
+                          QStringLiteral("电桩 %1 · %2")
                               .arg(order.chargerCode,
-                                   QString(order.startedAt).replace(QLatin1Char('T'), QLatin1Char(' ')).left(16))
-                              .arg(order.durationMinutes),
+                                   QString(order.startedAt).replace(QLatin1Char('T'), QLatin1Char(' ')).left(16)),
                           card);
                       detailLabel->setObjectName(QStringLiteral("meta"));
+                      auto *durationLabel = new QLabel(QStringLiteral("%1 分钟").arg(order.durationMinutes), card);
+                      durationLabel->setObjectName(QStringLiteral("meta"));
                       auto *amountLabel = new QLabel(
                           QStringLiteral("%1 度 · ￥%2")
                               .arg(order.energyKwh, 0, 'f', 1)
@@ -146,8 +147,9 @@ void OrderHistoryView::load()
                       grid->setVerticalSpacing(4);
                       grid->addWidget(nameLabel, 0, 0);
                       grid->addWidget(statusLabel, 0, 1, Qt::AlignRight);
-                      grid->addWidget(detailLabel, 1, 0);
-                      grid->addWidget(amountLabel, 1, 1, Qt::AlignRight);
+                      grid->addWidget(detailLabel, 1, 0, 1, 2);
+                      grid->addWidget(durationLabel, 2, 0);
+                      grid->addWidget(amountLabel, 2, 1, Qt::AlignRight);
 
                       m_listLayout->insertWidget(m_listLayout->count() - 1, card);
                   }

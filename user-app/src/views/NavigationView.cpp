@@ -2,8 +2,10 @@
 
 #include <QComboBox>
 #include "widgets/ComboBox.h"
+#include <QFile>
 #include <QJsonObject>
 #include <QLabel>
+#include <QLibraryInfo>
 #include <QPushButton>
 #include <QUrl>
 #include <QUrlQuery>
@@ -24,6 +26,13 @@ const ModeOption kModeOptions[] = {
     {"驾车", "driving"},
     {"步行", "walking"},
 };
+
+bool webEngineAvailable()
+{
+    const QString dir = QLibraryInfo::path(QLibraryInfo::LibraryExecutablesPath);
+    return QFile::exists(dir + QStringLiteral("/QtWebEngineProcess"))
+        || QFile::exists(dir + QStringLiteral("/QtWebEngineProcess.exe"));
+}
 
 class MapPage : public QWebEnginePage
 {
@@ -167,6 +176,12 @@ void NavigationView::requestRoute()
 
                   const QUrl mapUrl(object.value(QLatin1String("mapUrl")).toString());
                   if (!mapUrl.isValid()) {
+                      return;
+                  }
+                  if (!webEngineAvailable()) {
+                      m_statusLabel->setText(QStringLiteral("当前环境缺少 Qt WebEngine 运行时，无法加载地图"));
+                      m_statusLabel->show();
+                      m_navigateButton->setEnabled(true);
                       return;
                   }
                   if (!m_webView) {
