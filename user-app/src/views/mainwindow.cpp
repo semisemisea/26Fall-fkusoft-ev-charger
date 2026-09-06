@@ -19,6 +19,7 @@
 #include <QLabel>
 #include <QPropertyAnimation>
 #include <QPushButton>
+#include <QPainter>
 #include <QStackedWidget>
 #include <QTime>
 #include <QTimer>
@@ -189,11 +190,11 @@ void MainWindow::buildTabBar()
     auto *group = new QButtonGroup(this);
     group->setExclusive(true);
     auto *pillLayout = new QHBoxLayout(pill);
-    pillLayout->setContentsMargins(8, 4, 8, 4);
+    pillLayout->setContentsMargins(14, 2, 14, 26);
     pillLayout->setSpacing(0);
 
     auto *outerLayout = new QHBoxLayout(ui->tabBar);
-    outerLayout->setContentsMargins(12, 2, 12, 10);
+    outerLayout->setContentsMargins(12, 2, 12, 12);
     outerLayout->addWidget(pill);
 
     for (int i = 0; i < 3; ++i) {
@@ -202,9 +203,10 @@ void MainWindow::buildTabBar()
         button->setCheckable(true);
         button->setChecked(i == 0);
         button->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
-		button->setIconSize(QSize(32, 32));
+		button->setIconSize(QSize(40, 40));
         button->setText(QString::fromUtf8(tabs[i].text));
-        button->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+        button->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+        button->setFixedHeight(66);
         group->addButton(button);
         pillLayout->addWidget(button);
         m_tabButtons.append(button);
@@ -221,8 +223,25 @@ void MainWindow::buildTabBar()
 
 void MainWindow::updateTabIcons()
 {
-    const QColor active = theme::primary();
+    const QColor active = QColor(0x00, 0xE6, 0x76);
     const QColor inactive = theme::textSecondary();
+
+    auto makeTabIcon = [](const QPixmap &source, bool selected) -> QPixmap {
+        constexpr int kCanvasSize = 40;
+        QPixmap canvas(kCanvasSize, kCanvasSize);
+        canvas.fill(Qt::transparent);
+        QPainter painter(&canvas);
+        painter.setRenderHint(QPainter::Antialiasing);
+        if (selected) {
+            painter.setBrush(QColor(0x1a, 0x1a, 0x1a));
+            painter.setPen(Qt::NoPen);
+            constexpr int kCircleSize = 36; painter.drawEllipse((kCanvasSize - kCircleSize) / 2, (kCanvasSize - kCircleSize) / 2, kCircleSize, kCircleSize);
+        }
+        const int x = (kCanvasSize - source.width()) / 2;
+        const int y = (kCanvasSize - source.height()) / 2;
+        painter.drawPixmap(x, y, source);
+        return canvas;
+    };
 
     for (int i = 0; i < m_tabButtons.size(); ++i) {
         const bool hasBadge = (i == 1 && m_hasActiveOrder);
@@ -230,16 +249,16 @@ void MainWindow::updateTabIcons()
         QPixmap on;
         switch (i) {
         case 0:
-            normal = AppIcons::pin(inactive, 24, false);
-            on = AppIcons::pin(active, 24, false);
+            normal = makeTabIcon(AppIcons::pin(inactive, 24, false), false);
+            on = makeTabIcon(AppIcons::pin(active, 24, false), true);
             break;
         case 1:
-            normal = AppIcons::bolt(inactive, 24, hasBadge);
-            on = AppIcons::bolt(active, 24, hasBadge);
+            normal = makeTabIcon(AppIcons::bolt(inactive, 24, hasBadge), false);
+            on = makeTabIcon(AppIcons::bolt(active, 24, hasBadge), true);
             break;
         default:
-            normal = AppIcons::person(inactive, 24, false);
-            on = AppIcons::person(active, 24, false);
+            normal = makeTabIcon(AppIcons::person(inactive, 24, false), false);
+            on = makeTabIcon(AppIcons::person(active, 24, false), true);
             break;
         }
         QIcon icon;

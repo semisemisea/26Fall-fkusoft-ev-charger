@@ -222,15 +222,15 @@ QToolButton#tabBarButton {
     border-radius: 0;
     color: #94a3b8;
     font-size: 11px;
-    padding: 4px 0;
+    padding: 2px 0 8px 0;
 }
 QToolButton#tabBarButton:checked {
-    color: #22C586;
+    color: #1e293b;
     font-weight: bold;
 }
 QToolButton#tabBarButton:hover {
     background: transparent;
-    color: #22C586;
+    
 }
 QLabel#statusTime {
     font-size: 12px;
