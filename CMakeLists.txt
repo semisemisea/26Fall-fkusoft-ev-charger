@@ -10,7 +10,14 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-find_package(Qt6 6.2.4 EXACT REQUIRED COMPONENTS Core Network Sql Widgets)
+find_package(Qt6 6.2.4 EXACT REQUIRED COMPONENTS
+    Core
+    Network
+    Sql
+    Svg
+    Widgets
+    OPTIONAL_COMPONENTS WebEngineWidgets
+)
 
 include(GNUInstallDirs)
 include(CTest)

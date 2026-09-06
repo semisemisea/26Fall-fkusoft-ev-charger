@@ -1,0 +1,126 @@
+#include "ChargingView.h"
+
+#include "app/ChargePollThread.h"
+#include "common/Format.h"
+#include "widgets/ChargeRingWidget.h"
+#include "widgets/Toast.h"
+
+#include <QJsonObject>
+#include <QLabel>
+#include <QMessageBox>
+#include <QPushButton>
+#include <QTime>
+#include <QVBoxLayout>
+
+// 构造：搭建充电环与各数值标签，创建轮询线程并连接停止按钮
+ChargingView::ChargingView(ApiClient &api, QWidget *parent)
+    : QWidget(parent)
+    , m_api(api)
+{
+    m_headerLabel = new QLabel(this);
+    m_headerLabel->setAlignment(Qt::AlignCenter);
+    m_headerLabel->setObjectName(QStringLiteral("cardHeading"));
+
+    m_ringWidget = new ChargeRingWidget(this);
+
+    m_energyLabel = new QLabel(this);
+    m_energyLabel->setAlignment(Qt::AlignCenter);
+    m_energyLabel->setObjectName(QStringLiteral("bigNumber"));
+
+    m_durationLabel = new QLabel(this);
+    m_durationLabel->setAlignment(Qt::AlignCenter);
+    m_durationLabel->setObjectName(QStringLiteral("muted"));
+
+    m_amountLabel = new QLabel(this);
+    m_amountLabel->setAlignment(Qt::AlignCenter);
+    m_amountLabel->setObjectName(QStringLiteral("amountRed"));
+
+    m_orderLabel = new QLabel(this);
+    m_orderLabel->setAlignment(Qt::AlignCenter);
+    m_orderLabel->setObjectName(QStringLiteral("faint"));
+
+    m_stopButton = new QPushButton(QStringLiteral("结束充电"), this);
+    m_stopButton->setObjectName(QStringLiteral("dangerButton"));
+
+    auto *layout = new QVBoxLayout(this);
+    layout->setContentsMargins(16, 24, 16, 16);
+    layout->addWidget(m_headerLabel);
+    layout->addStretch(2);
+    layout->addWidget(m_ringWidget, 0, Qt::AlignCenter);
+    layout->addSpacing(12);
+    layout->addWidget(m_energyLabel);
+    layout->addWidget(m_durationLabel);
+    layout->addSpacing(6);
+    layout->addWidget(m_amountLabel);
+    layout->addWidget(m_orderLabel);
+    layout->addStretch(2);
+    layout->addWidget(m_stopButton);
+
+    m_pollThread = new ChargePollThread(this);
+    connect(m_pollThread, &ChargePollThread::meterUpdated, this, [this](const QJsonObject &orderObject) {
+        m_order = Order::fromJson(orderObject);
+        updateDisplay(m_order);
+    });
+    connect(m_stopButton, &QPushButton::clicked, this, &ChargingView::stopCharging);
+}
+
+// 打开订单：立即刷新一次显示，并配置、启动 5 秒轮询线程
+void ChargingView::open(const Order &order)
+{
+    m_order = order;
+    updateDisplay(order);
+    m_pollThread->configure(order.id, m_api.baseUrl(), m_api.accessToken());
+    m_pollThread->start();
+}
+
+// 页面隐藏时请求停止轮询线程
+void ChargingView::hideEvent(QHideEvent *event)
+{
+    QWidget::hideEvent(event);
+    m_pollThread->requestStop();
+}
+
+// 用订单数据刷新标题、电量、时长单价、预估费用与订单号
+void ChargingView::updateDisplay(const Order &order)
+{
+    m_headerLabel->setText(QStringLiteral("⚡ 充电中 · %1 · 电桩 %2")
+                               .arg(order.stationName.isEmpty() ? QStringLiteral("充电站") : order.stationName,
+                                    order.chargerCode.isEmpty() ? QStringLiteral("-") : order.chargerCode));
+    m_energyLabel->setText(QStringLiteral("%1 度").arg(order.energyKwh, 0, 'f', 1));
+    m_durationLabel->setText(QStringLiteral("已充时长 %1 · 单价 ￥%2/度")
+                                 .arg(formatDuration(order.durationMinutes),
+                                      fenToYuan(order.unitPriceFenPerKwh)));
+    m_amountLabel->setText(QStringLiteral("预估费用 ￥%1").arg(fenToYuan(order.amountFen)));
+    m_orderLabel->setText(QStringLiteral("订单号 %1").arg(order.orderNo));
+}
+
+// 弹确认框后请求停止充电；失败时恢复轮询并提示错误
+void ChargingView::stopCharging()
+{
+    const auto choice = QMessageBox::question(this, QStringLiteral("停止充电"),
+                                              QStringLiteral("确定停止充电并生成账单吗？"));
+    if (choice != QMessageBox::Yes) {
+        return;
+    }
+
+    m_pollThread->requestStop();
+    m_stopButton->setEnabled(false);
+    m_api.post(QStringLiteral("/orders/%1/stop").arg(m_order.id), {},
+               [this](const QJsonValue &data, const QJsonObject &) {
+                   m_stopButton->setEnabled(true);
+                   emit orderStopped(Order::fromJson(data.toObject()));
+               },
+               [this](const ApiError &error) {
+                   m_stopButton->setEnabled(true);
+                   m_pollThread->configure(m_order.id, m_api.baseUrl(), m_api.accessToken());
+                   m_pollThread->start();
+                   Toast::error(this, error.message.isEmpty() ? error.code : error.message);
+               });
+}
+
+// 分钟数转 HH:mm:ss 文本
+QString ChargingView::formatDuration(int minutes)
+{
+    const QTime duration = QTime(0, 0).addSecs(minutes * 60);
+    return duration.toString(QStringLiteral("HH:mm:ss"));
+}

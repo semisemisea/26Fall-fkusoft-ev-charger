@@ -1,0 +1,431 @@
+#include "ChargingTab.h"
+
+#include "ChargingView.h"
+#include "SettleView.h"
+#include "widgets/ScaleButton.h"
+#include "widgets/Toast.h"
+
+#include <QDateTime>
+#include <QFrame>
+#include <QJsonArray>
+#include <QJsonObject>
+#include <QLabel>
+#include <QLineEdit>
+#include <QPushButton>
+#include <QStackedWidget>
+#include <QTimer>
+#include <QUrlQuery>
+#include <QVBoxLayout>
+
+// 构造：搭建四个子页面装入堆栈，设置背景图并连接充电页 / 结算页信号
+ChargingTab::ChargingTab(Session &session, ApiClient &api, QWidget *parent)
+    : QWidget(parent)
+    , m_session(session)
+    , m_api(api)
+{
+    buildPreparePage();
+    buildReservationPage();
+
+    m_chargingView = new ChargingView(m_api, this);
+    m_settleView = new SettleView(m_session, m_api, this);
+
+    m_stack = new QStackedWidget(this);
+    m_stack->addWidget(m_preparePage);
+    m_stack->addWidget(m_chargingView);
+    m_stack->addWidget(m_settleView);
+    m_stack->addWidget(m_reservationPage);
+
+	/* ===设置汽车背景bg.png=== */
+	setAutoFillBackground(true);
+	QPalette pal;
+	QPixmap bg(":/backgrounds/bg.png");
+	pal.setBrush(QPalette::Window, QBrush(bg.scaled(390, 780, Qt::IgnoreAspectRatio, Qt::SmoothTransformation)));
+	setPalette(pal);
+
+	// 让页面背景透明（但不影响子控件）
+	m_preparePage->setAttribute(Qt::WA_TranslucentBackground);
+	m_chargingView->setAttribute(Qt::WA_TranslucentBackground);
+	m_settleView->setAttribute(Qt::WA_TranslucentBackground);
+	m_reservationPage->setAttribute(Qt::WA_TranslucentBackground);
+
+	// m_stack 保持透明
+	m_stack->setStyleSheet("QStackedWidget { background: transparent; }");
+
+    auto *layout = new QVBoxLayout(this);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->addWidget(m_stack);
+
+    connect(m_chargingView, &ChargingView::orderStopped, this, [this](const Order &order) {
+        showSettlement(order);
+    });
+    connect(m_settleView, &SettleView::settled, this, [this] {
+        emit activeOrderChanged(false);
+        emit orderSettled();
+    });
+    connect(m_settleView, &SettleView::dismissed, this, &ChargingTab::returnHomeRequested);
+    connect(m_settleView, &SettleView::returnHomeRequested, this, &ChargingTab::returnHomeRequested);
+}
+
+// 搭建“准备充电”页：编号输入框 + 圆形启动按钮
+void ChargingTab::buildPreparePage()
+{
+    auto *page = new QWidget(this);
+
+    auto *iconLabel = new QLabel(QStringLiteral("⚡"), page);
+    iconLabel->setAlignment(Qt::AlignCenter);
+    iconLabel->setObjectName(QStringLiteral("prepareIcon"));
+
+    auto *titleLabel = new QLabel(QStringLiteral("准备充电"), page);
+    titleLabel->setAlignment(Qt::AlignCenter);
+    titleLabel->setObjectName(QStringLiteral("pageHeading"));
+
+    auto *tipLabel = new QLabel(QStringLiteral("输入电桩编号，如 S01-001"), page);
+    tipLabel->setAlignment(Qt::AlignCenter);
+    tipLabel->setObjectName(QStringLiteral("muted"));
+
+    m_codeEdit = new QLineEdit(page);
+    m_codeEdit->setPlaceholderText(QStringLiteral("请输入电桩编号"));
+    m_codeEdit->setAlignment(Qt::AlignCenter);
+    m_codeEdit->setClearButtonEnabled(true);
+
+    m_hintLabel = new QLabel(page);
+    m_hintLabel->setAlignment(Qt::AlignCenter);
+    m_hintLabel->setObjectName(QStringLiteral("error"));
+    m_hintLabel->hide();
+
+    m_startButton = new ScaleButton(QStringLiteral("启动\n充电"), page);
+    m_startButton->setObjectName(QStringLiteral("roundStartButton"));
+    m_startButton->setFixedSize(150, 150);
+
+	auto *layout = new QVBoxLayout(page);
+	layout->setContentsMargins(32, 12, 32, 24);
+	layout->addStretch(1);
+	layout->addWidget(iconLabel);
+	layout->addWidget(titleLabel);
+	layout->addSpacing(70);
+	layout->addWidget(tipLabel);
+	layout->addSpacing(16);
+	layout->addWidget(m_codeEdit);
+	layout->addWidget(m_hintLabel);
+	layout->addSpacing(20);
+	layout->addWidget(m_startButton, 0, Qt::AlignCenter);
+	layout->addStretch(4);
+
+    connect(m_codeEdit, &QLineEdit::returnPressed, this, &ChargingTab::startWithCode);
+    connect(m_startButton, &QPushButton::clicked, this, &ChargingTab::startWithCode);
+
+    m_preparePage = page;
+}
+
+// 搭建“我的预约”页：站点 / 电桩信息卡、保留倒计时、启动与取消按钮
+void ChargingTab::buildReservationPage()
+{
+    auto *page = new QWidget(this);
+
+    auto *titleLabel = new QLabel(QStringLiteral("我的预约"), page);
+    titleLabel->setAlignment(Qt::AlignCenter);
+    titleLabel->setObjectName(QStringLiteral("pageHeading"));
+
+    auto *card = new QFrame(page);
+    card->setObjectName(QStringLiteral("reservationCard"));
+    card->setObjectName(QStringLiteral("infoCard"));
+
+    m_reservationStationLabel = new QLabel(card);
+    m_reservationStationLabel->setObjectName(QStringLiteral("reservationStation"));
+    m_reservationStationLabel->setWordWrap(true);
+
+    m_reservationChargerLabel = new QLabel(card);
+    m_reservationChargerLabel->setObjectName(QStringLiteral("muted"));
+
+    m_countdownLabel = new QLabel(card);
+    m_countdownLabel->setAlignment(Qt::AlignCenter);
+    m_countdownLabel->setObjectName(QStringLiteral("countdown"));
+
+    auto *countdownTipLabel = new QLabel(QStringLiteral("保留时长倒计时"), card);
+    countdownTipLabel->setAlignment(Qt::AlignCenter);
+    countdownTipLabel->setObjectName(QStringLiteral("muted"));
+
+    auto *cardLayout = new QVBoxLayout(card);
+    cardLayout->setContentsMargins(20, 18, 20, 18);
+    cardLayout->setSpacing(6);
+    cardLayout->addWidget(m_reservationStationLabel);
+    cardLayout->addWidget(m_reservationChargerLabel);
+    cardLayout->addSpacing(10);
+    cardLayout->addWidget(m_countdownLabel);
+    cardLayout->addWidget(countdownTipLabel);
+
+    m_reservationStartButton = new ScaleButton(QStringLiteral("启动充电"), page);
+    m_reservationStartButton->setObjectName(QStringLiteral("primaryButton"));
+    m_reservationCancelButton = new ScaleButton(QStringLiteral("取消预约"), page);
+    m_reservationCancelButton->setObjectName(QStringLiteral("outlineDangerButton"));
+
+    m_reservationHintLabel = new QLabel(page);
+    m_reservationHintLabel->setAlignment(Qt::AlignCenter);
+    m_reservationHintLabel->setWordWrap(true);
+    m_reservationHintLabel->setObjectName(QStringLiteral("error"));
+    m_reservationHintLabel->hide();
+
+    auto *layout = new QVBoxLayout(page);
+    layout->setContentsMargins(24, 12, 24, 24);
+    layout->addStretch(2);
+    layout->addWidget(titleLabel);
+    layout->addSpacing(16);
+    layout->addWidget(card);
+    layout->addSpacing(8);
+    layout->addWidget(m_reservationHintLabel);
+    layout->addSpacing(12);
+    layout->addWidget(m_reservationStartButton);
+    layout->addWidget(m_reservationCancelButton);
+    layout->addStretch(3);
+
+    connect(m_reservationStartButton, &QPushButton::clicked, this, &ChargingTab::startFromReservation);
+    connect(m_reservationCancelButton, &QPushButton::clicked, this, &ChargingTab::cancelReservation);
+
+    m_countdownTimer = new QTimer(this);
+    m_countdownTimer->setInterval(1000);
+    connect(m_countdownTimer, &QTimer::timeout, this, &ChargingTab::updateCountdown);
+
+    m_reservationPage = page;
+}
+
+// 进入时查询进行中订单：无订单则查预约，否则按状态恢复充电页或结算页
+void ChargingTab::checkActiveOrder()
+{
+    m_api.get(QStringLiteral("/me/active-order"),
+              [this](const QJsonValue &data, const QJsonObject &) {
+                  if (data.isNull()) {
+                      checkActiveReservation();
+                      return;
+                  }
+                  const Order order = Order::fromJson(data.toObject());
+                  emit activeOrderChanged(true);
+                  if (order.status == QLatin1String("charging")) {
+                      showCharging(order);
+                  } else {
+                      showSettlement(order);
+                  }
+              },
+              [this](const ApiError &error) {
+                  fail(error.message.isEmpty() ? error.code : error.message);
+              });
+}
+
+// 打开充电进行页并广播“有进行中订单”
+void ChargingTab::showCharging(const Order &order)
+{
+    emit activeOrderChanged(true);
+    m_chargingView->open(order);
+    m_stack->setCurrentWidget(m_chargingView);
+}
+
+// 打开结算页并广播“有进行中订单”
+void ChargingTab::showSettlement(const Order &order)
+{
+    emit activeOrderChanged(true);
+    m_settleView->open(order);
+    m_stack->setCurrentWidget(m_settleView);
+}
+
+// 切回准备页
+void ChargingTab::showPrepare()
+{
+    m_stack->setCurrentWidget(m_preparePage);
+}
+
+// 校验输入的电桩编号，置忙后先拉取附近站点再逐站匹配
+void ChargingTab::startWithCode()
+{
+    const QString code = m_codeEdit->text().trimmed().toUpper();
+    if (code.isEmpty()) {
+        m_hintLabel->setText(QStringLiteral("请输入电桩编号"));
+        m_hintLabel->show();
+        return;
+    }
+
+    m_startButton->setEnabled(false);
+    m_hintLabel->setText(QStringLiteral("正在查找电桩..."));
+    m_hintLabel->show();
+    m_pendingCode = code;
+    fetchNearbyStations();
+}
+
+// 按当前定位请求附近站点 id 列表，作为查找电桩编号的候选
+void ChargingTab::fetchNearbyStations()
+{
+    QUrlQuery query;
+    query.addQueryItem(QLatin1String("latitude"), QString::number(m_session.latitude()));
+    query.addQueryItem(QLatin1String("longitude"), QString::number(m_session.longitude()));
+
+    m_api.get(QStringLiteral("/stations/nearby?%1").arg(query.toString(QUrl::FullyEncoded)),
+              [this](const QJsonValue &data, const QJsonObject &) {
+                  m_candidateStationIds.clear();
+                  const QJsonArray stations = data.toArray();
+                  for (const QJsonValue &value : stations) {
+                      m_candidateStationIds.append(value.toObject().value(QLatin1String("id")).toInt());
+                  }
+                  m_candidateIndex = 0;
+                  tryNextCandidate();
+              },
+              [this](const ApiError &error) {
+                  fail(error.message.isEmpty() ? error.code : error.message);
+              });
+}
+
+// 在下一个候选站点的电桩列表中匹配编号，命中则创建订单，否则继续或报错
+void ChargingTab::tryNextCandidate()
+{
+    if (m_candidateIndex >= m_candidateStationIds.size()) {
+        fail(QStringLiteral("未找到编号为 %1 的电桩").arg(m_pendingCode));
+        return;
+    }
+    const int stationId = m_candidateStationIds.at(m_candidateIndex++);
+    m_api.get(QStringLiteral("/stations/%1/chargers").arg(stationId),
+              [this](const QJsonValue &data, const QJsonObject &) {
+                  for (const QJsonValue &value : data.toArray()) {
+                      const QJsonObject charger = value.toObject();
+                      if (charger.value(QLatin1String("code")).toString().toUpper() == m_pendingCode) {
+                          createOrder(charger.value(QLatin1String("id")).toInt());
+                          return;
+                      }
+                  }
+                  tryNextCandidate();
+              },
+              [this](const ApiError &) { tryNextCandidate(); });
+}
+
+// 创建充电订单；若已有进行中订单（ACTIVE_ORDER_EXISTS）则改为恢复现场
+void ChargingTab::createOrder(int chargerId)
+{
+    QJsonObject body;
+    body.insert(QLatin1String("chargerId"), chargerId);
+    m_api.post(QStringLiteral("/orders"), body,
+               [this](const QJsonValue &data, const QJsonObject &) {
+                   m_startButton->setEnabled(true);
+                   m_hintLabel->hide();
+                   showCharging(Order::fromJson(data.toObject()));
+               },
+               [this](const ApiError &error) {
+                   m_startButton->setEnabled(true);
+                   if (error.code == QLatin1String("ACTIVE_ORDER_EXISTS")) {
+                       checkActiveOrder();
+                       return;
+                   }
+                   fail(error.message.isEmpty() ? error.code : error.message);
+               });
+}
+
+// 统一失败处理：恢复按钮、显示错误并回到准备页
+void ChargingTab::fail(const QString &message)
+{
+    m_startButton->setEnabled(true);
+    m_hintLabel->setText(message);
+    m_hintLabel->show();
+    showPrepare();
+}
+
+// 展示预约信息并启动每秒倒计时
+void ChargingTab::showReservation(const Reservation &reservation)
+{
+    m_reservation = reservation;
+    m_reservationStationLabel->setText(reservation.stationName);
+    m_reservationChargerLabel->setText(QStringLiteral("电桩 %1 · 已为您保留").arg(reservation.chargerCode));
+    m_reservationHintLabel->hide();
+    updateCountdown();
+    m_countdownTimer->start();
+    emit activeOrderChanged(true);
+    m_stack->setCurrentWidget(m_reservationPage);
+}
+
+// 查询生效中的预约：有则进预约页，无则回准备页
+void ChargingTab::checkActiveReservation()
+{
+    m_api.get(QStringLiteral("/reservations?status=active"),
+              [this](const QJsonValue &data, const QJsonObject &) {
+                  const QJsonArray items = data.toArray();
+                  if (items.isEmpty()) {
+                      emit activeOrderChanged(false);
+                      showPrepare();
+                      return;
+                  }
+                  showReservation(Reservation::fromJson(items.first().toObject()));
+              },
+              [this](const ApiError &) {
+                  emit activeOrderChanged(false);
+                  showPrepare();
+              });
+}
+
+// 用预约对应的电桩创建订单启动充电；电桩不可用等状态时延时重新拉取现场
+void ChargingTab::startFromReservation()
+{
+    setReservationBusy(true);
+    const int reservationId = m_reservation.id;
+    const int chargerId = m_reservation.chargerId;
+    QJsonObject body;
+    body.insert(QLatin1String("chargerId"), chargerId);
+    body.insert(QLatin1String("reservationId"), reservationId);
+    m_api.post(QStringLiteral("/orders"), body,
+               [this](const QJsonValue &data, const QJsonObject &) {
+                   m_countdownTimer->stop();
+                   setReservationBusy(false);
+                   showCharging(Order::fromJson(data.toObject()));
+               },
+               [this](const ApiError &error) {
+                   setReservationBusy(false);
+                   if (error.code == QLatin1String("ACTIVE_ORDER_EXISTS")) {
+                       checkActiveOrder();
+                       return;
+                   }
+                   m_reservationHintLabel->setText(error.message.isEmpty() ? error.code : error.message);
+                   m_reservationHintLabel->show();
+                   if (error.code != QLatin1String("CHARGER_UNAVAILABLE")
+                       && error.code != QLatin1String("INVALID_STATE_TRANSITION")) {
+                       return;
+                   }
+                   QTimer::singleShot(1200, this, &ChargingTab::checkActiveOrder);
+               });
+}
+
+// 取消预约：成功后停倒计时并回准备页
+void ChargingTab::cancelReservation()
+{
+    setReservationBusy(true);
+    const int reservationId = m_reservation.id;
+    m_api.post(QStringLiteral("/reservations/%1/cancel").arg(reservationId), {},
+               [this](const QJsonValue &, const QJsonObject &) {
+                   m_countdownTimer->stop();
+                   setReservationBusy(false);
+                   emit activeOrderChanged(false);
+                   showPrepare();
+                   Toast::success(this, QStringLiteral("预约已取消"));
+               },
+               [this](const ApiError &error) {
+                   setReservationBusy(false);
+                   m_reservationHintLabel->setText(error.message.isEmpty() ? error.code : error.message);
+                   m_reservationHintLabel->show();
+                   QTimer::singleShot(1200, this, &ChargingTab::checkActiveOrder);
+               });
+}
+
+// 计算剩余保留秒数并刷新 mm:ss 显示；到期则提示并重新检查现场
+void ChargingTab::updateCountdown()
+{
+    const qint64 remaining = QDateTime::currentDateTimeUtc().secsTo(m_reservation.expiresAt);
+    if (remaining <= 0) {
+        m_countdownTimer->stop();
+        m_countdownLabel->setText(QStringLiteral("00:00"));
+        Toast::info(this, QStringLiteral("预约已过期，电桩已释放"));
+        QTimer::singleShot(1200, this, &ChargingTab::checkActiveOrder);
+        return;
+    }
+    m_countdownLabel->setText(QStringLiteral("%1:%2")
+                                  .arg(remaining / 60, 2, 10, QLatin1Char('0'))
+                                  .arg(remaining % 60, 2, 10, QLatin1Char('0')));
+}
+
+// 预约操作期间禁用两个按钮，防止重复提交
+void ChargingTab::setReservationBusy(bool busy)
+{
+    m_reservationStartButton->setEnabled(!busy);
+    m_reservationCancelButton->setEnabled(!busy);
+}
