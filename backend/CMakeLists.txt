@@ -1,4 +1,7 @@
 add_library(backend_runtime STATIC
+	src/api.cpp
+	src/api_support.cpp
+	src/auth_api.cpp
 	src/config.cpp
 	src/database.cpp
 	src/http.cpp
@@ -28,4 +31,8 @@ if(BUILD_TESTING)
 	add_executable(backend_http_tests tests/http_tests.cpp)
 	target_link_libraries(backend_http_tests PRIVATE backend_runtime Qt6::Test)
 	add_test(NAME backend_http_tests COMMAND backend_http_tests)
+
+	add_executable(backend_auth_tests tests/auth_tests.cpp)
+	target_link_libraries(backend_auth_tests PRIVATE backend_runtime Qt6::Test)
+	add_test(NAME backend_auth_tests COMMAND backend_auth_tests)
 endif()
