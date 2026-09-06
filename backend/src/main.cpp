@@ -1,4 +1,5 @@
 #include "backend/config.h"
+#include "backend/database.h"
 
 #include <QCoreApplication>
 #include <QDebug>
@@ -15,6 +16,12 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
-	qInfo().noquote() << "Backend configuration loaded for" << config->host << ':' << config->port;
+	Backend::Database database(config->databasePath, config->databaseBusyTimeoutMs);
+	if (!database.initialize(QDateTime::currentDateTimeUtc(), config->serviceToken, &errorMessage)) {
+		qCritical().noquote() << "Database initialization failed";
+		return 1;
+	}
+
+	qInfo().noquote() << "Backend initialized for" << config->host << ':' << config->port;
 	return 0;
 }
