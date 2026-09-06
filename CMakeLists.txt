@@ -16,7 +16,7 @@ find_package(Qt6 6.2.4 EXACT REQUIRED COMPONENTS
     Sql
     Svg
     Widgets
-    OPTIONAL_COMPONENTS WebEngineWidgets
+    OPTIONAL_COMPONENTS Charts WebEngineWidgets
 )
 
 include(GNUInstallDirs)
