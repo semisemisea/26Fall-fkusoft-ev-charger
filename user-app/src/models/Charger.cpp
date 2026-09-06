@@ -1,4 +1,4 @@
-#include "Charger.h"
+﻿#include "Charger.h"
 
 #include "common/Theme.h"
 
@@ -55,10 +55,10 @@ QString Charger::statusColor(const QString &status)
         return theme::successInkName();
     }
     if (status == QLatin1String("reserved")) {
-        return theme::warningInkName();
+        return QStringLiteral("#713F12");
     }
     if (status == QLatin1String("charging")) {
-        return theme::primaryDeepName();
+        return QStringLiteral("#713F12");
     }
     if (status == QLatin1String("fault")) {
         return theme::errorDeep().name();
@@ -75,10 +75,10 @@ QString Charger::statusBgColor(const QString &status)
         return theme::successBg().name();
     }
     if (status == QLatin1String("reserved")) {
-        return theme::warningBg().name();
+        return QStringLiteral("#FEF08A");
     }
     if (status == QLatin1String("charging")) {
-        return theme::primaryBg().name();
+        return QStringLiteral("#FEF08A");
     }
     if (status == QLatin1String("fault")) {
         return theme::errorBg().name();

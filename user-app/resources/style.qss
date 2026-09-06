@@ -1,4 +1,4 @@
-/* 充电用户端全局样式表：柔和青绿主题 */
+﻿/* 充电用户端全局样式表：柔和青绿主题 */
 /* 色板：主色 #22C586 / 价格橙色 #E67E22 / 背景渐变 #f0f4ff → #ffffff */
 
 /* ===== 基础 ===== */
@@ -254,7 +254,6 @@ QLabel#pageTitle {
 }
 QLabel#heroTitle {
     font-size: 20px;
-    font-weight: bold;
     color: #1e293b;
 }
 QLabel#cardHeading {
@@ -363,7 +362,7 @@ QFrame#profileCard QLabel {
 QFrame#chargerRow {
     background: white;
     border: 1px solid rgba(0, 0, 0, 0.04);
-    border-radius: 10px;
+    border-radius: 12px;
 }
 QFrame#chargerRow QLabel {
     border: none;

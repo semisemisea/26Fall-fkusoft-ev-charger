@@ -6,9 +6,11 @@
 
 #include <QWidget>
 #include <QPixmap>
+#include <QVector>
 
 class QLabel;
 class QPushButton;
+class QFrame;
 class Spinner;
 class QVBoxLayout;
 class QResizeEvent;
@@ -30,17 +32,31 @@ signals:
 
 private:
     void loadChargers();
+    void updateBottomButtons();
+    bool eventFilter(QObject *obj, QEvent *event) override;
 
     ApiClient &m_api;
     Station m_station;
     QPushButton *m_backButton = nullptr;
+    QPushButton *m_navButton = nullptr;
     QLabel *m_nameLabel = nullptr;
     QLabel *m_infoLabel = nullptr;
+    QLabel *m_distanceLabel = nullptr;
+    QLabel *m_priceLabel = nullptr;
+    QLabel *m_availabilityLabel = nullptr;
     QLabel *m_statusLabel = nullptr;
     Spinner *m_spinner = nullptr;
     QVBoxLayout *m_chargersLayout = nullptr;
     QPixmap m_bgPixmap;
     QWidget *m_bgSpacer = nullptr;
+
+    QPushButton *m_reserveButton = nullptr;
+    QPushButton *m_chargeButton = nullptr;
+
+    QVector<Charger> m_chargers;
+    Charger m_selectedCharger;
+    bool m_hasSelection = false;
+    QFrame *m_selectedRow = nullptr;
 
 protected:
     void paintEvent(QPaintEvent *event) override;
