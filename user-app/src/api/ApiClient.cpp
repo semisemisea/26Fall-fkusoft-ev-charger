@@ -51,7 +51,10 @@ void ApiClient::send(const QString &path, Verb verb, const QJsonObject *body, Su
     request.setTransferTimeout(kRequestTimeoutMs);
     request.setRawHeader("Accept", "application/json");
     request.setRawHeader("X-Request-Id", QUuid::createUuid().toString(QUuid::WithoutBraces).toUtf8());
-    if (!m_accessToken.isEmpty()) {
+	if (verb == Verb::Post) {
+		request.setRawHeader("Idempotency-Key", QUuid::createUuid().toString(QUuid::WithoutBraces).toUtf8());
+	}
+	if (!m_accessToken.isEmpty()) {
         request.setRawHeader("Authorization", "Bearer " + m_accessToken.toUtf8());
     }
 

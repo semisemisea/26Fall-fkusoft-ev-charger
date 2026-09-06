@@ -11,12 +11,12 @@ Reservation Reservation::fromJson(const QJsonObject &object)
     reservation.stationId = object.value(QLatin1String("stationId")).toInt();
     reservation.userId = object.value(QLatin1String("userId")).toInt();
     reservation.status = object.value(QLatin1String("status")).toString();
-    reservation.startAt = object.value(QLatin1String("startAt")).toString();
-    reservation.expiresAt =
+	reservation.startAt = object.value(QLatin1String("createdAt")).toString();
+	reservation.expiresAt =
         QDateTime::fromString(object.value(QLatin1String("expiresAt")).toString(), Qt::ISODate);
-    reservation.stationName = object.value(QLatin1String("stationName")).toString();
-    reservation.chargerCode = object.value(QLatin1String("chargerCode")).toString();
-    return reservation;
+	reservation.stationName = QStringLiteral("电站 %1").arg(reservation.stationId);
+	reservation.chargerCode = QString::number(reservation.chargerId);
+	return reservation;
 }
 
 // 状态枚举到中文文案的映射：active/used/cancelled/expired

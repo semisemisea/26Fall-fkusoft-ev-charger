@@ -354,7 +354,8 @@ void MainWindow::handleReservationFromDetail(const Charger &charger)
 
     QJsonObject reservationBody;
     reservationBody.insert(QLatin1String("chargerId"), charger.id);
-    m_api->post(QStringLiteral("/reservations"), reservationBody,
+	reservationBody.insert(QLatin1String("holdMinutes"), 15);
+	m_api->post(QStringLiteral("/reservations"), reservationBody,
                 [this](const QJsonValue &data, const QJsonObject &) {
                     m_chargingTab->showReservation(Reservation::fromJson(data.toObject()));
                     showTab(1);

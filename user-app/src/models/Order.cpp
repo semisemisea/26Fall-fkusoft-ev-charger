@@ -7,20 +7,20 @@ Order Order::fromJson(const QJsonObject &object)
 {
     Order order;
     order.id = object.value(QLatin1String("id")).toInt();
-    order.orderNo = object.value(QLatin1String("orderNo")).toString();
-    order.userId = object.value(QLatin1String("userId")).toInt();
+	order.orderNo = QString::number(order.id);
+	order.userId = object.value(QLatin1String("userId")).toInt();
     order.stationId = object.value(QLatin1String("stationId")).toInt();
     order.chargerId = object.value(QLatin1String("chargerId")).toInt();
     order.status = object.value(QLatin1String("status")).toString();
     order.startedAt = object.value(QLatin1String("startedAt")).toString();
-    order.endedAt = object.value(QLatin1String("endedAt")).toString();
-    order.energyKwh = object.value(QLatin1String("energyKwh")).toDouble();
+	order.endedAt = object.value(QLatin1String("stoppedAt")).toString();
+	order.energyKwh = object.value(QLatin1String("energyKwh")).toDouble();
     order.durationMinutes = object.value(QLatin1String("durationMinutes")).toInt();
     order.unitPriceFenPerKwh = object.value(QLatin1String("unitPriceFenPerKwh")).toInteger();
     order.amountFen = object.value(QLatin1String("amountFen")).toInteger();
-    order.stationName = object.value(QLatin1String("stationName")).toString();
-    order.chargerCode = object.value(QLatin1String("chargerCode")).toString();
-    return order;
+	order.stationName = QStringLiteral("电站 %1").arg(order.stationId);
+	order.chargerCode = QString::number(order.chargerId);
+	return order;
 }
 
 // 状态枚举到中文文案的映射：charging/awaiting_payment/settled/cancelled/failed

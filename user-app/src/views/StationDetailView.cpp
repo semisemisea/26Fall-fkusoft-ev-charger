@@ -183,8 +183,7 @@ void StationDetailView::loadChargers()
     m_chargers.clear();
     updateBottomButtons();
 
-    m_api.get(QStringLiteral("/stations/%1/chargers").arg(m_station.id),
-              [this](const QJsonValue &data, const QJsonObject &) {
+	m_api.get(QStringLiteral("/stations/%1/chargers?pageSize=100").arg(m_station.id), [this](const QJsonValue &data, const QJsonObject &) {
                   m_spinner->hide();
                   while (m_chargersLayout->count() > 1) {
                       QLayoutItem *item = m_chargersLayout->takeAt(0);
@@ -259,13 +258,10 @@ void StationDetailView::loadChargers()
                   if (chargers.isEmpty()) {
                       m_statusLabel->setText(QStringLiteral("站内暂无电桩"));
                       m_statusLabel->show();
-                  }
-              },
-              [this](const ApiError &error) {
+                  } }, [this](const ApiError &error) {
                   m_spinner->hide();
                   m_statusLabel->setText(error.message.isEmpty() ? error.code : error.message);
-                  m_statusLabel->show();
-              });
+                  m_statusLabel->show(); });
 }
 
 // 处理电桩行点击：取消旧选中样式，记录选中电桩并高亮该行

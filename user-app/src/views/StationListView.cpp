@@ -139,7 +139,7 @@ void StationListView::showEvent(QShowEvent *event)
 	reload();
 }
 
-// 按当前定位请求附近电站并重建卡片；首屏成功后播放一次淡入动画，再触发 AI 推荐
+// 按当前定位请求附近电站并重建卡片；首屏成功后播放一次淡入动画
 void StationListView::reload()
 {
 	const LocationPreset &preset = kLocationPresets[m_locationCombo->currentIndex()];
@@ -147,6 +147,7 @@ void StationListView::reload()
 	QUrlQuery query;
 	query.addQueryItem(QLatin1String("latitude"), QString::number(preset.latitude));
 	query.addQueryItem(QLatin1String("longitude"), QString::number(preset.longitude));
+	query.addQueryItem(QLatin1String("radiusKm"), QStringLiteral("50"));
 
 	m_spinner->show();
 	m_statusLabel->hide();
@@ -205,66 +206,28 @@ void StationListView::applyFilter()
 	}
 }
 
-// AI 推荐：取 1 小时预测中“预计空闲最多、置信度最高”的电站；接口失败时按当前空闲率本地兜底
+// 根据当前空闲率推荐可用电站，不依赖本期范围之外的预测接口
 void StationListView::loadRecommendation()
 {
-	m_api.get(QStringLiteral("/forecasts?horizon=1h"),
-			  [this](const QJsonValue &data, const QJsonObject &) {
-				  const QJsonArray points = data.toObject().value(QLatin1String("points")).toArray();
-				  const Station *best = nullptr;
-				  int bestAvailable = -1;
-				  double bestConfidence = 0;
-				  for (const QJsonValue &value : points) {
-					  const QJsonObject point = value.toObject();
-					  const int stationId = point.value(QLatin1String("stationId")).toInt();
-					  for (const StationCard *card : m_cards) {
-						  const Station &station = card->station();
-						  if (station.id != stationId) {
-							  continue;
-						  }
-						  const int available = point.value(QLatin1String("availableChargerCount")).toInt();
-						  const double confidence = point.value(QLatin1String("confidence")).toDouble();
-						  if (available > bestAvailable
-							  || (available == bestAvailable && confidence > bestConfidence)) {
-							  best = &station;
-							  bestAvailable = available;
-							  bestConfidence = confidence;
-						  }
-					  }
-				  }
-				  if (best) {
-					  m_recommendedStation = *best;
-					  m_hasRecommendation = true;
-					  m_bannerButton->setText(
-						  QStringLiteral("🤖 AI 为您推荐：%1 · 预计 1 小时后空闲 %2 桩 · 置信度 %3%")
-							  .arg(best->name)
-							  .arg(bestAvailable)
-							  .arg(qRound(bestConfidence * 100)));
-					  m_bannerButton->setEnabled(true);
-					  m_bannerButton->show();
-				  }
-			  },
-			  [this](const ApiError &) {
-				  const Station *best = nullptr;
-				  double bestRatio = -1;
-				  for (const StationCard *card : m_cards) {
-					  const Station &station = card->station();
-					  if (station.chargerCount == 0) {
-						  continue;
-					  }
-					  const double ratio = double(station.availableChargerCount) / station.chargerCount;
-					  if (ratio > bestRatio) {
-						  best = &station;
-						  bestRatio = ratio;
-					  }
-				  }
-				  if (best && bestRatio > 0) {
-					  m_recommendedStation = *best;
-					  m_hasRecommendation = true;
-					  m_bannerButton->setText(
-						  QStringLiteral("🤖 智能推荐：%1 · 当前空闲率高，预计无需排队").arg(best->name));
-					  m_bannerButton->setEnabled(true);
-					  m_bannerButton->show();
-				  }
-			  });
+	const Station *best = nullptr;
+	double bestRatio = -1;
+	for (const StationCard *card : m_cards) {
+		const Station &station = card->station();
+		if (station.chargerCount == 0) {
+			continue;
+		}
+		const double ratio = double(station.availableChargerCount) / station.chargerCount;
+		if (ratio > bestRatio) {
+			best = &station;
+			bestRatio = ratio;
+		}
+	}
+	if (best && bestRatio > 0) {
+		m_recommendedStation = *best;
+		m_hasRecommendation = true;
+		m_bannerButton->setText(
+			QStringLiteral("推荐：%1 · 当前空闲率较高").arg(best->name));
+		m_bannerButton->setEnabled(true);
+		m_bannerButton->show();
+	}
 }

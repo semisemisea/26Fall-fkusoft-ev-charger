@@ -10,11 +10,14 @@ Charger Charger::fromJson(const QJsonObject &object)
     Charger charger;
     charger.id = object.value(QLatin1String("id")).toInt();
     charger.stationId = object.value(QLatin1String("stationId")).toInt();
-    charger.code = object.value(QLatin1String("code")).toString();
-    charger.type = object.value(QLatin1String("type")).toString();
+	charger.code = QString::number(charger.id);
+	charger.type = object.value(QLatin1String("type")).toString();
     charger.powerKw = object.value(QLatin1String("powerKw")).toDouble();
-    charger.status = object.value(QLatin1String("status")).toString();
-    charger.totalChargeCount = object.value(QLatin1String("totalChargeCount")).toInt();
+	const QString operationalStatus = object.value(QLatin1String("operationalStatus")).toString();
+	charger.status = operationalStatus == QLatin1String("online")
+						 ? object.value(QLatin1String("occupancyStatus")).toString()
+						 : operationalStatus;
+	charger.totalChargeCount = object.value(QLatin1String("totalChargeCount")).toInt();
     charger.totalChargeMinutes = object.value(QLatin1String("totalChargeMinutes")).toInt();
     return charger;
 }

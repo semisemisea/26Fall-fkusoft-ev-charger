@@ -18,6 +18,7 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QMessageBox>
+#include <QMimeDatabase>
 #include <QMouseEvent>
 #include <QPushButton>
 #include <QUrl>
@@ -271,19 +272,16 @@ void ProfileView::changeAvatar()
     QHttpPart filePart;
     filePart.setHeader(QNetworkRequest::ContentDispositionHeader,
                        QVariant(QStringLiteral(R"(form-data; name="file"; filename="avatar")")));
-    filePart.setBodyDevice(file);
+	filePart.setHeader(QNetworkRequest::ContentTypeHeader, QMimeDatabase().mimeTypeForFile(path).name());
+	filePart.setBodyDevice(file);
     multiPart->append(filePart);
     file->setParent(multiPart);
 
-    m_api.upload(QStringLiteral("/me/avatar"), multiPart,
-                 [this](const QJsonValue &data, const QJsonObject &) {
+	m_api.upload(QStringLiteral("/me/avatar"), multiPart, [this](const QJsonValue &, const QJsonObject &) {
                      User user = m_session.user();
-                     user.avatarUrl = data.toObject().value(QLatin1String("avatarUrl")).toString();
-                     m_session.updateUser(user);
-                 },
-                 [this](const ApiError &error) {
-                     Toast::error(this, error.message.isEmpty() ? error.code : error.message);
-                 });
+                     user.avatarUrl = QStringLiteral("/me/avatar");
+                     m_loadedAvatarUrl.clear();
+                     m_session.updateUser(user); }, [this](const ApiError &error) { Toast::error(this, error.message.isEmpty() ? error.code : error.message); });
 }
 
 // 输入新昵称并提交 PATCH /me，成功后更新会话用户

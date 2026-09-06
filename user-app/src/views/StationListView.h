@@ -40,8 +40,8 @@ private:
     void reload();
     // 按搜索框关键字过滤卡片可见性
     void applyFilter();
-    // 拉取 AI 推荐（GET /forecasts?horizon=1h），失败时退化为按空闲率本地推荐
-    void loadRecommendation();
+	// 按当前空闲率生成本地推荐
+	void loadRecommendation();
 
     Session &m_session;
     ApiClient &m_api;

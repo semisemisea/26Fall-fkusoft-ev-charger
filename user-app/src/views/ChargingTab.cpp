@@ -79,8 +79,8 @@ void ChargingTab::buildPreparePage()
     titleLabel->setAlignment(Qt::AlignCenter);
     titleLabel->setObjectName(QStringLiteral("pageHeading"));
 
-    auto *tipLabel = new QLabel(QStringLiteral("输入电桩编号，如 S01-001"), page);
-    tipLabel->setAlignment(Qt::AlignCenter);
+	auto *tipLabel = new QLabel(QStringLiteral("输入电桩编号，如 17"), page);
+	tipLabel->setAlignment(Qt::AlignCenter);
     tipLabel->setObjectName(QStringLiteral("muted"));
 
     m_codeEdit = new QLineEdit(page);
@@ -255,8 +255,9 @@ void ChargingTab::fetchNearbyStations()
     QUrlQuery query;
     query.addQueryItem(QLatin1String("latitude"), QString::number(m_session.latitude()));
     query.addQueryItem(QLatin1String("longitude"), QString::number(m_session.longitude()));
+	query.addQueryItem(QLatin1String("radiusKm"), QStringLiteral("50"));
 
-    m_api.get(QStringLiteral("/stations/nearby?%1").arg(query.toString(QUrl::FullyEncoded)),
+	m_api.get(QStringLiteral("/stations/nearby?%1").arg(query.toString(QUrl::FullyEncoded)),
               [this](const QJsonValue &data, const QJsonObject &) {
                   m_candidateStationIds.clear();
                   const QJsonArray stations = data.toArray();
@@ -279,18 +280,15 @@ void ChargingTab::tryNextCandidate()
         return;
     }
     const int stationId = m_candidateStationIds.at(m_candidateIndex++);
-    m_api.get(QStringLiteral("/stations/%1/chargers").arg(stationId),
-              [this](const QJsonValue &data, const QJsonObject &) {
+	m_api.get(QStringLiteral("/stations/%1/chargers?pageSize=100").arg(stationId), [this](const QJsonValue &data, const QJsonObject &) {
                   for (const QJsonValue &value : data.toArray()) {
                       const QJsonObject charger = value.toObject();
-                      if (charger.value(QLatin1String("code")).toString().toUpper() == m_pendingCode) {
+                      if (QString::number(charger.value(QLatin1String("id")).toInt()) == m_pendingCode) {
                           createOrder(charger.value(QLatin1String("id")).toInt());
                           return;
                       }
                   }
-                  tryNextCandidate();
-              },
-              [this](const ApiError &) { tryNextCandidate(); });
+                  tryNextCandidate(); }, [this](const ApiError &) { tryNextCandidate(); });
 }
 
 // 创建充电订单；若已有进行中订单（ACTIVE_ORDER_EXISTS）则改为恢复现场
