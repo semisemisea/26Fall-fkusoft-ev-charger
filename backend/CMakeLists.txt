@@ -1,11 +1,12 @@
 add_library(backend_runtime STATIC
 	src/config.cpp
 	src/database.cpp
+	src/http.cpp
 	src/security.cpp
 )
 
 target_include_directories(backend_runtime PUBLIC include)
-target_link_libraries(backend_runtime PUBLIC Qt6::Core Qt6::Network Qt6::Sql)
+target_link_libraries(backend_runtime PUBLIC ev_charger_core Qt6::Core Qt6::Network Qt6::Sql)
 
 add_executable(ev-charger-backend src/main.cpp)
 target_link_libraries(ev-charger-backend PRIVATE backend_runtime)
@@ -23,4 +24,8 @@ if(BUILD_TESTING)
 	add_executable(backend_database_tests tests/database_tests.cpp)
 	target_link_libraries(backend_database_tests PRIVATE backend_runtime Qt6::Test)
 	add_test(NAME backend_database_tests COMMAND backend_database_tests)
+
+	add_executable(backend_http_tests tests/http_tests.cpp)
+	target_link_libraries(backend_http_tests PRIVATE backend_runtime Qt6::Test)
+	add_test(NAME backend_http_tests COMMAND backend_http_tests)
 endif()
