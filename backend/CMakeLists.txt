@@ -8,6 +8,8 @@ add_library(backend_runtime STATIC
 	src/config.cpp
 	src/database.cpp
 	src/http.cpp
+	src/location_api.cpp
+	src/map_client.cpp
 	src/order_api.cpp
 	src/order_support.cpp
 	src/reservation_api.cpp
@@ -68,4 +70,8 @@ if(BUILD_TESTING)
 	add_executable(backend_admin_tests tests/admin_tests.cpp)
 	target_link_libraries(backend_admin_tests PRIVATE backend_runtime Qt6::Test)
 	add_test(NAME backend_admin_tests COMMAND backend_admin_tests)
+
+	add_executable(backend_map_tests tests/map_tests.cpp)
+	target_link_libraries(backend_map_tests PRIVATE backend_runtime Qt6::Test)
+	add_test(NAME backend_map_tests COMMAND backend_map_tests)
 endif()

@@ -3,6 +3,7 @@
 #include "resource_support.h"
 
 #include "backend/database.h"
+#include "backend/map_client.h"
 #include "evcharger/clock.h"
 #include "evcharger/geo.h"
 #include "evcharger/validation.h"
@@ -112,24 +113,47 @@ namespace Backend {
 			const bool hasLatitude = request.query.hasQueryItem(QStringLiteral("latitude"));
 			const bool hasLongitude = request.query.hasQueryItem(QStringLiteral("longitude"));
 			const bool hasAddress = request.query.hasQueryItem(QStringLiteral("address"));
-			if ((hasAddress && (hasLatitude || hasLongitude)) || (!hasAddress && !(hasLatitude && hasLongitude))) {
+			const bool hasRegion = request.query.hasQueryItem(QStringLiteral("region"));
+			if ((hasAddress && (hasLatitude || hasLongitude)) || (!hasAddress && !(hasLatitude && hasLongitude)) || (!hasAddress && hasRegion)) {
 				return jsonError(QStringLiteral("VALIDATION_ERROR"), QStringLiteral("必须提供完整经纬度或地址，且二者不可同时提供"), {}, request.requestId, 400);
-			}
-			if (hasAddress) {
-				return dependencies.config.tencentMapKey.isEmpty()
-						   ? jsonError(QStringLiteral("SERVICE_UNAVAILABLE"), QStringLiteral("地图服务未配置"), {}, request.requestId, 503)
-						   : jsonError(QStringLiteral("SERVICE_UNAVAILABLE"), QStringLiteral("地图服务暂不可用"), {}, request.requestId, 503);
 			}
 			bool latitudeOk = false;
 			bool longitudeOk = false;
 			bool radiusOk = false;
-			const double latitude = request.query.queryItemValue(QStringLiteral("latitude")).toDouble(&latitudeOk);
-			const double longitude = request.query.queryItemValue(QStringLiteral("longitude")).toDouble(&longitudeOk);
+			double latitude = request.query.queryItemValue(QStringLiteral("latitude")).toDouble(&latitudeOk);
+			double longitude = request.query.queryItemValue(QStringLiteral("longitude")).toDouble(&longitudeOk);
 			const double radius = request.query.queryItemValue(QStringLiteral("radiusKm")).toDouble(&radiusOk);
 			const QString sort = request.query.queryItemValue(QStringLiteral("sort"), QUrl::FullyDecoded).isEmpty()
 									 ? QStringLiteral("distance")
 									 : request.query.queryItemValue(QStringLiteral("sort"), QUrl::FullyDecoded);
-			if (!latitudeOk || !longitudeOk || !radiusOk || !std::isfinite(latitude) || !std::isfinite(longitude) || !std::isfinite(radius) || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180 || radius <= 0 || radius > dependencies.config.maxRadiusKm || (sort != QStringLiteral("distance") && sort != QStringLiteral("price"))) {
+			if (!radiusOk || !std::isfinite(radius) || radius <= 0 || radius > dependencies.config.maxRadiusKm || (sort != QStringLiteral("distance") && sort != QStringLiteral("price"))) {
+				return jsonError(QStringLiteral("VALIDATION_ERROR"), QStringLiteral("附近查询参数无效"), {}, request.requestId, 400);
+			}
+			if (hasAddress) {
+				QString address;
+				QString region;
+				if (!EvCharger::hasTrimmedLength(request.query.queryItemValue(QStringLiteral("address"), QUrl::FullyDecoded), 1, 200, &address) || (hasRegion && !EvCharger::hasTrimmedLength(request.query.queryItemValue(QStringLiteral("region"), QUrl::FullyDecoded), 1, 100, &region))) {
+					return jsonError(QStringLiteral("VALIDATION_ERROR"), QStringLiteral("地址参数无效"), {}, request.requestId, 400);
+				}
+				if (!dependencies.mapClient || dependencies.config.tencentMapKey.isEmpty()) {
+					return jsonError(QStringLiteral("SERVICE_UNAVAILABLE"), QStringLiteral("地图服务未配置"), {}, request.requestId, 503);
+				}
+				const GeocodeResult geocoded = dependencies.mapClient->geocode(address, region);
+				if (geocoded.status == MapStatus::NotFound) {
+					return jsonError(QStringLiteral("GEOCODE_FAILED"), QStringLiteral("地址解析无结果"), {}, request.requestId, 422);
+				}
+				if (geocoded.status == MapStatus::ProviderError) {
+					return jsonError(QStringLiteral("PROVIDER_ERROR"), QStringLiteral("地图供应商响应异常"), {}, request.requestId, 502);
+				}
+				if (geocoded.status != MapStatus::Success) {
+					return jsonError(QStringLiteral("SERVICE_UNAVAILABLE"), QStringLiteral("地图服务暂不可用"), {}, request.requestId, 503);
+				}
+				latitude = geocoded.latitude;
+				longitude = geocoded.longitude;
+				latitudeOk = true;
+				longitudeOk = true;
+			}
+			if (!latitudeOk || !longitudeOk || !std::isfinite(latitude) || !std::isfinite(longitude) || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
 				return jsonError(QStringLiteral("VALIDATION_ERROR"), QStringLiteral("附近查询参数无效"), {}, request.requestId, 400);
 			}
 			struct Candidate {

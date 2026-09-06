@@ -12,12 +12,14 @@ namespace EvCharger {
 namespace Backend {
 
 	class Database;
+	class MapClient;
 	class Router;
 
 	struct ApiDependencies {
 		std::shared_ptr<Database> database;
 		Config config;
 		std::shared_ptr<EvCharger::Clock> clock;
+		std::shared_ptr<MapClient> mapClient;
 	};
 
 	void registerApiRoutes(Router &router, const ApiDependencies &dependencies);
