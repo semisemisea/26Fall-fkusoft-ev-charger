@@ -49,6 +49,7 @@ namespace Backend {
 	void registerStationRoutes(Router &router, const ApiDependencies &dependencies);
 	void registerChargerRoutes(Router &router, const ApiDependencies &dependencies);
 	void registerReservationRoutes(Router &router, const ApiDependencies &dependencies);
+	void registerOrderRoutes(Router &router, const ApiDependencies &dependencies);
 
 } // namespace Backend
 
