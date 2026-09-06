@@ -1,4 +1,4 @@
-#include "StationDetailView.h"
+﻿#include "StationDetailView.h"
 
 #include "common/Format.h"
 #include "models/Charger.h"
@@ -13,12 +13,14 @@
 #include <QLabel>
 #include <QPushButton>
 #include <QScrollArea>
+#include <QPainter>
 #include <QVBoxLayout>
 
 StationDetailView::StationDetailView(ApiClient &api, QWidget *parent)
     : QWidget(parent)
     , m_api(api)
 {
+    m_bgPixmap.load(QStringLiteral(":/backgrounds/StationDetailView.png"));
     m_backButton = new BackButton(this);
 
     m_nameLabel = new QLabel(this);
@@ -54,14 +56,20 @@ StationDetailView::StationDetailView(ApiClient &api, QWidget *parent)
     scrollArea->setWidgetResizable(true);
     scrollArea->setWidget(chargersContainer);
 
+    m_backButton->move(12, 12);
+    m_backButton->raise();
+
     auto *headerRow = new QHBoxLayout;
-    headerRow->addWidget(m_backButton);
     headerRow->addStretch();
     headerRow->addWidget(m_nameLabel);
     headerRow->addStretch();
 
+    m_bgSpacer = new QWidget(this);
+    m_bgSpacer->setAttribute(Qt::WA_TransparentForMouseEvents);
+
     auto *layout = new QVBoxLayout(this);
-    layout->setContentsMargins(12, 12, 12, 12);
+    layout->setContentsMargins(12, 0, 12, 12);
+    layout->addWidget(m_bgSpacer);
     layout->addLayout(headerRow);
     layout->addWidget(m_infoLabel);
     layout->addWidget(navigateButton);
@@ -71,6 +79,9 @@ StationDetailView::StationDetailView(ApiClient &api, QWidget *parent)
     connect(m_backButton, &QPushButton::clicked, this, &StationDetailView::backRequested);
     connect(navigateButton, &QPushButton::clicked, this,
             [this] { emit navigateRequested(m_station); });
+
+    if (!m_bgPixmap.isNull() && m_bgPixmap.width() > 0)
+        m_bgSpacer->setFixedHeight(m_bgPixmap.height() * width() / m_bgPixmap.width());
 }
 
 void StationDetailView::open(const Station &station)
@@ -145,4 +156,31 @@ void StationDetailView::loadChargers()
                   m_statusLabel->setText(error.message.isEmpty() ? error.code : error.message);
                   m_statusLabel->show();
               });
+}
+
+void StationDetailView::paintEvent(QPaintEvent *event)
+{
+    QWidget::paintEvent(event);
+    if (m_bgPixmap.isNull())
+        return;
+    QPainter painter(this);
+    const int targetWidth = width();
+    const int targetHeight = m_bgPixmap.height() * targetWidth / m_bgPixmap.width();
+    painter.drawPixmap(QRect(0, 0, targetWidth, targetHeight), m_bgPixmap);
+
+    if (targetHeight < height()) {
+        QLinearGradient gradient(0, targetHeight, 0, height());
+        gradient.setColorAt(0, QColor(QStringLiteral("#fcfdfb")));
+        gradient.setColorAt(1, QColor(QStringLiteral("#F5F6F7")));
+        painter.fillRect(0, targetHeight, width(), height() - targetHeight, gradient);
+    }
+}
+
+void StationDetailView::resizeEvent(QResizeEvent *event)
+{
+    QWidget::resizeEvent(event);
+    if (m_bgSpacer && !m_bgPixmap.isNull() && m_bgPixmap.width() > 0) {
+        const int h = m_bgPixmap.height() * width() / m_bgPixmap.width();
+        m_bgSpacer->setFixedHeight(h);
+    }
 }

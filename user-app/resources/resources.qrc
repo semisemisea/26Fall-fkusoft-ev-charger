@@ -1,6 +1,7 @@
-<RCC>
+﻿<RCC>
     <qresource prefix="/">
         <file>style.qss</file>
         <file>backgrounds/bg.png</file>
+        <file>backgrounds/StationDetailView.png</file>
     </qresource>
 </RCC>
