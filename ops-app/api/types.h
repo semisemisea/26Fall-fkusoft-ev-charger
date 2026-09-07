@@ -64,9 +64,15 @@ namespace ops {
 	};
 
 	struct ChargerStatusCount {
-		QString status; // available/reserved/charging/fault/offline
+		QString status;
 		qint64 count = 0;
 		double percent = 0.0;
+	};
+
+	struct ChargerStatusSnapshot {
+		qint64 total = 0;
+		QList<ChargerStatusCount> occupancy;
+		QList<ChargerStatusCount> operational;
 	};
 
 	struct Charger {
@@ -135,6 +141,8 @@ namespace ops {
 			return QStringLiteral("故障");
 		if (s == QLatin1String("offline"))
 			return QStringLiteral("离线");
+		if (s == QLatin1String("online"))
+			return QStringLiteral("在线");
 		if (s == QLatin1String("active"))
 			return QStringLiteral("正常");
 		if (s == QLatin1String("frozen"))

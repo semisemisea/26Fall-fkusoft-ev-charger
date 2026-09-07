@@ -80,7 +80,7 @@ namespace ops {
 		void dashboardSummaryFetched(const ops::DashboardSummary &summary, const QString &errorCode);
 		void revenueSeriesFetched(const QString &range, const QList<ops::RevenuePoint> &points,
 								  const QString &errorCode);
-		void chargerStatusFetched(const QList<ops::ChargerStatusCount> &rows,
+		void chargerStatusFetched(const ops::ChargerStatusSnapshot &snapshot,
 								  const QString &errorCode);
 
 		// 电桩

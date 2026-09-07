@@ -1,6 +1,6 @@
 #pragma once
 
-// 电桩状态页:当前所有电桩的状态分布(数量与占比),表格呈现。
+// 电桩状态页:分别展示占用状态和运维状态的数量与占比。
 
 #include <QWidget>
 
@@ -20,8 +20,10 @@ protected:
 	void showEvent(QShowEvent *event) override;
 
 private:
+	void populateTable(QTableWidget *table, const QList<ops::ChargerStatusCount> &rows);
+
 	ops::ApiClient *m_api;
-	QTableWidget *m_table = nullptr;
+	QTableWidget *m_occupancyTable = nullptr;
+	QTableWidget *m_operationalTable = nullptr;
 	QLabel *m_totalLabel = nullptr;
-	bool m_loaded = false;
 };

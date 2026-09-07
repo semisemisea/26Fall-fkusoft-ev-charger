@@ -37,17 +37,27 @@ STATIONS = [
      "latitude": 38.958, "longitude": 121.541, "pricePerKwhFen": 128, "status": "active"},
 ]
 
-STATUSES = ["available", "available", "charging", "available", "fault", "offline"]
+STATUS_PAIRS = [
+    ("available", "online"),
+    ("available", "online"),
+    ("reserved", "online"),
+    ("charging", "online"),
+    ("charging", "fault"),
+    ("available", "fault"),
+    ("available", "offline"),
+]
 CHARGERS = {}
 _cid = 1
 for st in STATIONS:
     for _ in range(8):
         fast = random.random() < 0.5
+        occupancy_status, operational_status = random.choice(STATUS_PAIRS)
         CHARGERS[_cid] = {
             "id": _cid, "stationId": st["id"], "code": f"S{st['id']:02d}-{_cid:03d}",
             "type": "fast" if fast else "slow",
             "powerKw": 120.0 if fast else 7.0,
-            "status": random.choice(STATUSES),
+            "occupancyStatus": occupancy_status,
+            "operationalStatus": operational_status,
             "totalChargeCount": random.randint(50, 400),
             "totalChargeMinutes": random.randint(2000, 30000),
         }
@@ -151,17 +161,25 @@ class Handler(BaseHTTPRequestHandler):
                 self.ok({"range": q.get("range", "7d"), "unit": "day",
                          "points": revenue_series(q.get("range", "7d"))})
             elif p == "/api/v1/admin/dashboard/charger-status":
-                counts = {}
-                for c in CHARGERS.values():
-                    counts[c["status"]] = counts.get(c["status"], 0) + 1
-                total = len(CHARGERS)
-                rows = [{"status": s, "count": n, "percent": round(n / total, 4)}
-                        for s, n in counts.items()]
-                self.ok(rows)
+                chargers = list(CHARGERS.values())
+                if q.get("stationId"):
+                    station_id = int(q["stationId"])
+                    chargers = [c for c in chargers if c["stationId"] == station_id]
+                occupancy = {"available": 0, "reserved": 0, "charging": 0}
+                operational = {"online": 0, "fault": 0, "offline": 0}
+                for charger in chargers:
+                    occupancy[charger["occupancyStatus"]] += 1
+                    operational[charger["operationalStatus"]] += 1
+                self.ok({"total": len(chargers), "occupancy": occupancy,
+                         "operational": operational})
             elif p == "/api/v1/admin/chargers":
-                status = q.get("status")
-                items = [c for c in CHARGERS.values()
-                         if not status or c["status"] == status]
+                items = list(CHARGERS.values())
+                if q.get("stationId"):
+                    station_id = int(q["stationId"])
+                    items = [c for c in items if c["stationId"] == station_id]
+                for field in ("type", "occupancyStatus", "operationalStatus"):
+                    if q.get(field):
+                        items = [c for c in items if c[field] == q[field]]
                 chunk, meta = self.paginate(items, q)
                 self.ok(chunk, **meta)
             elif p == "/api/v1/admin/stations":
@@ -172,10 +190,14 @@ class Handler(BaseHTTPRequestHandler):
                             and search not in st["address"].lower():
                         continue
                     cs = [c for c in CHARGERS.values() if c["stationId"] == st["id"]]
+                    online = sum(1 for c in cs if c["operationalStatus"] == "online")
                     items.append({**st, "chargerCount": len(cs),
                                   "availableChargerCount": sum(
-                                      1 for c in cs if c["status"] == "available"),
-                                  "onlineRate": round(random.uniform(0.9, 1.0), 2)})
+                                      1 for c in cs
+                                      if c["occupancyStatus"] == "available"
+                                      and c["operationalStatus"] == "online"),
+                                  "onlineRate": round(online / len(cs), 4)
+                                  if cs else 0.0})
                 chunk, meta = self.paginate(items, q)
                 self.ok(chunk, **meta)
             elif p.startswith("/api/v1/stations/") and p.endswith("/chargers"):
@@ -210,17 +232,18 @@ class Handler(BaseHTTPRequestHandler):
             elif p == "/api/v1/auth/logout":
                 self.send_response(204)
                 self.end_headers()
-            elif p.endswith("/commands"):
-                charger_id = int(p.split("/")[4])
+            elif p.startswith("/api/v1/admin/chargers/") and p.endswith("/restart"):
+                charger_id = int(p.split("/")[5])
                 charger = CHARGERS.get(charger_id)
                 if not charger:
                     self.err(404, "NOT_FOUND", "电桩不存在")
-                elif charger["status"] == "charging":
-                    self.err(409, "INVALID_STATE_TRANSITION", "电桩正在充电, 不能重启")
+                elif charger["occupancyStatus"] != "available":
+                    self.err(409, "INVALID_STATE_TRANSITION", "电桩当前非闲置, 不能重启")
+                elif charger["operationalStatus"] not in ("fault", "offline"):
+                    self.err(409, "INVALID_STATE_TRANSITION", "电桩无需重启")
                 else:
-                    charger["status"] = "available"
-                    self.ok({"id": 1, "chargerId": charger_id, "type": "restart",
-                             "status": "succeeded", "createdAt": NOW()})
+                    charger["operationalStatus"] = "online"
+                    self.ok(charger)
             elif p == "/api/v1/admin/stations":
                 name = body.get("name", "")
                 if any(st["name"] == name for st in STATIONS):
@@ -237,7 +260,8 @@ class Handler(BaseHTTPRequestHandler):
                     CHARGERS[_cid] = {
                         "id": _cid, "stationId": sid,
                         "code": f"S{sid:02d}-{_cid:03d}", "type": c.get("type", "slow"),
-                        "powerKw": c.get("powerKw", 7.0), "status": "available",
+                        "powerKw": c.get("powerKw", 7.0),
+                        "occupancyStatus": "available", "operationalStatus": "online",
                         "totalChargeCount": 0, "totalChargeMinutes": 0}
                     _cid += 1
                 self.ok({"id": sid, "name": name}, status=201)
