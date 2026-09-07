@@ -32,10 +32,10 @@ add_library(backend_runtime STATIC
 target_include_directories(backend_runtime PUBLIC include)
 target_link_libraries(backend_runtime PUBLIC ev_charger_core Qt6::Core Qt6::Network Qt6::Sql)
 
-add_executable(ev-charger-backend src/main.cpp)
-target_link_libraries(ev-charger-backend PRIVATE backend_runtime)
+add_executable(biz-core src/main.cpp)
+target_link_libraries(biz-core PRIVATE backend_runtime)
 
-install(TARGETS ev-charger-backend
+install(TARGETS biz-core
 	RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 
