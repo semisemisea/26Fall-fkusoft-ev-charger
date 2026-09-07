@@ -12,6 +12,8 @@ set(PROJECT_SOURCES
     pages/salespage.h
     pages/chargerstatuspage.cpp
     pages/chargerstatuspage.h
+    pages/chargerdialog.cpp
+    pages/chargerdialog.h
     pages/chargermanagepage.cpp
     pages/chargermanagepage.h
     pages/stationpage.cpp
