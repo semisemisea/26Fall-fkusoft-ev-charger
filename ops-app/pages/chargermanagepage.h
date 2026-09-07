@@ -1,16 +1,34 @@
 #pragma once
 
 // 充电桩管理页:电桩列表(编号/电站/类型/功率/状态/累计次数/累计时长),
-// 支持按状态筛选;选中后可下发"远程重启"模拟指令(仅 ADMIN)。
+// 支持按状态筛选以及电桩新增、修改、删除和远程重启(仅 ADMIN)。
 
+#include <QDialog>
 #include <QWidget>
 
 #include "api/apiclient.h"
 
 class QComboBox;
+class QDoubleSpinBox;
 class QLabel;
+class QLineEdit;
 class QPushButton;
 class QTableWidget;
+
+class ChargerDialog : public QDialog {
+	Q_OBJECT
+public:
+	explicit ChargerDialog(const ops::Charger *charger = nullptr, QWidget *parent = nullptr);
+
+	qint64 stationId() const;
+	ops::ChargerForm form() const;
+
+private:
+	QLineEdit *m_stationIdEdit = nullptr;
+	QComboBox *m_typeBox = nullptr;
+	QDoubleSpinBox *m_powerSpin = nullptr;
+	QComboBox *m_operationalBox = nullptr;
+};
 
 class ChargerManagePage : public QWidget {
 	Q_OBJECT
@@ -31,6 +49,9 @@ private:
 	ops::ApiClient *m_api;
 	QComboBox *m_statusFilter = nullptr;
 	QTableWidget *m_table = nullptr;
+	QPushButton *m_addButton = nullptr;
+	QPushButton *m_editButton = nullptr;
+	QPushButton *m_deleteButton = nullptr;
 	QPushButton *m_restartButton = nullptr;
 	QLabel *m_hintLabel = nullptr;
 	QLabel *m_pageLabel = nullptr;
@@ -40,4 +61,5 @@ private:
 	int m_page = 1;
 	bool m_hasNext = false;
 	bool m_loaded = false;
+	bool m_mutationPending = false;
 };

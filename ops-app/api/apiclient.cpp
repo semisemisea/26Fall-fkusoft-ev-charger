@@ -325,6 +325,42 @@ namespace ops {
 			 });
 	}
 
+	void ApiClient::createCharger(qint64 stationId, const ChargerForm &form) {
+		QJsonObject body;
+		body.insert(QStringLiteral("type"), form.type);
+		body.insert(QStringLiteral("powerKw"), form.powerKw);
+		send(QStringLiteral("POST"),
+			 QStringLiteral("/admin/stations/%1/chargers").arg(stationId), {}, body,
+			 [this](const ApiResult &r) {
+				 const qint64 chargerId = r.ok ? jsonI64(r.data, "id") : 0;
+				 emit chargerMutationFinished(
+					 QStringLiteral("create"), chargerId, r.ok,
+					 r.errorMessage.isEmpty() ? r.errorCode : r.errorMessage);
+			 });
+	}
+
+	void ApiClient::updateCharger(qint64 chargerId, const ChargerForm &form) {
+		QJsonObject body;
+		body.insert(QStringLiteral("type"), form.type);
+		body.insert(QStringLiteral("powerKw"), form.powerKw);
+		body.insert(QStringLiteral("operationalStatus"), form.operationalStatus);
+		send(QStringLiteral("PATCH"), QStringLiteral("/admin/chargers/%1").arg(chargerId), {},
+			 body, [this, chargerId](const ApiResult &r) {
+				 emit chargerMutationFinished(
+					 QStringLiteral("update"), chargerId, r.ok,
+					 r.errorMessage.isEmpty() ? r.errorCode : r.errorMessage);
+			 });
+	}
+
+	void ApiClient::deleteCharger(qint64 chargerId) {
+		send(QStringLiteral("DELETE"), QStringLiteral("/admin/chargers/%1").arg(chargerId), {},
+			 {}, [this, chargerId](const ApiResult &r) {
+				 emit chargerMutationFinished(
+					 QStringLiteral("delete"), chargerId, r.ok,
+					 r.errorMessage.isEmpty() ? r.errorCode : r.errorMessage);
+			 });
+	}
+
 	void ApiClient::restartCharger(qint64 chargerId, const QString &reason) {
 		Q_UNUSED(reason)
 		send(QStringLiteral("POST"), QStringLiteral("/admin/chargers/%1/restart").arg(chargerId),

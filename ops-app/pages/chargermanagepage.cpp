@@ -1,11 +1,17 @@
 #include "chargermanagepage.h"
 
 #include <QComboBox>
+#include <QDialogButtonBox>
+#include <QDoubleSpinBox>
+#include <QFormLayout>
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QLabel>
+#include <QLineEdit>
 #include <QMessageBox>
 #include <QPushButton>
+#include <QRegularExpression>
+#include <QRegularExpressionValidator>
 #include <QTableWidget>
 #include <QVBoxLayout>
 
@@ -26,6 +32,73 @@ namespace {
 	}
 
 } // namespace
+
+ChargerDialog::ChargerDialog(const ops::Charger *charger, QWidget *parent)
+	: QDialog(parent) {
+	const bool editing = charger != nullptr;
+	setWindowTitle(editing ? tr("编辑电桩") : tr("新增电桩"));
+	setMinimumWidth(360);
+
+	auto *layout = new QFormLayout(this);
+	layout->setLabelAlignment(Qt::AlignRight);
+	m_stationIdEdit = new QLineEdit(this);
+	m_stationIdEdit->setValidator(
+		new QRegularExpressionValidator(QRegularExpression(QStringLiteral("[1-9][0-9]{0,18}")),
+										this));
+	m_stationIdEdit->setPlaceholderText(tr("正整数电站 ID"));
+	layout->addRow(tr("所属电站"), m_stationIdEdit);
+
+	m_typeBox = new QComboBox(this);
+	m_typeBox->addItem(tr("快充"), QStringLiteral("fast"));
+	m_typeBox->addItem(tr("慢充"), QStringLiteral("slow"));
+	layout->addRow(tr("类型"), m_typeBox);
+
+	m_powerSpin = new QDoubleSpinBox(this);
+	m_powerSpin->setRange(0.001, 1000.0);
+	m_powerSpin->setDecimals(3);
+	m_powerSpin->setSuffix(tr(" kW"));
+	m_powerSpin->setValue(120.0);
+	layout->addRow(tr("功率"), m_powerSpin);
+
+	m_operationalBox = new QComboBox(this);
+	m_operationalBox->addItem(tr("在线"), QStringLiteral("online"));
+	m_operationalBox->addItem(tr("故障"), QStringLiteral("fault"));
+	m_operationalBox->addItem(tr("离线"), QStringLiteral("offline"));
+	if (editing)
+		layout->addRow(tr("运维状态"), m_operationalBox);
+
+	if (editing) {
+		m_stationIdEdit->setText(QString::number(charger->stationId));
+		m_stationIdEdit->setReadOnly(true);
+		m_typeBox->setCurrentIndex(m_typeBox->findData(charger->type));
+		m_powerSpin->setValue(charger->powerKw);
+		m_operationalBox->setCurrentIndex(
+			m_operationalBox->findData(charger->operationalStatus));
+	}
+
+	auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
+	layout->addRow(buttons);
+	connect(buttons, &QDialogButtonBox::accepted, this, [this] {
+		bool validId = false;
+		const qint64 id = m_stationIdEdit->text().toLongLong(&validId);
+		if (!validId || id <= 0) {
+			QMessageBox::warning(this, tr("电站无效"), tr("请输入有效的正整数电站 ID"));
+			return;
+		}
+		accept();
+	});
+	connect(buttons, &QDialogButtonBox::rejected, this, &ChargerDialog::reject);
+}
+
+qint64 ChargerDialog::stationId() const { return m_stationIdEdit->text().toLongLong(); }
+
+ops::ChargerForm ChargerDialog::form() const {
+	ops::ChargerForm result;
+	result.type = m_typeBox->currentData().toString();
+	result.powerKw = m_powerSpin->value();
+	result.operationalStatus = m_operationalBox->currentData().toString();
+	return result;
+}
 
 ChargerManagePage::ChargerManagePage(ops::ApiClient *api, QWidget *parent)
 	: QWidget(parent), m_api(api) {
@@ -52,6 +125,14 @@ ChargerManagePage::ChargerManagePage(ops::ApiClient *api, QWidget *parent)
 	m_statusFilter->addItem(ops::statusText(QStringLiteral("offline")),
 							QStringLiteral("offline"));
 	topBar->addWidget(m_statusFilter);
+	m_addButton = new QPushButton(tr("新增"), this);
+	m_addButton->setObjectName(QStringLiteral("primary"));
+	topBar->addWidget(m_addButton);
+	m_editButton = new QPushButton(tr("编辑"), this);
+	topBar->addWidget(m_editButton);
+	m_deleteButton = new QPushButton(tr("删除"), this);
+	m_deleteButton->setObjectName(QStringLiteral("danger"));
+	topBar->addWidget(m_deleteButton);
 	m_restartButton = new QPushButton(tr("远程重启"), this);
 	m_restartButton->setObjectName(QStringLiteral("danger"));
 	topBar->addWidget(m_restartButton);
@@ -126,15 +207,69 @@ ChargerManagePage::ChargerManagePage(ops::ApiClient *api, QWidget *parent)
 	connect(m_table, &QTableWidget::itemSelectionChanged, this,
 			&ChargerManagePage::updateActionState);
 
+	connect(m_addButton, &QPushButton::clicked, this, [this] {
+		ChargerDialog dialog(nullptr, this);
+		if (dialog.exec() != QDialog::Accepted)
+			return;
+		m_mutationPending = true;
+		updateActionState();
+		m_api->createCharger(dialog.stationId(), dialog.form());
+	});
+
+	connect(m_editButton, &QPushButton::clicked, this, [this] {
+		const int row = selectedChargerRow();
+		if (row < 0 || row >= m_rows.size())
+			return;
+		const ops::Charger charger = m_rows.at(row);
+		ChargerDialog dialog(&charger, this);
+		if (dialog.exec() != QDialog::Accepted)
+			return;
+		m_mutationPending = true;
+		updateActionState();
+		m_api->updateCharger(charger.id, dialog.form());
+	});
+
+	connect(m_deleteButton, &QPushButton::clicked, this, [this] {
+		const int row = selectedChargerRow();
+		if (row < 0 || row >= m_rows.size())
+			return;
+		const ops::Charger charger = m_rows.at(row);
+		if (QMessageBox::question(this, tr("删除电桩"),
+								  tr("确认删除电桩 %1？").arg(charger.code)) != QMessageBox::Yes)
+			return;
+		m_mutationPending = true;
+		updateActionState();
+		m_api->deleteCharger(charger.id);
+	});
+
+	connect(m_api, &ops::ApiClient::chargerMutationFinished, this,
+			[this](const QString &operation, qint64, bool ok, const QString &message) {
+				m_mutationPending = false;
+				if (!ok) {
+					QMessageBox::warning(this, tr("操作失败"), message);
+					updateActionState();
+					return;
+				}
+				const QString action = operation == QLatin1String("create")
+										   ? tr("新增")
+									   : operation == QLatin1String("update") ? tr("编辑")
+																			  : tr("删除");
+				QMessageBox::information(this, tr("电桩管理"), tr("电桩%1成功").arg(action));
+				m_api->fetchChargers(m_statusFilter->currentData().toString(), m_page);
+			});
+
 	connect(m_api, &ops::ApiClient::commandFinished, this,
 			[this](qint64 chargerId, bool ok, const QString &message) {
+				m_mutationPending = false;
 				if (ok) {
 					QMessageBox::information(this, tr("远程重启"),
 											 tr("电桩 %1: %2").arg(chargerId).arg(message));
 				} else {
 					QMessageBox::warning(this, tr("远程重启失败"), message);
+					updateActionState();
 				}
-				m_api->fetchChargers(m_statusFilter->currentData().toString(), m_page);
+				if (ok)
+					m_api->fetchChargers(m_statusFilter->currentData().toString(), m_page);
 			});
 
 	connect(m_restartButton, &QPushButton::clicked, this, [this] {
@@ -159,7 +294,8 @@ ChargerManagePage::ChargerManagePage(ops::ApiClient *api, QWidget *parent)
 			tr("确认向电桩 %1 下发重启指令?").arg(c.code));
 		if (confirm != QMessageBox::Yes)
 			return;
-		m_restartButton->setEnabled(false);
+		m_mutationPending = true;
+		updateActionState();
 		m_api->restartCharger(c.id, tr("管理员远程重启"));
 	});
 
@@ -204,8 +340,12 @@ int ChargerManagePage::selectedChargerRow() const {
 
 void ChargerManagePage::updateActionState() {
 	const int row = selectedChargerRow();
-	const bool restartable = row >= 0 && row < m_rows.size() && ops::isRestartable(m_rows.at(row));
-	m_restartButton->setEnabled(m_api->canWrite() && restartable);
+	const bool selected = row >= 0 && row < m_rows.size();
+	const bool writable = m_api->canWrite() && !m_mutationPending;
+	m_addButton->setEnabled(writable);
+	m_editButton->setEnabled(writable && selected);
+	m_deleteButton->setEnabled(writable && selected);
+	m_restartButton->setEnabled(writable && selected && ops::isRestartable(m_rows.at(row)));
 }
 
 void ChargerManagePage::showEvent(QShowEvent *event) {

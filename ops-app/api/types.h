@@ -81,6 +81,12 @@ namespace ops {
 		qint64 totalChargeMinutes = 0;
 	};
 
+	struct ChargerForm {
+		QString type = QStringLiteral("fast");
+		double powerKw = 120.0;
+		QString operationalStatus;
+	};
+
 	struct StationSummary {
 		qint64 id = 0;
 		QString name;

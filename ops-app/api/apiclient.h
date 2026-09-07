@@ -27,7 +27,7 @@ namespace ops {
 		QString errorCode; // 业务错误码,如 CHARGER_UNAVAILABLE
 		QString errorMessage;
 		QJsonObject data; // 成功时的 data 对象;data 为数组时放在 "items" 下
-		PageMeta meta;    // 列表响应的分页信息(valid=false 表示服务端未返回)
+		PageMeta meta;	  // 列表响应的分页信息(valid=false 表示服务端未返回)
 
 		// 便捷:直接以列表形式取 data 数组
 		QList<QJsonObject> items() const;
@@ -56,6 +56,9 @@ namespace ops {
 
 		// ---- 电桩 ----
 		void fetchChargers(const QString &statusFilter = {}, int page = 1);
+		void createCharger(qint64 stationId, const ChargerForm &form);
+		void updateCharger(qint64 chargerId, const ChargerForm &form);
+		void deleteCharger(qint64 chargerId);
 		void restartCharger(qint64 chargerId, const QString &reason);
 
 		// ---- 电站 ----
@@ -83,6 +86,8 @@ namespace ops {
 		// 电桩
 		void chargersFetched(const QList<ops::Charger> &chargers, const ops::PageMeta &meta,
 							 const QString &errorCode);
+		void chargerMutationFinished(const QString &operation, qint64 chargerId, bool succeeded,
+									 const QString &message);
 		void commandFinished(qint64 chargerId, bool succeeded, const QString &message);
 
 		// 电站
