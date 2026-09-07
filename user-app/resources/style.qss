@@ -11,8 +11,9 @@ QWidget {
 }
 QMainWindow, QDialog {
     background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                                stop:0 #F0F4FF,
-                                stop:1 #F5F6F7);
+                                stop:0 #D9F5E5,
+                                stop:0.5 #F2F4F3,
+                                stop:1 #ECEEEE);
 }
 QLabel {
     background: transparent;
@@ -242,7 +243,6 @@ QLabel#statusGlyph {
 /* ===== 排版角色 ===== */
 QLabel#pageHeading {
     font-size: 22px;
-    font-weight: bold;
     color: #1e293b;
 }
 QLabel#pageTitle {

@@ -1,4 +1,4 @@
-#include "ChargingView.h"
+﻿#include "ChargingView.h"
 
 #include "app/ChargePollThread.h"
 #include "common/Format.h"
@@ -17,6 +17,12 @@ ChargingView::ChargingView(ApiClient &api, QWidget *parent)
     : QWidget(parent)
     , m_api(api)
 {
+    setAutoFillBackground(true);
+    QPalette pal;
+    QPixmap bg(QStringLiteral(":/backgrounds/bg.png"));
+    pal.setBrush(QPalette::Window, QBrush(bg.scaled(390, 780, Qt::IgnoreAspectRatio, Qt::SmoothTransformation)));
+    setPalette(pal);
+
     m_headerLabel = new QLabel(this);
     m_headerLabel->setAlignment(Qt::AlignCenter);
     m_headerLabel->setObjectName(QStringLiteral("cardHeading"));

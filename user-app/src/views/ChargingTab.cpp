@@ -1,4 +1,4 @@
-#include "ChargingTab.h"
+﻿#include "ChargingTab.h"
 
 #include "ChargingView.h"
 #include "SettleView.h"
@@ -35,22 +35,6 @@ ChargingTab::ChargingTab(Session &session, ApiClient &api, QWidget *parent)
     m_stack->addWidget(m_settleView);
     m_stack->addWidget(m_reservationPage);
 
-	/* ===设置汽车背景bg.png=== */
-	setAutoFillBackground(true);
-	QPalette pal;
-	QPixmap bg(":/backgrounds/bg.png");
-	pal.setBrush(QPalette::Window, QBrush(bg.scaled(390, 780, Qt::IgnoreAspectRatio, Qt::SmoothTransformation)));
-	setPalette(pal);
-
-	// 让页面背景透明（但不影响子控件）
-	m_preparePage->setAttribute(Qt::WA_TranslucentBackground);
-	m_chargingView->setAttribute(Qt::WA_TranslucentBackground);
-	m_settleView->setAttribute(Qt::WA_TranslucentBackground);
-	m_reservationPage->setAttribute(Qt::WA_TranslucentBackground);
-
-	// m_stack 保持透明
-	m_stack->setStyleSheet("QStackedWidget { background: transparent; }");
-
     auto *layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
     layout->addWidget(m_stack);
@@ -71,45 +55,64 @@ void ChargingTab::buildPreparePage()
 {
     auto *page = new QWidget(this);
 
-    auto *iconLabel = new QLabel(QStringLiteral("⚡"), page);
-    iconLabel->setAlignment(Qt::AlignCenter);
-    iconLabel->setObjectName(QStringLiteral("prepareIcon"));
-
     auto *titleLabel = new QLabel(QStringLiteral("准备充电"), page);
     titleLabel->setAlignment(Qt::AlignCenter);
     titleLabel->setObjectName(QStringLiteral("pageHeading"));
+    titleLabel->setStyleSheet(QStringLiteral("font-weight: bold;"));
 
-    auto *tipLabel = new QLabel(QStringLiteral("输入电桩编号，如 S01-001"), page);
-    tipLabel->setAlignment(Qt::AlignCenter);
-    tipLabel->setObjectName(QStringLiteral("muted"));
+    // 白色圆角卡片
+    auto *card = new QFrame(page);
+    card->setFixedWidth(280);
+    card->setStyleSheet(QStringLiteral(
+        "QFrame { background: #ffffff; border-radius: 16px; }"
+    ));
 
-    m_codeEdit = new QLineEdit(page);
-    m_codeEdit->setPlaceholderText(QStringLiteral("请输入电桩编号"));
+    // 输入充电编号标签（左对齐，不加粗）
+    auto *inputHintLabel = new QLabel(QStringLiteral("输入充电编号（如S01-001）"), card);
+    inputHintLabel->setAlignment(Qt::AlignLeft);
+    inputHintLabel->setStyleSheet(QStringLiteral("font-size: 15px; color: #000000; font-weight: normal;"));
+
+    // 圆角输入框
+    m_codeEdit = new QLineEdit(card);
     m_codeEdit->setAlignment(Qt::AlignCenter);
     m_codeEdit->setClearButtonEnabled(true);
+    m_codeEdit->setFixedHeight(44);
+    m_codeEdit->setFocusPolicy(Qt::StrongFocus);
+    m_codeEdit->setStyleSheet(QStringLiteral(
+        "QLineEdit { background: #f3f4f6; border: 1px solid #e5e7eb; "
+        "border-radius: 22px; font-size: 15px; padding: 0 16px; }"
+    ));
+
+    // 第二行：开始充电按钮（尺寸同输入框，样式同 StationDetailView 充电按钮激活态）
+    m_startButton = new ScaleButton(QStringLiteral("开始充电"), card);
+    m_startButton->setFixedHeight(44);
+    m_startButton->setStyleSheet(QStringLiteral(
+        "QPushButton { background: #2BFF7D; border: 1px solid #22C55E; "
+        "border-radius: 22px; color: #000000; font-size: 15px; font-weight: bold; }"
+        "QPushButton:pressed { background: #22e56e; }"
+    ));
+
+    auto *cardLayout = new QVBoxLayout(card);
+    cardLayout->setContentsMargins(20, 20, 20, 20);
+    cardLayout->setSpacing(12);
+    cardLayout->addWidget(inputHintLabel);
+    cardLayout->addWidget(m_codeEdit);
+    cardLayout->addWidget(m_startButton);
 
     m_hintLabel = new QLabel(page);
     m_hintLabel->setAlignment(Qt::AlignCenter);
     m_hintLabel->setObjectName(QStringLiteral("error"));
     m_hintLabel->hide();
 
-    m_startButton = new ScaleButton(QStringLiteral("启动\n充电"), page);
-    m_startButton->setObjectName(QStringLiteral("roundStartButton"));
-    m_startButton->setFixedSize(150, 150);
-
-	auto *layout = new QVBoxLayout(page);
-	layout->setContentsMargins(32, 12, 32, 24);
-	layout->addStretch(1);
-	layout->addWidget(iconLabel);
-	layout->addWidget(titleLabel);
-	layout->addSpacing(70);
-	layout->addWidget(tipLabel);
-	layout->addSpacing(16);
-	layout->addWidget(m_codeEdit);
-	layout->addWidget(m_hintLabel);
-	layout->addSpacing(20);
-	layout->addWidget(m_startButton, 0, Qt::AlignCenter);
-	layout->addStretch(4);
+    auto *layout = new QVBoxLayout(page);
+    layout->setContentsMargins(32, 24, 32, 24);
+    layout->addStretch(2);
+    layout->addWidget(titleLabel);
+    layout->addSpacing(24);
+    layout->addWidget(card, 0, Qt::AlignCenter);
+    layout->addSpacing(12);
+    layout->addWidget(m_hintLabel);
+    layout->addStretch(2);
 
     connect(m_codeEdit, &QLineEdit::returnPressed, this, &ChargingTab::startWithCode);
     connect(m_startButton, &QPushButton::clicked, this, &ChargingTab::startWithCode);
@@ -125,7 +128,7 @@ void ChargingTab::buildReservationPage()
     auto *titleLabel = new QLabel(QStringLiteral("我的预约"), page);
     titleLabel->setAlignment(Qt::AlignCenter);
     titleLabel->setObjectName(QStringLiteral("pageHeading"));
-
+    
     auto *card = new QFrame(page);
     card->setObjectName(QStringLiteral("reservationCard"));
     card->setObjectName(QStringLiteral("infoCard"));
@@ -170,7 +173,7 @@ void ChargingTab::buildReservationPage()
     layout->addStretch(2);
     layout->addWidget(titleLabel);
     layout->addSpacing(16);
-    layout->addWidget(card);
+    layout->addWidget(card, 0, Qt::AlignCenter);
     layout->addSpacing(8);
     layout->addWidget(m_reservationHintLabel);
     layout->addSpacing(12);
@@ -230,6 +233,7 @@ void ChargingTab::showSettlement(const Order &order)
 void ChargingTab::showPrepare()
 {
     m_stack->setCurrentWidget(m_preparePage);
+    m_codeEdit->setFocus();
 }
 
 // 校验输入的电桩编号，置忙后先拉取附近站点再逐站匹配
