@@ -1,70 +1,95 @@
-cmake_minimum_required(VERSION 3.16)
-
-project(user-app VERSION 0.1 LANGUAGES CXX)
-
-set(CMAKE_AUTOUIC ON)
-set(CMAKE_AUTOMOC ON)
-set(CMAKE_AUTORCC ON)
-
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
-find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets)
-find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets)
-
 set(PROJECT_SOURCES
-        main.cpp
-        mainwindow.cpp
-        mainwindow.h
-        mainwindow.ui
+    src/main.cpp
+    src/common/Format.h
+    src/common/Demo.h
+    src/common/Theme.h
+    src/app/Session.h
+    src/app/Session.cpp
+    src/app/ChargePollThread.h
+    src/app/ChargePollThread.cpp
+    src/api/ApiClient.h
+    src/api/ApiClient.cpp
+    src/models/User.h
+    src/models/User.cpp
+    src/models/Station.h
+    src/models/Station.cpp
+    src/models/Charger.h
+    src/models/Charger.cpp
+    src/models/Order.h
+    src/models/Order.cpp
+    src/models/Reservation.h
+    src/models/Reservation.cpp
+    src/widgets/StationCard.h
+    src/widgets/StationCard.cpp
+    src/widgets/BackButton.h
+    src/widgets/BackButton.cpp
+    src/widgets/ComboBox.h
+    src/widgets/ComboBox.cpp
+    src/widgets/AppIcons.h
+    src/widgets/AppIcons.cpp
+    src/widgets/ScaleButton.h
+    src/widgets/ScaleButton.cpp
+    src/widgets/Spinner.h
+    src/widgets/Spinner.cpp
+    src/widgets/ChargeRingWidget.h
+    src/widgets/ChargeRingWidget.cpp
+    src/widgets/RechargeDialog.h
+    src/widgets/RechargeDialog.cpp
+    src/widgets/Toast.h
+    src/widgets/Toast.cpp
+    src/views/mainwindow.cpp
+    src/views/mainwindow.h
+    src/views/mainwindow.ui
+    src/views/LoginView.cpp
+    src/views/LoginView.h
+    src/views/StationListView.cpp
+    src/views/StationListView.h
+    src/views/StationDetailView.cpp
+    src/views/StationDetailView.h
+    src/views/ChargingView.cpp
+    src/views/ChargingView.h
+    src/views/ChargingTab.cpp
+    src/views/ChargingTab.h
+    src/views/SettleView.cpp
+    src/views/SettleView.h
+    src/views/ProfileView.cpp
+    src/views/ProfileView.h
+    src/views/NavigationView.cpp
+    src/views/NavigationView.h
+    src/views/InfoPages.cpp
+    src/views/InfoPages.h
+    resources/resources.qrc
 )
 
-if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
-    qt_add_executable(user-app
-        MANUAL_FINALIZATION
-        ${PROJECT_SOURCES}
-    )
-# Define target properties for Android with Qt 6 as:
-#    set_property(TARGET user-app APPEND PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR
-#                 ${CMAKE_CURRENT_SOURCE_DIR}/android)
-# For more information, see https://doc.qt.io/qt-6/qt-add-executable.html#target-creation
-else()
-    if(ANDROID)
-        add_library(user-app SHARED
-            ${PROJECT_SOURCES}
-        )
-# Define properties for Android with Qt 5 after find_package() calls as:
-#    set(ANDROID_PACKAGE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/android")
-    else()
-        add_executable(user-app
-            ${PROJECT_SOURCES}
-        )
-    endif()
+qt_add_executable(user-app
+    MANUAL_FINALIZATION
+    ${PROJECT_SOURCES}
+)
+
+target_include_directories(user-app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+
+target_link_libraries(user-app PRIVATE
+    Qt6::Network
+    Qt6::Svg
+    Qt6::Widgets
+)
+
+if(TARGET Qt6::WebEngineWidgets)
+    target_link_libraries(user-app PRIVATE Qt6::WebEngineWidgets)
+    target_compile_definitions(user-app PRIVATE USER_APP_HAS_WEBENGINE)
 endif()
 
-target_link_libraries(user-app PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
-
-# Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
-# If you are developing for iOS or macOS you should consider setting an
-# explicit, fixed bundle identifier manually though.
-if(${QT_VERSION} VERSION_LESS 6.1.0)
-  set(BUNDLE_ID_OPTION MACOSX_BUNDLE_GUI_IDENTIFIER com.example.user-app)
-endif()
 set_target_properties(user-app PROPERTIES
-    ${BUNDLE_ID_OPTION}
     MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
     MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
     MACOSX_BUNDLE TRUE
     WIN32_EXECUTABLE TRUE
 )
 
-include(GNUInstallDirs)
 install(TARGETS user-app
     BUNDLE DESTINATION .
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 
-if(QT_VERSION_MAJOR EQUAL 6)
-    qt_finalize_executable(user-app)
-endif()
+qt_finalize_executable(user-app)
