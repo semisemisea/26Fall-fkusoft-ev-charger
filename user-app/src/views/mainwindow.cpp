@@ -182,6 +182,7 @@ void MainWindow::buildStatusBar()
 // 构建底部胶囊 Tab 栏：互斥按钮组，切到“充电”页时主动检查进行中的订单
 void MainWindow::buildTabBar()
 {
+    ui->tabBar->setMaximumHeight(84);
     auto *pill = new QFrame(ui->tabBar);
     pill->setObjectName(QStringLiteral("tabPill"));
     auto *shadow = new QGraphicsDropShadowEffect(pill);
