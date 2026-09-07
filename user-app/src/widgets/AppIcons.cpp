@@ -384,3 +384,45 @@ QPixmap AppIcons::avatar(const QColor &color, int size, bool badge)
 	}
 	return pixmap;
 }
+
+// 支付成功图标：渐变圆圈（主色→黄绿色）+ 主色打勾，背景透明
+QPixmap AppIcons::successCheck(int width, int height)
+{
+	QString svgTemplate = R"SVG(
+		<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+		<defs>
+		<linearGradient id="circleGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+		<stop offset="0%" style="stop-color:%1;stop-opacity:1" />
+		<stop offset="100%" style="stop-color:%2;stop-opacity:1" />
+		</linearGradient>
+		</defs>
+		<path d="M12,22 C6.477,22 2,17.523 2,12 C2,6.477 6.477,2 12,2 C17.523,2 22,6.477 22,12 C22,17.523 17.523,22 12,22 Z M12,21.4 C16.857,21.4 21.4,16.857 21.4,12 C21.4,7.143 16.857,2.6 12,2.6 C7.143,2.6 2.6,7.143 2.6,12 C2.6,16.857 7.143,21.4 12,21.4 Z" fill="url(#circleGrad)" fill-rule="evenodd"/>
+		<path d="M7.5 12.5 L10.8 15.8 L16.5 9.5" stroke="%3" stroke-width="0.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+		</svg>
+	)SVG";
+
+	QString fullSvg = svgTemplate
+		.arg(theme::primary().name())
+		.arg(QStringLiteral("#FFF200"))
+		.arg(theme::primary().name());
+
+	QSvgRenderer renderer(fullSvg.toUtf8());
+	QPixmap pixmap(width, height);
+	pixmap.fill(Qt::transparent);
+	QPainter painter(&pixmap);
+	painter.setRenderHint(QPainter::Antialiasing);
+	// 保持 SVG 宽高比（24:24），居中渲染，避免圆圈被拉伸为椭圆
+	QRectF viewBox = renderer.viewBoxF();
+	qreal svgAspect = viewBox.width() / viewBox.height();
+	qreal pixAspect = qreal(width) / qreal(height);
+	QRectF target;
+	if (pixAspect > svgAspect) {
+		qreal targetWidth = height * svgAspect;
+		target = QRectF((width - targetWidth) / 2, 0, targetWidth, height);
+	} else {
+		qreal targetHeight = width / svgAspect;
+		target = QRectF(0, (height - targetHeight) / 2, width, targetHeight);
+	}
+	renderer.render(&painter, target);
+	return pixmap;
+}

@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "api/ApiClient.h"
 #include "app/Session.h"
@@ -55,4 +55,12 @@ private:
     QPushButton *m_topUpButton = nullptr;
     QPushButton *m_laterButton = nullptr;
     QPushButton *m_homeButton = nullptr;
+    // 结算页容器 / 支付成功页容器
+    QWidget *m_settleContainer = nullptr;
+    QWidget *m_successContainer = nullptr;
+    QLabel *m_successIconLabel = nullptr;
+    QLabel *m_successAmountLabel = nullptr;
+    QLabel *m_successTitleLabel = nullptr;
+    QLabel *m_successSubtitleLabel = nullptr;
+    QPushButton *m_successHomeButton = nullptr;
 };

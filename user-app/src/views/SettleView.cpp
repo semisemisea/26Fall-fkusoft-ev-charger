@@ -5,6 +5,7 @@
 #include "widgets/Toast.h"
 #include "widgets/RechargeDialog.h"
 #include "widgets/ScaleButton.h"
+#include "widgets/AppIcons.h"
 
 #include <QFrame>
 #include <QJsonObject>
@@ -71,28 +72,77 @@ SettleView::SettleView(Session &session, ApiClient &api, QWidget *parent)
     m_laterButton->setFlat(true);
 
     m_homeButton = new ScaleButton(QStringLiteral("返回首页"), this);
-    m_homeButton->setObjectName(QStringLiteral("primaryButton"));
+    m_homeButton->setStyleSheet(QStringLiteral(
+        "QPushButton { background: #00E676; color: #000000; border: none; border-radius: 10px; font-size: 15px; font-weight: bold; padding: 10px 14px; }"
+        "QPushButton:hover { background: #00E676; color: #000000; }"
+        "QPushButton:pressed { background: #00E676; }"));
     m_homeButton->hide();
 
+    // 结算页容器
+    m_settleContainer = new QWidget(this);
+    auto *settleLayout = new QVBoxLayout(m_settleContainer);
+    settleLayout->setContentsMargins(16, 16, 16, 16);
+    settleLayout->addStretch(1);
+    settleLayout->addWidget(m_titleLabel);
+    settleLayout->addSpacing(12);
+    settleLayout->addWidget(receipt);
+    settleLayout->addSpacing(10);
+    settleLayout->addWidget(m_balanceLabel);
+    settleLayout->addStretch(1);
+    settleLayout->addWidget(m_messageLabel);
+    settleLayout->addWidget(m_payButton);
+    settleLayout->addWidget(m_topUpButton);
+    settleLayout->addWidget(m_laterButton);
+    settleLayout->addWidget(m_homeButton);
+
+    // 支付成功页容器
+    m_successContainer = new QWidget(this);
+    auto *successLayout = new QVBoxLayout(m_successContainer);
+    successLayout->setContentsMargins(16, 0, 16, 0);
+    successLayout->setSpacing(10);
+    successLayout->addStretch();
+
+    m_successIconLabel = new QLabel(m_successContainer);
+    m_successIconLabel->setAlignment(Qt::AlignCenter);
+    successLayout->addWidget(m_successIconLabel);
+
+    m_successAmountLabel = new QLabel(m_successContainer);
+    m_successAmountLabel->setAlignment(Qt::AlignCenter);
+    m_successAmountLabel->setStyleSheet(QStringLiteral("color: #000000; font-size: 32px; font-weight: bold;"));
+    successLayout->addWidget(m_successAmountLabel);
+
+    m_successTitleLabel = new QLabel(QStringLiteral("支付成功"), m_successContainer);
+    m_successTitleLabel->setAlignment(Qt::AlignCenter);
+    m_successTitleLabel->setStyleSheet(QStringLiteral("color: #000000; font-size: 18px;"));
+    successLayout->addWidget(m_successTitleLabel);
+
+    m_successSubtitleLabel = new QLabel(QStringLiteral("感谢您的使用"), m_successContainer);
+    m_successSubtitleLabel->setAlignment(Qt::AlignCenter);
+    m_successSubtitleLabel->setStyleSheet(QStringLiteral("color: #6b7280; font-size: 14px;"));
+    successLayout->addWidget(m_successSubtitleLabel);
+
+    successLayout->addSpacing(12);
+
+    m_successHomeButton = new QPushButton(QStringLiteral("返回首页"), m_successContainer);
+    m_successHomeButton->setFixedHeight(54);
+    m_successHomeButton->setStyleSheet(QStringLiteral(
+        "QPushButton { background: #2BFF7D; color: #000000; border: 1px solid #22C55E; border-radius: 27px; font-size: 17px; font-weight: bold; padding: 0 44px; }"
+        "QPushButton:hover { background: #22E56E; }"));
+    successLayout->addWidget(m_successHomeButton, 0, Qt::AlignCenter);
+
+    successLayout->addStretch();
+    m_successContainer->hide();
+
     auto *layout = new QVBoxLayout(this);
-    layout->setContentsMargins(16, 16, 16, 16);
-    layout->addStretch(1);
-    layout->addWidget(m_titleLabel);
-    layout->addSpacing(12);
-    layout->addWidget(receipt);
-    layout->addSpacing(10);
-    layout->addWidget(m_balanceLabel);
-    layout->addStretch(1);
-    layout->addWidget(m_messageLabel);
-    layout->addWidget(m_payButton);
-    layout->addWidget(m_topUpButton);
-    layout->addWidget(m_laterButton);
-    layout->addWidget(m_homeButton);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->addWidget(m_settleContainer);
+    layout->addWidget(m_successContainer);
 
     connect(m_payButton, &QPushButton::clicked, this, &SettleView::settle);
     connect(m_topUpButton, &QPushButton::clicked, this, &SettleView::openRecharge);
     connect(m_laterButton, &QPushButton::clicked, this, &SettleView::dismissed);
     connect(m_homeButton, &QPushButton::clicked, this, &SettleView::returnHomeRequested);
+    connect(m_successHomeButton, &QPushButton::clicked, this, &SettleView::returnHomeRequested);
     connect(&m_session, &Session::userChanged, this, &SettleView::refreshBalance);
 }
 
@@ -116,6 +166,8 @@ void SettleView::open(const Order &order)
     m_payButton->show();
     m_laterButton->show();
     m_payButton->setEnabled(true);
+    m_successContainer->hide();
+    m_settleContainer->show();
 }
 
 // 钱包支付结算；余额不足（INSUFFICIENT_BALANCE）时提示并显示“去充值”按钮
@@ -125,14 +177,10 @@ void SettleView::settle()
     m_api.post(QStringLiteral("/orders/%1/settle").arg(m_order.id),
                QJsonObject{{QLatin1String("paymentMethod"), QStringLiteral("wallet")}},
                [this](const QJsonValue &, const QJsonObject &) {
-                   m_titleLabel->setText(QStringLiteral("✅ 支付完成"));
-                   m_messageLabel->setStyleSheet(QStringLiteral("color: %1;").arg(theme::successInkName()));
-                   m_messageLabel->setText(QStringLiteral("订单已支付，感谢使用"));
-                   m_messageLabel->show();
-                   m_payButton->hide();
-                   m_topUpButton->hide();
-                   m_laterButton->hide();
-                   m_homeButton->show();
+                   m_settleContainer->hide();
+                   m_successIconLabel->setPixmap(AppIcons::successCheck(width() - 32, 240));
+                   m_successAmountLabel->setText(QStringLiteral("￥%1").arg(fenToYuan(m_order.amountFen)));
+                   m_successContainer->show();
                    emit settled();
                },
                [this](const ApiError &error) {
