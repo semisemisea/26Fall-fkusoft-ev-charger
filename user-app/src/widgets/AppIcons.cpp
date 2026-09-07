@@ -129,6 +129,33 @@ QPixmap AppIcons::search(const QColor &color, int size, bool badge)
 	return pixmap;
 }
 
+// 信号强度：四根递增竖条
+QPixmap AppIcons::signal(const QColor &color, int size, bool badge)
+{
+	QString svgTemplate = R"SVG(
+		<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none">
+		<rect x="2" y="16" width="3.5" height="6" rx="1" fill="%1"/>
+		<rect x="7.5" y="12" width="3.5" height="10" rx="1" fill="%1"/>
+		<rect x="13" y="8" width="3.5" height="14" rx="1" fill="%1"/>
+		<rect x="18.5" y="4" width="3.5" height="18" rx="1" fill="%1"/>
+		</svg>
+	)SVG";
+
+	QString colorHex = color.name();
+	QString fullSvg = svgTemplate.arg(colorHex);
+
+	QSvgRenderer renderer(fullSvg.toUtf8());
+	QPixmap pixmap = makePixmap(size);
+	QPainter painter(&pixmap);
+	painter.setRenderHint(QPainter::Antialiasing);
+	renderer.render(&painter);
+
+	if (badge) {
+		drawBadge(painter);
+	}
+	return pixmap;
+}
+
 // 时钟：内嵌 SVG 模板替换颜色后由 QSvgRenderer 渲染
 QPixmap AppIcons::clock(const QColor &color, int size, bool badge)
 {
@@ -293,6 +320,53 @@ QPixmap AppIcons::turnRight(const QColor &color, int size, bool badge)
 		<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none">
 		<path d="M3.71493213,19.3875 C3.71493213,13.0983574 9.05986213,9 15.6531674,9 L19,9" stroke="%1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 		<polyline points="15 4 20 9 15 14 15 14" stroke="%1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+		</svg>
+	)SVG";
+
+	QString colorHex = color.name();
+	QString fullSvg = svgTemplate.arg(colorHex);
+
+	QSvgRenderer renderer(fullSvg.toUtf8());
+	QPixmap pixmap = makePixmap(size);
+	QPainter painter(&pixmap);
+	painter.setRenderHint(QPainter::Antialiasing);
+	renderer.render(&painter);
+
+	if (badge) {
+		drawBadge(painter);
+	}
+	return pixmap;
+}
+
+// 绘制电池图标（边框黑色，内部绿色填充）
+QPixmap AppIcons::battery(int size, bool badge)
+{
+	QString svgTemplate = R"SVG(
+		<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+		<rect x="2" y="6" width="18" height="14" rx="2" stroke="#000000" stroke-width="1.5" fill="none"/>
+		<rect x="20" y="10" width="2" height="6" rx="0.5" fill="#000000"/>
+		<rect x="4" y="8" width="14" height="10" rx="1" fill="#2BFF7D"/>
+		</svg>
+	)SVG";
+
+	QSvgRenderer renderer(svgTemplate.toUtf8());
+	QPixmap pixmap = makePixmap(size);
+	QPainter painter(&pixmap);
+	painter.setRenderHint(QPainter::Antialiasing);
+	renderer.render(&painter);
+
+	if (badge) {
+		drawBadge(painter);
+	}
+	return pixmap;
+}
+
+// 绘制用户头像图标（面部轮廓）
+QPixmap AppIcons::avatar(const QColor &color, int size, bool badge)
+{
+	QString svgTemplate = R"SVG(
+		<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+		<path d="M0,15.832c0-4.947,6-3.958,6-5.937a2.881,2.881,0,0,0-.546-1.979A4.532,4.532,0,0,1,4,4.453,4.245,4.245,0,0,1,8,0a4.245,4.245,0,0,1,4,4.453,4.458,4.458,0,0,1-1.474,3.463A3,3,0,0,0,10,9.895c0,1.979,6,.989,6,5.937,0,0-1.593,1.168-8,1.168S0,15.832,0,15.832Z" transform="translate(4 3)" stroke="%1" stroke-width="1.5" fill="none" stroke-miterlimit="10"/>
 		</svg>
 	)SVG";
 

@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <QColor>
 #include <QPixmap>
@@ -28,4 +28,8 @@ QPixmap info(const QColor &color, int size = 24, bool badge = false);
 QPixmap chevronRight(const QColor &color, int size = 24, bool badge = false);
 // 右转箭头（导航）
 QPixmap turnRight(const QColor &color, int size = 24, bool badge = false);
+// 信号强度
+QPixmap signal(const QColor &color, int size = 24, bool badge = false);
+QPixmap battery(int size = 24, bool badge = false);
+QPixmap avatar(const QColor &color, int size = 24, bool badge = false);
 } // namespace AppIcons

@@ -1,4 +1,4 @@
-#include "mainwindow.h"
+﻿#include "mainwindow.h"
 #include "ChargingTab.h"
 #include "InfoPages.h"
 #include "LoginView.h"
@@ -153,10 +153,13 @@ void MainWindow::buildStatusBar()
     m_timeLabel = new QLabel(ui->statusBar);
     m_timeLabel->setObjectName(QStringLiteral("statusTime"));
 
-    auto *signalLabel = new QLabel(QStringLiteral("📶"), ui->statusBar);
-    signalLabel->setObjectName(QStringLiteral("statusGlyph"));
-    auto *batteryLabel = new QLabel(QStringLiteral("🔋 86%"), ui->statusBar);
-    batteryLabel->setObjectName(QStringLiteral("statusGlyph"));
+    auto *signalLabel = new QLabel(ui->statusBar);
+    signalLabel->setPixmap(AppIcons::signal(QColor(0x1e, 0x29, 0x3b), 14));
+    signalLabel->setAlignment(Qt::AlignCenter);
+    auto *batteryIconLabel = new QLabel(ui->statusBar);
+    batteryIconLabel->setPixmap(AppIcons::battery(16));
+    auto *batteryTextLabel = new QLabel(QStringLiteral("86%"), ui->statusBar);
+    batteryTextLabel->setObjectName(QStringLiteral("statusGlyph"));
 
     auto *layout = new QHBoxLayout(ui->statusBar);
     layout->setContentsMargins(16, 4, 16, 4);
@@ -164,7 +167,9 @@ void MainWindow::buildStatusBar()
     layout->addStretch();
     layout->addWidget(signalLabel);
     layout->addSpacing(8);
-    layout->addWidget(batteryLabel);
+    layout->addWidget(batteryIconLabel);
+    layout->addSpacing(2);
+    layout->addWidget(batteryTextLabel);
 
     auto *timer = new QTimer(this);
     connect(timer, &QTimer::timeout, this, [this] {

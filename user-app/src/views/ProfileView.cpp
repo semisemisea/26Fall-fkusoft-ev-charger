@@ -1,4 +1,4 @@
-#include "ProfileView.h"
+﻿#include "ProfileView.h"
 
 #include "common/Format.h"
 #include "models/User.h"
@@ -46,10 +46,11 @@ ProfileView::ProfileView(Session &session, ApiClient &api, QWidget *parent)
     auto *headerCard = new QFrame(this);
     headerCard->setObjectName(QStringLiteral("profileHeader"));
 
-    m_avatarLabel = new QLabel(QStringLiteral("👤"), headerCard);
+    m_avatarLabel = new QLabel(headerCard);
     m_avatarLabel->setAlignment(Qt::AlignCenter);
     m_avatarLabel->setFixedSize(72, 72);
     m_avatarLabel->setStyleSheet(kDefaultAvatarStyle);
+    m_avatarLabel->setPixmap(AppIcons::avatar(Qt::white, 40));
     m_avatarLabel->setCursor(Qt::PointingHandCursor);
     m_avatarLabel->installEventFilter(this);
     m_avatarLabel->setToolTip(QStringLiteral("点击更换头像"));
@@ -230,9 +231,8 @@ void ProfileView::loadAvatar()
 {
     m_loadedAvatarUrl = m_session.user().avatarUrl;
     if (m_loadedAvatarUrl.isEmpty()) {
-        m_avatarLabel->setPixmap(QPixmap());
-        m_avatarLabel->setText(QStringLiteral("👤"));
         m_avatarLabel->setStyleSheet(kDefaultAvatarStyle);
+        m_avatarLabel->setPixmap(AppIcons::avatar(Qt::white, 40));
         return;
     }
     m_api.download(QUrl(m_loadedAvatarUrl),
@@ -246,8 +246,8 @@ void ProfileView::loadAvatar()
                        m_avatarLabel->setPixmap(pixmap.scaled(m_avatarLabel->size(), Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation));
                    },
                    [this](const ApiError &) {
-                       m_avatarLabel->setText(QStringLiteral("👤"));
                        m_avatarLabel->setStyleSheet(kDefaultAvatarStyle);
+                       m_avatarLabel->setPixmap(AppIcons::avatar(Qt::white, 40));
                    });
 }
 

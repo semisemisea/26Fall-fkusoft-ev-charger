@@ -236,7 +236,7 @@ void StationListView::loadRecommendation()
 					  m_recommendedStation = *best;
 					  m_hasRecommendation = true;
 					  m_bannerButton->setText(
-						  QStringLiteral("🤖 AI 为您推荐：%1 · 预计 1 小时后空闲 %2 桩 · 置信度 %3%")
+						  QStringLiteral("AI 为您推荐：%1 · 预计 1 小时后空闲 %2 桩 · 置信度 %3%")
 							  .arg(best->name)
 							  .arg(bestAvailable)
 							  .arg(qRound(bestConfidence * 100)));
@@ -262,7 +262,7 @@ void StationListView::loadRecommendation()
 					  m_recommendedStation = *best;
 					  m_hasRecommendation = true;
 					  m_bannerButton->setText(
-						  QStringLiteral("🤖 智能推荐：%1 · 当前空闲率高，预计无需排队").arg(best->name));
+						  QStringLiteral("智能推荐：%1 · 当前空闲率高，预计无需排队").arg(best->name));
 					  m_bannerButton->setEnabled(true);
 					  m_bannerButton->show();
 				  }
