@@ -120,7 +120,11 @@ ChargerManagePage::ChargerManagePage(ops::ApiClient *api, QWidget *parent)
 				applyRows(chargers);
 				m_hasNext = meta.valid && meta.hasNext;
 				updatePager();
+				updateActionState();
 			});
+
+	connect(m_table, &QTableWidget::itemSelectionChanged, this,
+			&ChargerManagePage::updateActionState);
 
 	connect(m_api, &ops::ApiClient::commandFinished, this,
 			[this](qint64 chargerId, bool ok, const QString &message) {
@@ -130,7 +134,7 @@ ChargerManagePage::ChargerManagePage(ops::ApiClient *api, QWidget *parent)
 				} else {
 					QMessageBox::warning(this, tr("远程重启失败"), message);
 				}
-				m_restartButton->setEnabled(true);
+				m_api->fetchChargers(m_statusFilter->currentData().toString(), m_page);
 			});
 
 	connect(m_restartButton, &QPushButton::clicked, this, [this] {
@@ -145,6 +149,11 @@ ChargerManagePage::ChargerManagePage(ops::ApiClient *api, QWidget *parent)
 								 tr("只读管理员无法下发远程指令"));
 			return;
 		}
+		if (!ops::isRestartable(c)) {
+			QMessageBox::information(this, tr("远程重启"),
+									 tr("仅空闲且故障或离线的电桩可以重启"));
+			return;
+		}
 		const auto confirm = QMessageBox::question(
 			this, tr("远程重启"),
 			tr("确认向电桩 %1 下发重启指令?").arg(c.code));
@@ -155,7 +164,7 @@ ChargerManagePage::ChargerManagePage(ops::ApiClient *api, QWidget *parent)
 	});
 
 	// 只读角色禁用写操作
-	m_restartButton->setEnabled(m_api->canWrite());
+	updateActionState();
 }
 
 void ChargerManagePage::applyRows(const QList<ops::Charger> &chargers) {
@@ -169,7 +178,7 @@ void ChargerManagePage::applyRows(const QList<ops::Charger> &chargers) {
 						 new QTableWidgetItem(ops::chargerTypeText(c.type)));
 		m_table->setItem(i, ColPower,
 						 new QTableWidgetItem(QString::number(c.powerKw, 'f', 1)));
-		m_table->setItem(i, ColStatus, new QTableWidgetItem(ops::statusText(c.status)));
+		m_table->setItem(i, ColStatus, new QTableWidgetItem(ops::chargerStatusText(c)));
 		m_table->setItem(i, ColChargeCount,
 						 new QTableWidgetItem(QString::number(c.totalChargeCount)));
 		m_table->setItem(i, ColChargeMinutes,
@@ -191,6 +200,12 @@ void ChargerManagePage::updatePager() {
 int ChargerManagePage::selectedChargerRow() const {
 	const auto indexes = m_table->selectionModel()->selectedRows();
 	return indexes.isEmpty() ? -1 : indexes.first().row();
+}
+
+void ChargerManagePage::updateActionState() {
+	const int row = selectedChargerRow();
+	const bool restartable = row >= 0 && row < m_rows.size() && ops::isRestartable(m_rows.at(row));
+	m_restartButton->setEnabled(m_api->canWrite() && restartable);
 }
 
 void ChargerManagePage::showEvent(QShowEvent *event) {

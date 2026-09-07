@@ -25,6 +25,7 @@ protected:
 private:
 	void applyRows(const QList<ops::Charger> &chargers);
 	int selectedChargerRow() const;
+	void updateActionState();
 	void updatePager();
 
 	ops::ApiClient *m_api;

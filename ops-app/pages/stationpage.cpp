@@ -190,7 +190,7 @@ StationPage::StationPage(ops::ApiClient *api, QWidget *parent)
 					detailTable->setItem(
 						i, CColPower, new QTableWidgetItem(QString::number(c.powerKw, 'f', 1)));
 					detailTable->setItem(i, CColStatus,
-										 new QTableWidgetItem(ops::statusText(c.status)));
+										 new QTableWidgetItem(ops::chargerStatusText(c)));
 					detailTable->setItem(
 						i, CColChargeCount,
 						new QTableWidgetItem(QString::number(c.totalChargeCount)));

@@ -52,3 +52,14 @@ install(TARGETS ops-app
 )
 
 qt_finalize_executable(ops-app)
+
+if(BUILD_TESTING)
+    find_package(Qt6 6.2.4 EXACT REQUIRED COMPONENTS Test)
+    qt_add_executable(ops-app-charger-state-tests
+        tests/charger_state_tests.cpp
+        api/types.h
+    )
+    target_include_directories(ops-app-charger-state-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    target_link_libraries(ops-app-charger-state-tests PRIVATE Qt6::Test)
+    add_test(NAME ops-app-charger-state-tests COMMAND ops-app-charger-state-tests)
+endif()

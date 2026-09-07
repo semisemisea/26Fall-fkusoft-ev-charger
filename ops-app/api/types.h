@@ -75,7 +75,8 @@ namespace ops {
 		QString code;
 		QString type; // fast / slow
 		double powerKw = 0.0;
-		QString status;
+		QString occupancyStatus;
+		QString operationalStatus;
 		qint64 totalChargeCount = 0;
 		qint64 totalChargeMinutes = 0;
 	};
@@ -143,6 +144,33 @@ namespace ops {
 
 	inline QString chargerTypeText(const QString &t) {
 		return t == QLatin1String("fast") ? QStringLiteral("快充") : QStringLiteral("慢充");
+	}
+
+	inline Charger chargerFromJson(const QJsonObject &object) {
+		Charger charger;
+		charger.id = jsonI64(object, "id");
+		charger.stationId = jsonI64(object, "stationId");
+		charger.code = QString::number(charger.id);
+		charger.type = jsonStr(object, "type");
+		charger.powerKw = jsonDbl(object, "powerKw");
+		charger.occupancyStatus = jsonStr(object, "occupancyStatus");
+		charger.operationalStatus = jsonStr(object, "operationalStatus");
+		charger.totalChargeCount = jsonI64(object, "totalChargeCount");
+		charger.totalChargeMinutes = jsonI64(object, "totalChargeMinutes");
+		return charger;
+	}
+
+	inline bool isRestartable(const Charger &charger) {
+		return charger.occupancyStatus == QLatin1String("available") &&
+			   (charger.operationalStatus == QLatin1String("fault") ||
+				charger.operationalStatus == QLatin1String("offline"));
+	}
+
+	inline QString chargerStatusText(const Charger &charger) {
+		const QString occupancy = statusText(charger.occupancyStatus);
+		if (charger.operationalStatus == QLatin1String("online"))
+			return occupancy;
+		return QStringLiteral("%1 / %2").arg(occupancy, statusText(charger.operationalStatus));
 	}
 
 } // namespace ops

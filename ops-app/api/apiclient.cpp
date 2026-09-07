@@ -14,22 +14,6 @@
 namespace ops {
 	namespace {
 
-		Charger chargerFromJson(const QJsonObject &object) {
-			Charger charger;
-			charger.id = jsonI64(object, "id");
-			charger.stationId = jsonI64(object, "stationId");
-			charger.code = QString::number(charger.id);
-			charger.type = jsonStr(object, "type");
-			charger.powerKw = jsonDbl(object, "powerKw");
-			const QString operational = jsonStr(object, "operationalStatus");
-			charger.status = operational == QLatin1String("online")
-								 ? jsonStr(object, "occupancyStatus")
-								 : operational;
-			charger.totalChargeCount = jsonI64(object, "totalChargeCount");
-			charger.totalChargeMinutes = jsonI64(object, "totalChargeMinutes");
-			return charger;
-		}
-
 		QUrlQuery intervalQuery(const QDateTime &from, const QDateTime &to) {
 			QUrlQuery query;
 			query.addQueryItem(QStringLiteral("from"), from.toUTC().toString(Qt::ISODate));
