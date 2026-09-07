@@ -72,4 +72,14 @@ if(BUILD_TESTING)
     target_include_directories(ops-app-charger-api-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     target_link_libraries(ops-app-charger-api-tests PRIVATE Qt6::Network Qt6::Test)
     add_test(NAME ops-app-charger-api-tests COMMAND ops-app-charger-api-tests)
+
+    qt_add_executable(ops-app-station-api-tests
+        tests/station_api_tests.cpp
+        api/apiclient.cpp
+        api/apiclient.h
+        api/types.h
+    )
+    target_include_directories(ops-app-station-api-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    target_link_libraries(ops-app-station-api-tests PRIVATE Qt6::Network Qt6::Test)
+    add_test(NAME ops-app-station-api-tests COMMAND ops-app-station-api-tests)
 endif()

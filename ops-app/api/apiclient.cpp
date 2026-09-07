@@ -456,49 +456,9 @@ namespace ops {
 		body.insert(QStringLiteral("longitude"), form.longitude);
 		body.insert(QStringLiteral("priceFenPerKwh"), static_cast<double>(form.pricePerKwhFen));
 
-		// 按界面收集的数量生成电桩清单;编号先占位,由服务端保证唯一
-		QList<QJsonObject> chargers;
-		for (qint64 i = 0; i < form.fastCount && chargers.size() < 64; ++i) {
-			QJsonObject c;
-			c.insert(QStringLiteral("type"), QStringLiteral("fast"));
-			c.insert(QStringLiteral("powerKw"), form.fastPowerKw);
-			chargers.append(c);
-		}
-		const qint64 slowCount = qMax<qint64>(0, form.chargerCount - form.fastCount);
-		for (qint64 i = 0; i < slowCount && chargers.size() < 64; ++i) {
-			QJsonObject c;
-			c.insert(QStringLiteral("type"), QStringLiteral("slow"));
-			c.insert(QStringLiteral("powerKw"), form.slowPowerKw);
-			chargers.append(c);
-		}
 		send(QStringLiteral("POST"), QStringLiteral("/admin/stations"), {}, body,
-			 [this, chargers](const ApiResult &r) {
-				 if (!r.ok) {
-					 emit stationCreated(false, r.errorCode);
-					 return;
-				 }
-				 createStationChargers(jsonI64(r.data, "id"), chargers, 0);
-			 });
-	}
-
-	void ApiClient::createStationChargers(qint64 stationId,
-										  const QList<QJsonObject> &chargers, qsizetype index) {
-		if (index >= chargers.size()) {
-			emit stationCreated(true, {});
-			return;
-		}
-		send(QStringLiteral("POST"),
-			 QStringLiteral("/admin/stations/%1/chargers").arg(stationId), {}, chargers.at(index),
-			 [this, stationId, chargers, index](const ApiResult &result) {
-				 if (result.ok) {
-					 createStationChargers(stationId, chargers, index + 1);
-					 return;
-				 }
-				 const QString errorCode = result.errorCode;
-				 send(QStringLiteral("DELETE"), QStringLiteral("/admin/stations/%1").arg(stationId),
-					  {}, {}, [this, errorCode](const ApiResult &) {
-						  emit stationCreated(false, errorCode);
-					  });
+			 [this](const ApiResult &r) {
+				 emit stationCreated(r.ok, r.ok ? QString() : r.errorCode);
 			 });
 	}
 

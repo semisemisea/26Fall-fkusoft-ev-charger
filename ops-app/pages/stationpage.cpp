@@ -49,7 +49,7 @@ StationPage::StationPage(ops::ApiClient *api, QWidget *parent)
 	topBar->addWidget(title);
 	topBar->addStretch();
 	m_searchEdit = new QLineEdit(this);
-	m_searchEdit->setPlaceholderText(tr("按站名或地址搜索"));
+	m_searchEdit->setPlaceholderText(tr("按站名搜索"));
 	m_searchEdit->setClearButtonEnabled(true);
 	topBar->addWidget(m_searchEdit, 0, Qt::AlignRight);
 	m_addButton = new QPushButton(tr("新增电站"), this);
@@ -286,14 +286,6 @@ AddStationDialog::AddStationDialog(QWidget *parent) : QDialog(parent) {
 	m_priceEdit->setPlaceholderText(tr("元/度, 如 0.98"));
 	form->addRow(tr("充电价格"), m_priceEdit);
 
-	m_countEdit = new QLineEdit(this);
-	m_countEdit->setPlaceholderText(tr("1 .. 64"));
-	form->addRow(tr("电桩总数"), m_countEdit);
-
-	m_fastEdit = new QLineEdit(this);
-	m_fastEdit->setPlaceholderText(tr("其中快充数量, 其余为慢充"));
-	form->addRow(tr("快充数量"), m_fastEdit);
-
 	auto *buttons =
 		new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
 	form->addRow(buttons);
@@ -303,18 +295,20 @@ AddStationDialog::AddStationDialog(QWidget *parent) : QDialog(parent) {
 			QMessageBox::warning(this, tr("信息不完整"), tr("请填写站名和地址"));
 			return;
 		}
-		const double lat = m_latEdit->text().toDouble();
-		const double lon = m_lonEdit->text().toDouble();
-		if (lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+		bool latitudeOk = false;
+		bool longitudeOk = false;
+		bool priceOk = false;
+		const double lat = m_latEdit->text().toDouble(&latitudeOk);
+		const double lon = m_lonEdit->text().toDouble(&longitudeOk);
+		const double priceYuan = m_priceEdit->text().toDouble(&priceOk);
+		if (!latitudeOk || !longitudeOk || !qIsFinite(lat) || !qIsFinite(lon) || lat < -90 ||
+			lat > 90 || lon < -180 || lon > 180) {
 			QMessageBox::warning(this, tr("坐标无效"),
 								 tr("纬度范围 -90..90, 经度范围 -180..180"));
 			return;
 		}
-		const qint64 count = m_countEdit->text().toLongLong();
-		const qint64 fast = m_fastEdit->text().toLongLong();
-		if (count < 1 || count > 64 || fast < 0 || fast > count) {
-			QMessageBox::warning(this, tr("数量无效"),
-								 tr("电桩总数 1..64, 快充数量不超过总数"));
+		if (!priceOk || !qIsFinite(priceYuan) || qRound64(priceYuan * 100) <= 0) {
+			QMessageBox::warning(this, tr("价格无效"), tr("请输入大于 0 的充电价格"));
 			return;
 		}
 		accept();
@@ -329,7 +323,5 @@ ops::StationForm AddStationDialog::form() const {
 	f.latitude = m_latEdit->text().toDouble();
 	f.longitude = m_lonEdit->text().toDouble();
 	f.pricePerKwhFen = qRound64(m_priceEdit->text().toDouble() * 100);
-	f.chargerCount = m_countEdit->text().toLongLong();
-	f.fastCount = m_fastEdit->text().toLongLong();
 	return f;
 }

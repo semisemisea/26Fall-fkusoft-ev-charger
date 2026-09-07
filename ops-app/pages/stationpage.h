@@ -41,7 +41,7 @@ private:
 	bool m_loaded = false;
 };
 
-// 新增电站对话框:字段 + 快充/慢充数量拆分
+// 新增电站对话框;电桩在电桩管理页逐个创建。
 class AddStationDialog : public QDialog {
 	Q_OBJECT
 public:
@@ -55,6 +55,4 @@ private:
 	QLineEdit *m_latEdit = nullptr;
 	QLineEdit *m_lonEdit = nullptr;
 	QLineEdit *m_priceEdit = nullptr;
-	QLineEdit *m_countEdit = nullptr;
-	QLineEdit *m_fastEdit = nullptr;
 };

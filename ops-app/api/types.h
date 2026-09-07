@@ -109,17 +109,13 @@ namespace ops {
 		QString createdAt;
 	};
 
-	// 新增电站表单(界面收集数量,由客户端生成电桩清单)
+	// 新增电站表单;电桩通过独立管理操作逐个创建。
 	struct StationForm {
 		QString name;
 		QString address;
 		double latitude = 0.0;
 		double longitude = 0.0;
 		qint64 pricePerKwhFen = 0;
-		qint64 chargerCount = 0;
-		qint64 fastCount = 0; // 其中快充数量
-		double fastPowerKw = 120.0;
-		double slowPowerKw = 7.0;
 	};
 
 	// ---- 展示辅助 ----
