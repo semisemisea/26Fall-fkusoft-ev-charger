@@ -23,6 +23,5 @@ include(GNUInstallDirs)
 include(CTest)
 
 add_subdirectory(biz-core)
-add_subdirectory(backend)
 add_subdirectory(user-app)
 add_subdirectory(ops-app)
