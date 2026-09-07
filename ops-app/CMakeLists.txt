@@ -14,8 +14,6 @@ set(PROJECT_SOURCES
     pages/chargerstatuspage.h
     pages/chargerdialog.cpp
     pages/chargerdialog.h
-    pages/chargermanagepage.cpp
-    pages/chargermanagepage.h
     pages/stationpage.cpp
     pages/stationpage.h
     pages/userpage.cpp
