@@ -18,6 +18,7 @@ ChargerDialog::ChargerDialog(const ops::Charger *charger, QWidget *parent)
 	auto *layout = new QFormLayout(this);
 	layout->setLabelAlignment(Qt::AlignRight);
 	m_stationIdEdit = new QLineEdit(this);
+	m_stationIdEdit->setObjectName(QStringLiteral("stationIdEdit"));
 	m_stationIdEdit->setValidator(
 		new QRegularExpressionValidator(QRegularExpression(QStringLiteral("[1-9][0-9]{0,18}")),
 										this));
@@ -64,6 +65,12 @@ ChargerDialog::ChargerDialog(const ops::Charger *charger, QWidget *parent)
 		accept();
 	});
 	connect(buttons, &QDialogButtonBox::rejected, this, &ChargerDialog::reject);
+}
+
+ChargerDialog::ChargerDialog(qint64 stationId, const ops::Charger *charger, QWidget *parent)
+	: ChargerDialog(charger, parent) {
+	m_stationIdEdit->setText(QString::number(stationId));
+	m_stationIdEdit->setReadOnly(true);
 }
 
 qint64 ChargerDialog::stationId() const { return m_stationIdEdit->text().toLongLong(); }

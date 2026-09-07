@@ -173,6 +173,8 @@ ChargerManagePage::ChargerManagePage(ops::ApiClient *api, QWidget *parent)
 
 	connect(m_api, &ops::ApiClient::chargerMutationFinished, this,
 			[this](const QString &operation, qint64, bool ok, const QString &message) {
+				if (!m_mutationPending)
+					return;
 				m_mutationPending = false;
 				if (!ok) {
 					QMessageBox::warning(this, tr("操作失败"), message);
@@ -189,6 +191,8 @@ ChargerManagePage::ChargerManagePage(ops::ApiClient *api, QWidget *parent)
 
 	connect(m_api, &ops::ApiClient::commandFinished, this,
 			[this](qint64 chargerId, bool ok, const QString &message) {
+				if (!m_mutationPending)
+					return;
 				m_mutationPending = false;
 				if (ok) {
 					QMessageBox::information(this, tr("远程重启"),

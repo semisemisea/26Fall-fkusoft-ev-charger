@@ -84,4 +84,21 @@ if(BUILD_TESTING)
     target_include_directories(ops-app-station-api-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     target_link_libraries(ops-app-station-api-tests PRIVATE Qt6::Network Qt6::Test)
     add_test(NAME ops-app-station-api-tests COMMAND ops-app-station-api-tests)
+
+    qt_add_executable(ops-app-station-page-tests
+        tests/station_page_tests.cpp
+        pages/stationpage.cpp
+        pages/stationpage.h
+        pages/chargerdialog.cpp
+        pages/chargerdialog.h
+        api/apiclient.cpp
+        api/apiclient.h
+        api/types.h
+    )
+    target_include_directories(ops-app-station-page-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    target_link_libraries(ops-app-station-page-tests PRIVATE Qt6::Network Qt6::Test Qt6::Widgets)
+    add_test(NAME ops-app-station-page-tests COMMAND ops-app-station-page-tests)
+    set_tests_properties(ops-app-station-page-tests PROPERTIES
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+    )
 endif()
