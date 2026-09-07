@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <QColor>
 #include <QString>
@@ -9,7 +9,7 @@ namespace theme {
 	// 主色系（品牌绿）：常规/深色/按压/亮调/浅底/浅边框
 	inline QColor primary()
 	{
-		return QColor(0x22, 0xC5, 0x86);
+		return QColor(0x2B, 0xFF, 0x7D);
 	}
 	inline QColor primaryDeep()
 	{
@@ -30,6 +30,11 @@ namespace theme {
 	inline QColor primaryBorder()
 	{
 		return QColor(0xB8, 0xE6, 0xCC);
+	}
+	// 第二主色（深一档荧光绿）：用于卡片背景、强调按钮
+	inline QColor secondary()
+	{
+		return QColor(0x00, 0xE6, 0x76);
 	}
 	// 状态色 - 成功：常规/激活/文字/浅底
 	inline QColor success()
@@ -121,6 +126,10 @@ namespace theme {
 	inline QString primaryName()
 	{
 		return primary().name();
+	}
+	inline QString secondaryName()
+	{
+		return secondary().name();
 	}
 	inline QString primaryDeepName()
 	{

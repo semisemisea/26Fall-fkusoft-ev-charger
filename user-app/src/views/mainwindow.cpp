@@ -236,7 +236,7 @@ void MainWindow::buildTabBar()
 // 刷新 Tab 图标：自绘选中态圆底，充电 Tab 在有进行中订单时叠加红点
 void MainWindow::updateTabIcons()
 {
-    const QColor active = QColor(0x00, 0xE6, 0x76);
+    const QColor active = QColor(0x2B, 0xFF, 0x7D);
     const QColor inactive = theme::textSecondary();
 
     auto makeTabIcon = [](const QPixmap &source, bool selected) -> QPixmap {

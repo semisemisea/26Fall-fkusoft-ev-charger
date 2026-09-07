@@ -50,7 +50,7 @@ ProfileView::ProfileView(Session &session, ApiClient &api, QWidget *parent)
     m_avatarLabel->setAlignment(Qt::AlignCenter);
     m_avatarLabel->setFixedSize(72, 72);
     m_avatarLabel->setStyleSheet(kDefaultAvatarStyle);
-    m_avatarLabel->setPixmap(AppIcons::avatar(Qt::white, 40));
+    m_avatarLabel->setPixmap(AppIcons::avatar(Qt::black, 40));
     m_avatarLabel->setCursor(Qt::PointingHandCursor);
     m_avatarLabel->installEventFilter(this);
     m_avatarLabel->setToolTip(QStringLiteral("点击更换头像"));
@@ -94,7 +94,10 @@ ProfileView::ProfileView(Session &session, ApiClient &api, QWidget *parent)
     m_balanceLabel->setAlignment(Qt::AlignCenter);
     m_balanceLabel->setObjectName(QStringLiteral("balance"));
     auto *topUpButton = new ScaleButton(QStringLiteral("立即充值"), walletCard);
-    topUpButton->setObjectName(QStringLiteral("primaryButton"));
+    topUpButton->setStyleSheet(QStringLiteral(
+        "QPushButton { background: #00E676; color: #000000; border: none; border-radius: 10px; font-size: 15px; font-weight: bold; padding: 10px 14px; }"
+        "QPushButton:hover { background: #00E676; color: #000000; }"
+        "QPushButton:pressed { background: #00E676; }"));
 
     auto *walletLayout = new QVBoxLayout(walletCard);
     walletLayout->setContentsMargins(16, 16, 16, 16);
@@ -232,7 +235,7 @@ void ProfileView::loadAvatar()
     m_loadedAvatarUrl = m_session.user().avatarUrl;
     if (m_loadedAvatarUrl.isEmpty()) {
         m_avatarLabel->setStyleSheet(kDefaultAvatarStyle);
-        m_avatarLabel->setPixmap(AppIcons::avatar(Qt::white, 40));
+        m_avatarLabel->setPixmap(AppIcons::avatar(Qt::black, 40));
         return;
     }
     m_api.download(QUrl(m_loadedAvatarUrl),
@@ -247,7 +250,7 @@ void ProfileView::loadAvatar()
                    },
                    [this](const ApiError &) {
                        m_avatarLabel->setStyleSheet(kDefaultAvatarStyle);
-                       m_avatarLabel->setPixmap(AppIcons::avatar(Qt::white, 40));
+                       m_avatarLabel->setPixmap(AppIcons::avatar(Qt::black, 40));
                    });
 }
 

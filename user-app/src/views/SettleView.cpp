@@ -1,4 +1,4 @@
-#include "SettleView.h"
+﻿#include "SettleView.h"
 
 #include "common/Format.h"
 #include "common/Theme.h"
@@ -57,7 +57,11 @@ SettleView::SettleView(Session &session, ApiClient &api, QWidget *parent)
     m_messageLabel->hide();
 
     m_payButton = new ScaleButton(QStringLiteral("确认支付（钱包）"), this);
-    m_payButton->setObjectName(QStringLiteral("primaryButton"));
+    m_payButton->setStyleSheet(QStringLiteral(
+        "QPushButton { background: #00E676; color: #000000; border: none; border-radius: 10px; font-size: 15px; font-weight: bold; padding: 10px 14px; }"
+        "QPushButton:hover { background: #00E676; color: #000000; }"
+        "QPushButton:pressed { background: #00E676; }"
+        "QPushButton:disabled { background: #9AFFC4; color: rgba(0,0,0,0.5); }"));
 
     m_topUpButton = new ScaleButton(QStringLiteral("余额不足，去充值"), this);
     m_topUpButton->setObjectName(QStringLiteral("warnButton"));
