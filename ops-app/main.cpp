@@ -3,6 +3,7 @@
 
 #include <QApplication>
 #include <QEventLoop>
+#include <QIcon>
 #include <QStyleFactory>
 #include <QTimer>
 
@@ -114,6 +115,8 @@ int main(int argc, char *argv[]) {
 	QApplication a(argc, argv);
 	a.setStyle(QStyleFactory::create(QStringLiteral("Fusion")));
 	a.setStyleSheet(QString::fromUtf8(kAppStyleSheet));
+	// 应用图标(窗口/任务栏);资源由 resources/resources.qrc 打包
+	a.setWindowIcon(QIcon(QStringLiteral(":/logo.png")));
 
 	ops::ApiClient api;
 
