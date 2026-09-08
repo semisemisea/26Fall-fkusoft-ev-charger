@@ -1,3 +1,5 @@
+#include <evcharger/logging.h>
+
 #include "StationDetailView.h"
 
 #include "common/Format.h"
@@ -19,6 +21,8 @@
 #include <QStyle>
 #include <QVBoxLayout>
 
+Q_LOGGING_CATEGORY(userStationDetailViewLog, "evcharger.user.ui", QtInfoMsg)
+
 namespace {
 	// 切换电桩行的选中高亮：改动态属性后强制 QSS 重新匹配（#chargerRow[selected="true"]）
 	void setRowSelected(QFrame *row, bool selected) {
@@ -31,6 +35,9 @@ namespace {
 // 构造函数：搭建详情页全部控件与布局；按钮只发信号，实际下单/预约由 MainWindow 处理
 StationDetailView::StationDetailView(ApiClient &api, QWidget *parent)
 	: QWidget(parent), m_api(api) {
+	if (objectName().isEmpty())
+		setObjectName(QStringLiteral("StationDetailView"));
+	EV_LOG_DEBUG(userStationDetailViewLog, this) << "View initialized";
 	m_bgPixmap.load(QStringLiteral(":/backgrounds/StationDetailView.png"));
 	m_backButton = new BackButton(this);
 
@@ -156,6 +163,7 @@ StationDetailView::StationDetailView(ApiClient &api, QWidget *parent)
 
 // 打开电站：填充名称/地址/距离/价格/空闲标签，随后加载电桩列表
 void StationDetailView::open(const Station &station) {
+	EV_LOG_INFO(userStationDetailViewLog, this) << "Opening station details";
 	m_station = station;
 	m_nameLabel->setText(station.name);
 	m_infoLabel->setText(station.address);
@@ -179,6 +187,7 @@ void StationDetailView::open(const Station &station) {
 
 // 拉取站内电桩并逐行渲染（编号、状态徽标、类型、功率）；行可点击选中
 void StationDetailView::loadChargers() {
+	EV_LOG_INFO(userStationDetailViewLog, this) << "Loading station chargers";
 	m_spinner->show();
 	m_statusLabel->hide();
 
@@ -250,6 +259,7 @@ void StationDetailView::loadChargers() {
                       m_statusLabel->setText(QStringLiteral("站内暂无电桩"));
                       m_statusLabel->show();
                   } }, [this](const ApiError &error) {
+ EV_LOG_WARNING(userStationDetailViewLog, this) << "API operation failed in view";
                   m_spinner->hide();
                   m_statusLabel->setText(error.message.isEmpty() ? error.code : error.message);
                   m_statusLabel->show(); });

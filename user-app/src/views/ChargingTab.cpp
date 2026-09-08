@@ -1,3 +1,5 @@
+#include <evcharger/logging.h>
+
 #include "ChargingTab.h"
 
 #include "ChargingView.h"
@@ -17,9 +19,14 @@
 #include <QUrlQuery>
 #include <QVBoxLayout>
 
+Q_LOGGING_CATEGORY(userChargingTabLog, "evcharger.user.charging", QtInfoMsg)
+
 // 构造：搭建四个子页面装入堆栈，设置背景图并连接充电页 / 结算页信号
 ChargingTab::ChargingTab(Session &session, ApiClient &api, QWidget *parent)
 	: QWidget(parent), m_session(session), m_api(api) {
+	if (objectName().isEmpty())
+		setObjectName(QStringLiteral("ChargingTab"));
+	EV_LOG_DEBUG(userChargingTabLog, this) << "View initialized";
 	buildPreparePage();
 	buildReservationPage();
 
@@ -183,6 +190,7 @@ void ChargingTab::buildReservationPage() {
 
 // 进入时查询进行中订单：无订单则查预约，否则按状态恢复充电页或结算页
 void ChargingTab::checkActiveOrder() {
+	EV_LOG_INFO(userChargingTabLog, this) << "Checking active order";
 	m_api.get(QStringLiteral("/me/active-order"), [this](const QJsonValue &data, const QJsonObject &) {
                   if (data.isNull()) {
                       checkActiveReservation();
@@ -194,11 +202,13 @@ void ChargingTab::checkActiveOrder() {
                       showCharging(order);
                   } else {
                       showSettlement(order);
-                  } }, [this](const ApiError &error) { fail(error.message.isEmpty() ? error.code : error.message); });
+                  } }, [this](const ApiError &error) {
+ EV_LOG_WARNING(userChargingTabLog, this) << "API operation failed in view"; fail(error.message.isEmpty() ? error.code : error.message); });
 }
 
 // 打开充电进行页并广播“有进行中订单”
 void ChargingTab::showCharging(const Order &order) {
+	EV_LOG_INFO(userChargingTabLog, this) << "Displaying active charging order; order_id=" << order.id;
 	emit activeOrderChanged(true);
 	m_chargingView->open(order);
 	m_stack->setCurrentWidget(m_chargingView);
@@ -206,6 +216,7 @@ void ChargingTab::showCharging(const Order &order) {
 
 // 打开结算页并广播“有进行中订单”
 void ChargingTab::showSettlement(const Order &order) {
+	EV_LOG_INFO(userChargingTabLog, this) << "Displaying order settlement; order_id=" << order.id;
 	emit activeOrderChanged(true);
 	m_settleView->open(order);
 	m_stack->setCurrentWidget(m_settleView);
@@ -213,14 +224,17 @@ void ChargingTab::showSettlement(const Order &order) {
 
 // 切回准备页
 void ChargingTab::showPrepare() {
+	EV_LOG_INFO(userChargingTabLog, this) << "Displaying charging preparation";
 	m_stack->setCurrentWidget(m_preparePage);
 	m_codeEdit->setFocus();
 }
 
 // 校验输入的电桩编号，置忙后先拉取附近站点再逐站匹配
 void ChargingTab::startWithCode() {
+	EV_LOG_INFO(userChargingTabLog, this) << "Starting charge by charger code";
 	const QString code = m_codeEdit->text().trimmed().toUpper();
 	if (code.isEmpty()) {
+		EV_LOG_WARNING(userChargingTabLog, this) << "Charging rejected: missing charger code";
 		m_hintLabel->setText(QStringLiteral("请输入电桩编号"));
 		m_hintLabel->show();
 		return;
@@ -235,6 +249,7 @@ void ChargingTab::startWithCode() {
 
 // 按当前定位请求附近站点 id 列表，作为查找电桩编号的候选
 void ChargingTab::fetchNearbyStations() {
+	EV_LOG_INFO(userChargingTabLog, this) << "Searching nearby stations";
 	QUrlQuery query;
 	query.addQueryItem(QLatin1String("latitude"), QString::number(m_session.latitude()));
 	query.addQueryItem(QLatin1String("longitude"), QString::number(m_session.longitude()));
@@ -247,7 +262,8 @@ void ChargingTab::fetchNearbyStations() {
                       m_candidateStationIds.append(value.toObject().value(QLatin1String("id")).toInt());
                   }
                   m_candidateIndex = 0;
-                  tryNextCandidate(); }, [this](const ApiError &error) { fail(error.message.isEmpty() ? error.code : error.message); });
+                  tryNextCandidate(); }, [this](const ApiError &error) {
+ EV_LOG_WARNING(userChargingTabLog, this) << "API operation failed in view"; fail(error.message.isEmpty() ? error.code : error.message); });
 }
 
 // 在下一个候选站点的电桩列表中匹配编号，命中则创建订单，否则继续或报错
@@ -265,17 +281,20 @@ void ChargingTab::tryNextCandidate() {
                           return;
                       }
                   }
-                  tryNextCandidate(); }, [this](const ApiError &) { tryNextCandidate(); });
+                  tryNextCandidate(); }, [this](const ApiError &) {
+ EV_LOG_WARNING(userChargingTabLog, this) << "API operation failed in view"; tryNextCandidate(); });
 }
 
 // 创建充电订单；若已有进行中订单（ACTIVE_ORDER_EXISTS）则改为恢复现场
 void ChargingTab::createOrder(int chargerId) {
+	EV_LOG_INFO(userChargingTabLog, this) << "Creating charging order; charger_id=" << chargerId;
 	QJsonObject body;
 	body.insert(QLatin1String("chargerId"), chargerId);
 	m_api.post(QStringLiteral("/orders"), body, [this](const QJsonValue &data, const QJsonObject &) {
                    m_startButton->setEnabled(true);
                    m_hintLabel->hide();
                    showCharging(Order::fromJson(data.toObject())); }, [this](const ApiError &error) {
+ EV_LOG_WARNING(userChargingTabLog, this) << "API operation failed in view";
                    m_startButton->setEnabled(true);
                    if (error.code == QLatin1String("ACTIVE_ORDER_EXISTS")) {
                        checkActiveOrder();
@@ -286,6 +305,7 @@ void ChargingTab::createOrder(int chargerId) {
 
 // 统一失败处理：恢复按钮、显示错误并回到准备页
 void ChargingTab::fail(const QString &message) {
+	EV_LOG_WARNING(userChargingTabLog, this) << "Charging action failed";
 	m_startButton->setEnabled(true);
 	m_hintLabel->setText(message);
 	m_hintLabel->show();
@@ -294,6 +314,7 @@ void ChargingTab::fail(const QString &message) {
 
 // 展示预约信息并启动每秒倒计时
 void ChargingTab::showReservation(const Reservation &reservation) {
+	EV_LOG_INFO(userChargingTabLog, this) << "Displaying active reservation; reservation_id=" << reservation.id;
 	m_reservation = reservation;
 	m_reservationStationLabel->setText(reservation.stationName);
 	m_reservationChargerLabel->setText(QStringLiteral("电桩 %1 · 已为您保留").arg(reservation.chargerCode));
@@ -306,6 +327,7 @@ void ChargingTab::showReservation(const Reservation &reservation) {
 
 // 查询生效中的预约：有则进预约页，无则回准备页
 void ChargingTab::checkActiveReservation() {
+	EV_LOG_INFO(userChargingTabLog, this) << "Checking active reservation";
 	m_api.get(QStringLiteral("/reservations?status=active"), [this](const QJsonValue &data, const QJsonObject &) {
                   const QJsonArray items = data.toArray();
                   if (items.isEmpty()) {
@@ -314,12 +336,14 @@ void ChargingTab::checkActiveReservation() {
                       return;
                   }
                   showReservation(Reservation::fromJson(items.first().toObject())); }, [this](const ApiError &) {
+ EV_LOG_WARNING(userChargingTabLog, this) << "API operation failed in view";
                   emit activeOrderChanged(false);
                   showPrepare(); });
 }
 
 // 用预约对应的电桩创建订单启动充电；电桩不可用等状态时延时重新拉取现场
 void ChargingTab::startFromReservation() {
+	EV_LOG_INFO(userChargingTabLog, this) << "Starting reserved charging session";
 	setReservationBusy(true);
 	const int reservationId = m_reservation.id;
 	const int chargerId = m_reservation.chargerId;
@@ -330,6 +354,7 @@ void ChargingTab::startFromReservation() {
                    m_countdownTimer->stop();
                    setReservationBusy(false);
                    showCharging(Order::fromJson(data.toObject())); }, [this](const ApiError &error) {
+ EV_LOG_WARNING(userChargingTabLog, this) << "API operation failed in view";
                    setReservationBusy(false);
                    if (error.code == QLatin1String("ACTIVE_ORDER_EXISTS")) {
                        checkActiveOrder();
@@ -346,6 +371,7 @@ void ChargingTab::startFromReservation() {
 
 // 取消预约：成功后停倒计时并回准备页
 void ChargingTab::cancelReservation() {
+	EV_LOG_INFO(userChargingTabLog, this) << "Canceling reservation";
 	setReservationBusy(true);
 	const int reservationId = m_reservation.id;
 	m_api.post(QStringLiteral("/reservations/%1/cancel").arg(reservationId), {}, [this](const QJsonValue &, const QJsonObject &) {
@@ -354,6 +380,7 @@ void ChargingTab::cancelReservation() {
                    emit activeOrderChanged(false);
                    showPrepare();
                    Toast::success(this, QStringLiteral("预约已取消")); }, [this](const ApiError &error) {
+ EV_LOG_WARNING(userChargingTabLog, this) << "API operation failed in view";
                    setReservationBusy(false);
                    m_reservationHintLabel->setText(error.message.isEmpty() ? error.code : error.message);
                    m_reservationHintLabel->show();

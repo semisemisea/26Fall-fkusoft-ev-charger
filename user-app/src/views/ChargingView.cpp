@@ -1,3 +1,5 @@
+#include <evcharger/logging.h>
+
 #include "ChargingView.h"
 
 #include "app/ChargePollThread.h"
@@ -15,6 +17,8 @@
 #include <QPushButton>
 #include <QVBoxLayout>
 
+Q_LOGGING_CATEGORY(userChargingViewLog, "evcharger.user.charging", QtInfoMsg)
+
 namespace {
 	// 创建白色圆角信息卡片（样式见 style.qss #chargingMetricCard）
 	QFrame *makeCard(QWidget *parent, int height) {
@@ -28,6 +32,9 @@ namespace {
 // 构造：搭建充电动效、两行信息卡片、预估费用与结束充电按钮
 ChargingView::ChargingView(ApiClient &api, QWidget *parent)
 	: QWidget(parent), m_api(api) {
+	if (objectName().isEmpty())
+		setObjectName(QStringLiteral("ChargingView"));
+	EV_LOG_DEBUG(userChargingViewLog, this) << "View initialized";
 	setAutoFillBackground(true);
 	QPalette pal;
 	QPixmap bg(QStringLiteral(":/backgrounds/bg.png"));
@@ -124,6 +131,7 @@ ChargingView::ChargingView(ApiClient &api, QWidget *parent)
 
 // 打开订单：立即刷新一次显示，并配置、启动 5 秒轮询线程
 void ChargingView::open(const Order &order) {
+	EV_LOG_INFO(userChargingViewLog, this) << "Opening charging monitor; order_id=" << order.id;
 	m_order = order;
 	m_chargerType.clear();
 	updateDisplay(order);
@@ -132,13 +140,14 @@ void ChargingView::open(const Order &order) {
                       return;
                   }
                   m_chargerType = Charger::fromJson(data.toObject()).type;
-                  updateDisplay(m_order); }, [](const ApiError &) {});
+                  updateDisplay(m_order); }, [this](const ApiError &) { EV_LOG_WARNING(userChargingViewLog, this) << "Background view refresh failed"; });
 	m_pollThread->configure(order.id, m_api.baseUrl(), m_api.accessToken());
 	m_pollThread->start();
 }
 
 // 页面隐藏时请求停止轮询线程
 void ChargingView::hideEvent(QHideEvent *event) {
+	EV_LOG_INFO(userChargingViewLog, this) << "Stopping hidden charging monitor";
 	QWidget::hideEvent(event);
 	m_pollThread->requestStop();
 }
@@ -181,6 +190,7 @@ void ChargingView::updateDisplay(const Order &order) {
 
 // 弹确认框后请求停止充电；失败时恢复轮询并提示错误
 void ChargingView::stopCharging() {
+	EV_LOG_INFO(userChargingViewLog, this) << "Stop charging requested";
 	const auto choice = QMessageBox::question(this, QStringLiteral("停止充电"),
 											  QStringLiteral("确定停止充电并生成账单吗？"));
 	if (choice != QMessageBox::Yes) {
@@ -191,7 +201,9 @@ void ChargingView::stopCharging() {
 	m_stopButton->setEnabled(false);
 	m_api.post(QStringLiteral("/orders/%1/stop").arg(m_order.id), {}, [this](const QJsonValue &data, const QJsonObject &) {
                    m_stopButton->setEnabled(true);
-                   emit orderStopped(Order::fromJson(data.toObject())); }, [this](const ApiError &error) {
+                   EV_LOG_INFO(userChargingViewLog, this) << "Charging stopped successfully";
+ emit orderStopped(Order::fromJson(data.toObject())); }, [this](const ApiError &error) {
+ EV_LOG_WARNING(userChargingViewLog, this) << "API operation failed in view";
                    m_stopButton->setEnabled(true);
                    m_pollThread->configure(m_order.id, m_api.baseUrl(), m_api.accessToken());
                    m_pollThread->start();

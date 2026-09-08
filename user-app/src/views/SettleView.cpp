@@ -1,3 +1,5 @@
+#include <evcharger/logging.h>
+
 #include "SettleView.h"
 
 #include "common/Format.h"
@@ -13,9 +15,14 @@
 #include <QPushButton>
 #include <QVBoxLayout>
 
+Q_LOGGING_CATEGORY(userSettleViewLog, "evcharger.user.charging", QtInfoMsg)
+
 // 构造：搭建账单卡、余额与支付 / 充值 / 稍后支付 / 返回首页按钮
 SettleView::SettleView(Session &session, ApiClient &api, QWidget *parent)
 	: QWidget(parent), m_session(session), m_api(api) {
+	if (objectName().isEmpty())
+		setObjectName(QStringLiteral("SettleView"));
+	EV_LOG_DEBUG(userSettleViewLog, this) << "View initialized";
 	m_titleLabel = new QLabel(QStringLiteral("订单结算"), this);
 	m_titleLabel->setAlignment(Qt::AlignCenter);
 	m_titleLabel->setObjectName(QStringLiteral("heroTitle"));
@@ -136,6 +143,7 @@ SettleView::SettleView(Session &session, ApiClient &api, QWidget *parent)
 
 // 填充账单明细，重置按钮为待支付状态并刷新余额显示
 void SettleView::open(const Order &order) {
+	EV_LOG_INFO(userSettleViewLog, this) << "Opening settlement; order_id=" << order.id;
 	m_order = order;
 	m_titleLabel->setText(QStringLiteral("订单已生成"));
 	m_stationLabel->setText(QStringLiteral("%1 · 电桩 %2").arg(order.stationName, order.chargerCode));
@@ -159,13 +167,16 @@ void SettleView::open(const Order &order) {
 
 // 钱包支付结算；余额不足（INSUFFICIENT_BALANCE）时提示并显示“去充值”按钮
 void SettleView::settle() {
+	EV_LOG_INFO(userSettleViewLog, this) << "Submitting settlement";
 	m_payButton->setEnabled(false);
 	m_api.post(QStringLiteral("/orders/%1/settle").arg(m_order.id), QJsonObject{{QLatin1String("paymentMethod"), QStringLiteral("wallet")}}, [this](const QJsonValue &, const QJsonObject &) {
                    m_settleContainer->hide();
                    m_successIconLabel->setPixmap(AppIcons::successCheck(width() - 32, 240));
                    m_successAmountLabel->setText(QStringLiteral("￥%1").arg(fenToYuan(m_order.amountFen)));
                    m_successContainer->show();
-                   emit settled(); }, [this](const ApiError &error) {
+                   EV_LOG_INFO(userSettleViewLog, this) << "Settlement completed";
+ emit settled(); }, [this](const ApiError &error) {
+ EV_LOG_WARNING(userSettleViewLog, this) << "API operation failed in view";
                    m_payButton->setEnabled(true);
                    if (error.code == QLatin1String("INSUFFICIENT_BALANCE")) {
                        m_messageLabel->setText(QStringLiteral("钱包余额不足，请先充值"));
@@ -178,6 +189,7 @@ void SettleView::settle() {
 
 // 打开充值对话框，成功后更新会话余额并恢复支付入口
 void SettleView::openRecharge() {
+	EV_LOG_INFO(userSettleViewLog, this) << "Opening recharge dialog";
 	auto *dialog = new RechargeDialog(m_api, this);
 	dialog->setAttribute(Qt::WA_DeleteOnClose);
 	connect(dialog, &RechargeDialog::succeeded, this, [this](qlonglong balance) {

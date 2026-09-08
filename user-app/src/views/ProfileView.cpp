@@ -1,3 +1,5 @@
+#include <evcharger/logging.h>
+
 #include "ProfileView.h"
 
 #include "common/Format.h"
@@ -25,6 +27,8 @@
 #include <QUrl>
 #include <QVBoxLayout>
 
+Q_LOGGING_CATEGORY(userProfileViewLog, "evcharger.user.ui", QtInfoMsg)
+
 namespace {
 	// 头像的两种样式类（对应 style.qss 中 #profileAvatarDefault / #profileAvatarImage）
 	const QLatin1String kAvatarDefaultStyle{QLatin1String("profileAvatarDefault")};
@@ -48,6 +52,9 @@ namespace {
 // 构造：搭建资料卡、钱包卡、菜单列表与退出按钮，并连接相关信号
 ProfileView::ProfileView(Session &session, ApiClient &api, QWidget *parent)
 	: QWidget(parent), m_session(session), m_api(api) {
+	if (objectName().isEmpty())
+		setObjectName(QStringLiteral("ProfileView"));
+	EV_LOG_DEBUG(userProfileViewLog, this) << "View initialized";
 	auto *headerCard = new QFrame(this);
 	headerCard->setObjectName(QStringLiteral("profileHeader"));
 
@@ -225,6 +232,7 @@ void ProfileView::refreshProfile() {
 
 // 下载头像图片；无地址或下载失败时回退到默认 👤 样式
 void ProfileView::loadAvatar() {
+	EV_LOG_INFO(userProfileViewLog, this) << "Loading profile avatar";
 	m_loadedAvatarUrl = m_session.user().avatarUrl;
 	if (m_loadedAvatarUrl.isEmpty()) {
 		applyAvatarStyle(m_avatarLabel, kAvatarDefaultStyle);
@@ -234,17 +242,20 @@ void ProfileView::loadAvatar() {
 	m_api.download(QUrl(m_api.baseUrl() + m_loadedAvatarUrl), [this](const QByteArray &payload) {
                        QPixmap pixmap;
                        if (!pixmap.loadFromData(payload)) {
+ EV_LOG_WARNING(userProfileViewLog, this) << "Avatar image decoding failed";
                            return;
                        }
                        m_avatarLabel->setText(QString());
                        applyAvatarStyle(m_avatarLabel, kAvatarImageStyle);
                        m_avatarLabel->setPixmap(pixmap.scaled(m_avatarLabel->size(), Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation)); }, [this](const ApiError &) {
+ EV_LOG_WARNING(userProfileViewLog, this) << "API operation failed in view";
                        applyAvatarStyle(m_avatarLabel, kAvatarDefaultStyle);
                        m_avatarLabel->setPixmap(AppIcons::avatar(Qt::black, 40)); });
 }
 
 // 选择图片并以 multipart 表单上传为新头像，成功后更新会话用户
 void ProfileView::changeAvatar() {
+	EV_LOG_INFO(userProfileViewLog, this) << "Avatar change requested";
 	const QString path = QFileDialog::getOpenFileName(this, QStringLiteral("选择头像"), QString(),
 													  QStringLiteral("图片 (*.png *.jpg *.jpeg)"));
 	if (path.isEmpty()) {
@@ -253,6 +264,7 @@ void ProfileView::changeAvatar() {
 
 	auto *file = new QFile(path);
 	if (!file->open(QIODevice::ReadOnly)) {
+		EV_LOG_WARNING(userProfileViewLog, this) << "Selected avatar file could not be opened; file_error=" << int(file->error());
 		delete file;
 		Toast::error(this, QStringLiteral("无法读取所选文件"));
 		return;
@@ -271,11 +283,13 @@ void ProfileView::changeAvatar() {
                      User user = m_session.user();
                      user.avatarUrl = QStringLiteral("/me/avatar");
                      m_loadedAvatarUrl.clear();
-                     m_session.updateUser(user); }, [this](const ApiError &error) { Toast::error(this, error.message.isEmpty() ? error.code : error.message); });
+                     m_session.updateUser(user); }, [this](const ApiError &error) {
+ EV_LOG_WARNING(userProfileViewLog, this) << "API operation failed in view"; Toast::error(this, error.message.isEmpty() ? error.code : error.message); });
 }
 
 // 输入新昵称并提交 PATCH /me，成功后更新会话用户
 void ProfileView::changeNickname() {
+	EV_LOG_INFO(userProfileViewLog, this) << "Nickname change requested";
 	bool ok = false;
 	const QString nickname = QInputDialog::getText(this, QStringLiteral("修改昵称"), QStringLiteral("新昵称（1-30 字符）"),
 												   QLineEdit::Normal, m_session.user().nickname, &ok);
@@ -285,11 +299,13 @@ void ProfileView::changeNickname() {
 
 	QJsonObject body;
 	body.insert(QLatin1String("nickname"), nickname.trimmed());
-	m_api.patch(QStringLiteral("/me"), body, [this](const QJsonValue &data, const QJsonObject &) { m_session.updateUser(User::fromJson(data.toObject())); }, [this](const ApiError &error) { Toast::error(this, error.message.isEmpty() ? error.code : error.message); });
+	m_api.patch(QStringLiteral("/me"), body, [this](const QJsonValue &data, const QJsonObject &) { m_session.updateUser(User::fromJson(data.toObject())); }, [this](const ApiError &error) {
+ EV_LOG_WARNING(userProfileViewLog, this) << "API operation failed in view"; Toast::error(this, error.message.isEmpty() ? error.code : error.message); });
 }
 
 // 打开充值对话框，成功后更新会话余额
 void ProfileView::openRecharge() {
+	EV_LOG_INFO(userProfileViewLog, this) << "Opening recharge dialog";
 	auto *dialog = new RechargeDialog(m_api, this);
 	dialog->setAttribute(Qt::WA_DeleteOnClose);
 	connect(dialog, &RechargeDialog::succeeded, this, [this](qlonglong balance) {
@@ -300,6 +316,7 @@ void ProfileView::openRecharge() {
 
 // 确认后调用会话退出登录
 void ProfileView::signOut() {
+	EV_LOG_INFO(userProfileViewLog, this) << "Sign-out requested";
 	const auto choice = QMessageBox::question(this, QStringLiteral("退出登录"),
 											  QStringLiteral("确定退出当前账号吗？"));
 	if (choice == QMessageBox::Yes) {

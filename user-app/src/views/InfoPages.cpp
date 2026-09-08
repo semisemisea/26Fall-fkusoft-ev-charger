@@ -1,3 +1,5 @@
+#include <evcharger/logging.h>
+
 #include "InfoPages.h"
 
 #include "common/Format.h"
@@ -17,6 +19,8 @@
 #include <QPushButton>
 #include <QScrollArea>
 #include <QVBoxLayout>
+
+Q_LOGGING_CATEGORY(userInfoPagesLog, "evcharger.user.ui", QtInfoMsg)
 
 namespace {
 	// 搭建通用页面骨架：返回键 + 标题 + 加载指示 + 滚动列表，返回状态标签
@@ -83,6 +87,9 @@ namespace {
 // 构造历史订单页骨架
 OrderHistoryView::OrderHistoryView(ApiClient &api, QWidget *parent)
 	: QWidget(parent), m_api(api) {
+	if (objectName().isEmpty())
+		setObjectName(QStringLiteral("OrderHistoryView"));
+	EV_LOG_DEBUG(userInfoPagesLog, this) << "View initialized";
 	QVBoxLayout *listLayout = nullptr;
 	m_statusLabel = makePageShell(QStringLiteral("历史充电订单"), [this] { emit backRequested(); }, &listLayout, &m_spinner, this);
 	m_listLayout = listLayout;
@@ -96,6 +103,7 @@ void OrderHistoryView::showEvent(QShowEvent *event) {
 
 // 拉取历史订单（GET /orders）并按状态着色渲染卡片
 void OrderHistoryView::load() {
+	EV_LOG_INFO(userInfoPagesLog, this) << "Loading account history";
 	m_spinner->show();
 	m_statusLabel->hide();
 	m_api.get(QStringLiteral("/orders?pageSize=50"), [this](const QJsonValue &data, const QJsonObject &) {
@@ -149,6 +157,7 @@ void OrderHistoryView::load() {
 
                       m_listLayout->insertWidget(m_listLayout->count() - 1, card);
                   } }, [this](const ApiError &error) {
+ EV_LOG_WARNING(userInfoPagesLog, this) << "API operation failed in view";
                   m_spinner->hide();
                   m_statusLabel->setText(error.message.isEmpty() ? error.code : error.message);
                   m_statusLabel->show(); });
@@ -157,6 +166,9 @@ void OrderHistoryView::load() {
 // 构造钱包流水页骨架
 TransactionsView::TransactionsView(ApiClient &api, QWidget *parent)
 	: QWidget(parent), m_api(api) {
+	if (objectName().isEmpty())
+		setObjectName(QStringLiteral("TransactionsView"));
+	EV_LOG_DEBUG(userInfoPagesLog, this) << "View initialized";
 	QVBoxLayout *listLayout = nullptr;
 	m_statusLabel = makePageShell(QStringLiteral("钱包流水"), [this] { emit backRequested(); }, &listLayout, &m_spinner, this);
 	m_listLayout = listLayout;
@@ -170,6 +182,7 @@ void TransactionsView::showEvent(QShowEvent *event) {
 
 // 拉取钱包流水并渲染卡片，金额正负用绿 / 红区分
 void TransactionsView::load() {
+	EV_LOG_INFO(userInfoPagesLog, this) << "Loading account history";
 	m_spinner->show();
 	m_statusLabel->hide();
 	m_api.get(QStringLiteral("/me/wallet/transactions"), [this](const QJsonValue &data, const QJsonObject &) {
@@ -231,6 +244,7 @@ void TransactionsView::load() {
 
                       m_listLayout->insertWidget(m_listLayout->count() - 1, card);
                   } }, [this](const ApiError &error) {
+ EV_LOG_WARNING(userInfoPagesLog, this) << "API operation failed in view";
                   m_spinner->hide();
                   m_statusLabel->setText(error.message.isEmpty() ? error.code : error.message);
                   m_statusLabel->show(); });
@@ -239,6 +253,9 @@ void TransactionsView::load() {
 // 构造预约记录页骨架
 ReservationHistoryView::ReservationHistoryView(ApiClient &api, QWidget *parent)
 	: QWidget(parent), m_api(api) {
+	if (objectName().isEmpty())
+		setObjectName(QStringLiteral("ReservationHistoryView"));
+	EV_LOG_DEBUG(userInfoPagesLog, this) << "View initialized";
 	QVBoxLayout *listLayout = nullptr;
 	m_statusLabel = makePageShell(QStringLiteral("我的预约记录"), [this] { emit backRequested(); }, &listLayout, &m_spinner, this);
 	m_listLayout = listLayout;
@@ -252,6 +269,7 @@ void ReservationHistoryView::showEvent(QShowEvent *event) {
 
 // 拉取预约记录（GET /reservations）并按状态着色渲染卡片
 void ReservationHistoryView::load() {
+	EV_LOG_INFO(userInfoPagesLog, this) << "Loading account history";
 	m_spinner->show();
 	m_statusLabel->hide();
 	m_api.get(QStringLiteral("/reservations"), [this](const QJsonValue &data, const QJsonObject &) {
@@ -305,6 +323,7 @@ void ReservationHistoryView::load() {
 
                       m_listLayout->insertWidget(m_listLayout->count() - 1, card);
                   } }, [this](const ApiError &error) {
+ EV_LOG_WARNING(userInfoPagesLog, this) << "API operation failed in view";
                   m_spinner->hide();
                   m_statusLabel->setText(error.message.isEmpty() ? error.code : error.message);
                   m_statusLabel->show(); });
@@ -313,6 +332,9 @@ void ReservationHistoryView::load() {
 // 构造“关于系统”静态展示页
 AboutView::AboutView(QWidget *parent)
 	: QWidget(parent) {
+	if (objectName().isEmpty())
+		setObjectName(QStringLiteral("AboutView"));
+	EV_LOG_DEBUG(userInfoPagesLog, this) << "View initialized";
 	auto *backButton = new BackButton(this);
 	connect(backButton, &QPushButton::clicked, this, &AboutView::backRequested);
 	auto *headerRow = new QHBoxLayout;
