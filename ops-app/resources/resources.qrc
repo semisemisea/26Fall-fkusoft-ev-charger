@@ -1,3 +1,5 @@
+<!-- @file resources.qrc
+     @brief 将运营端品牌图标打包为 :/logo.png，供应用入口和登录、导航界面使用。 -->
 <!DOCTYPE RCC>
 <RCC version="1.0">
     <qresource prefix="/">

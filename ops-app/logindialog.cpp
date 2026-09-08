@@ -1,3 +1,6 @@
+/** @file
+ * @brief 管理员登录表单，协调输入校验、异步认证结果和模态对话框接受状态。
+ */
 #include "logindialog.h"
 #include "ui_logindialog.h"
 
@@ -6,6 +9,7 @@
 #include <QPushButton>
 #include <QVBoxLayout>
 
+/// @brief 安装登录表单和品牌图标，将异步成功、失败信号连接到对话框状态。
 LoginDialog::LoginDialog(ops::ApiClient *api, QWidget *parent)
 	: QDialog(parent), ui(new Ui::LoginDialog), m_api(api) {
 	ui->setupUi(this);
@@ -16,7 +20,7 @@ LoginDialog::LoginDialog(ops::ApiClient *api, QWidget *parent)
 	const QPixmap logoPixmap(QStringLiteral(":/logo.png"));
 	if (!logoPixmap.isNull()) {
 		logoLabel->setPixmap(logoPixmap.scaled(80, 80, Qt::KeepAspectRatio,
-											 Qt::SmoothTransformation));
+											   Qt::SmoothTransformation));
 		qobject_cast<QVBoxLayout *>(layout())->insertWidget(0, logoLabel);
 	} else {
 		delete logoLabel;
@@ -29,6 +33,7 @@ LoginDialog::LoginDialog(ops::ApiClient *api, QWidget *parent)
 			[this](const ops::AdminUser &admin) {
 				ui->messageLabel->setText(
 					tr("欢迎, %1 (%2)").arg(admin.displayName, admin.role));
+				/// @brief 校验非空凭据并禁用登录按钮，等待异步认证结果后再关闭。
 				QDialog::accept(); // 调用基类,绕过本类拦截登录的 accept()
 			});
 	connect(m_api, &ops::ApiClient::loginFailed, this,
@@ -41,6 +46,7 @@ LoginDialog::LoginDialog(ops::ApiClient *api, QWidget *parent)
 
 LoginDialog::~LoginDialog() { delete ui; }
 
+/// @brief 校验非空凭据并禁用登录按钮，等待异步认证结果后再关闭。
 void LoginDialog::accept() {
 	const QString username = ui->usernameEdit->text().trimmed();
 	const QString password = ui->passwordEdit->text();

@@ -1,3 +1,7 @@
+## @file
+# @brief 管理员 Widgets 应用、可选图表/地图组件以及六组回归测试的构建配置。
+# @details Qt 版本约束继承顶层配置，测试显式要求 Qt 6.2.4。
+
 set(PROJECT_SOURCES
     main.cpp
     api/apiclient.cpp
@@ -33,11 +37,13 @@ target_link_libraries(ops-app PRIVATE
     Qt6::Widgets
 )
 
+## @brief 有 Charts 时启用折线图，否则界面编译文本汇总分支。
 if(TARGET Qt6::Charts)
     target_link_libraries(ops-app PRIVATE Qt6::Charts)
     target_compile_definitions(ops-app PRIVATE OPS_APP_HAS_CHARTS)
 endif()
 
+## @brief 有 WebEngine 时启用内嵌选点器，否则保留未配置提示。
 if(TARGET Qt6::WebEngineWidgets)
     target_link_libraries(ops-app PRIVATE Qt6::WebEngineWidgets)
     target_compile_definitions(ops-app PRIVATE OPS_APP_HAS_WEBENGINE)
@@ -61,6 +67,7 @@ install(TARGETS ops-app
 
 qt_finalize_executable(ops-app)
 
+## @brief API 测试使用本地 TCP 服务，纯状态测试无需 GUI，Widgets 测试使用 offscreen 平台。
 if(BUILD_TESTING)
     find_package(Qt6 6.2.4 EXACT REQUIRED COMPONENTS Test)
     qt_add_executable(ops-app-charger-state-tests
