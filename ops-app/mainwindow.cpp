@@ -1,3 +1,6 @@
+/** @file
+ * @brief 主窗口的左侧品牌导航与右侧页面栈，创建并管理四个运营页面。
+ */
 #include "mainwindow.h"
 
 #include "pages/chargerstatuspage.h"
@@ -16,6 +19,7 @@
 namespace {
 
 	// 页面索引;每页一个独立 QWidget,由 pages_*.cpp 实现
+	/// @brief 导航项与页面堆栈对应的索引。
 	enum PageIndex {
 		PageSales = 0,
 		PageChargerStatus,
@@ -26,6 +30,7 @@ namespace {
 
 } // namespace
 
+/// @brief 建立中央水平布局、导航与四个页面，并连接导航索引切换。
 MainWindow::MainWindow(ops::ApiClient *api, QWidget *parent)
 	: QMainWindow(parent), m_api(api) {
 	setWindowTitle(tr("充电桩运营管理平台 - 管理后台"));
@@ -52,6 +57,7 @@ MainWindow::MainWindow(ops::ApiClient *api, QWidget *parent)
 
 MainWindow::~MainWindow() = default;
 
+/// @brief 构造左侧品牌、导航和管理员信息，并加入中央布局。
 void MainWindow::buildSidebar(QHBoxLayout *layout) {
 	auto *side = new QWidget(this);
 	side->setObjectName(QStringLiteral("sidebar"));
@@ -68,7 +74,7 @@ void MainWindow::buildSidebar(QHBoxLayout *layout) {
 	const QPixmap logoPixmap(QStringLiteral(":/logo.png"));
 	if (!logoPixmap.isNull())
 		logoLabel->setPixmap(logoPixmap.scaled(72, 72, Qt::KeepAspectRatio,
-											 Qt::SmoothTransformation));
+											   Qt::SmoothTransformation));
 	sideLayout->addWidget(logoLabel);
 
 	auto *brand = new QLabel(tr("充电桩管理平台"), side);
@@ -99,6 +105,7 @@ void MainWindow::buildSidebar(QHBoxLayout *layout) {
 	layout->addWidget(side);
 }
 
+/// @brief 更新状态栏为已登录提示。
 void MainWindow::resumeAfterLogin() {
 	statusBar()->showMessage(tr("已登录"));
 }

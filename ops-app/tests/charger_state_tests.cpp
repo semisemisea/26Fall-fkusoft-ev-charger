@@ -1,15 +1,23 @@
+/** @file
+ * @brief 管理员前端回归测试；用本地响应或直接发送信号隔离真实服务。
+ */
 #include "api/types.h"
 
 #include <QJsonObject>
 #include <QTest>
 
+/// @brief 独立状态解析与界面重启条件回归测试。
 class ChargerStateTests : public QObject {
 	Q_OBJECT
 
 private slots:
+	/// @brief 验证 charging 与 fault 可同时存在，展示时保留两种状态。
 	void preservesIndependentStates();
+	/// @brief 验证闲置故障和闲置离线可重启，在用或正常在线不可重启。
 	void restartRequiresAvailableFaultOrOffline();
 };
+
+/// @brief 验证 charging 与 fault 可同时存在，展示时保留两种状态。
 
 void ChargerStateTests::preservesIndependentStates() {
 	const ops::Charger charger = ops::chargerFromJson(QJsonObject{
@@ -25,6 +33,8 @@ void ChargerStateTests::preservesIndependentStates() {
 	QCOMPARE(charger.operationalStatus, QStringLiteral("fault"));
 	QCOMPARE(ops::chargerStatusText(charger), QStringLiteral("在用 / 故障"));
 }
+
+/// @brief 验证闲置故障和闲置离线可重启，在用或正常在线不可重启。
 
 void ChargerStateTests::restartRequiresAvailableFaultOrOffline() {
 	ops::Charger charger;

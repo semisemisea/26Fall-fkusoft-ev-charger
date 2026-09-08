@@ -1,3 +1,7 @@
+/**
+ * @file ProfileView.cpp
+ * @brief 展示和编辑个人资料，提供头像上传、充值与历史记录入口。
+ */
 #include "ProfileView.h"
 
 #include "common/Format.h"
@@ -27,10 +31,17 @@
 
 namespace {
 	// 头像的两种样式类（对应 style.qss 中 #profileAvatarDefault / #profileAvatarImage）
+	/// @brief 默认头像使用的对象名称。
 	const QLatin1String kAvatarDefaultStyle{QLatin1String("profileAvatarDefault")};
+	/// @brief 已加载图片头像使用的对象名称。
 	const QLatin1String kAvatarImageStyle{QLatin1String("profileAvatarImage")};
 
 	// 切换头像样式类并强制 QSS 重新匹配（objectName 变化需 unpolish/polish 才生效）
+	/**
+	 * @brief 切换头像 objectName并重新触发样式计算。
+	 * @param label 头像标签，所有权不变。
+	 * @param styleName 默认头像或图片头像对应的对象名称。
+	 */
 	void applyAvatarStyle(QLabel *label, const QLatin1String &styleName) {
 		label->setObjectName(styleName);
 		label->style()->unpolish(label);
@@ -38,6 +49,11 @@ namespace {
 	}
 
 	// 手机号脱敏：11 位号码中间四位替换为 ****
+	/**
+	 * @brief 脱敏显示手机号的中间四位。
+	 * @param phone 会话中的原始手机号。
+	 * @return 十一位手机号保留前三位和后四位，其他长度原样返回。
+	 */
 	QString maskedPhone(const QString &phone) {
 		return phone.length() == 11
 				   ? QStringLiteral("%1****%2").arg(phone.left(3), phone.right(4))
@@ -45,7 +61,9 @@ namespace {
 	}
 } // namespace
 
-// 构造：搭建资料卡、钱包卡、菜单列表与退出按钮，并连接相关信号
+/**
+ * @details 构造：搭建资料卡、钱包卡、菜单列表与退出按钮，并连接相关信号
+ */
 ProfileView::ProfileView(Session &session, ApiClient &api, QWidget *parent)
 	: QWidget(parent), m_session(session), m_api(api) {
 	auto *headerCard = new QFrame(this);
@@ -197,13 +215,17 @@ ProfileView::ProfileView(Session &session, ApiClient &api, QWidget *parent)
 	connect(&m_session, &Session::userChanged, this, &ProfileView::refreshProfile);
 }
 
-// 页面显示时刷新资料
+/**
+ * @details 页面显示时刷新资料
+ */
 void ProfileView::showEvent(QShowEvent *event) {
 	QWidget::showEvent(event);
 	refreshProfile();
 }
 
-// 拦截头像标签的鼠标点击，触发更换头像
+/**
+ * @details 拦截头像标签的鼠标点击，触发更换头像
+ */
 bool ProfileView::eventFilter(QObject *watched, QEvent *event) {
 	if (watched == m_avatarLabel && event->type() == QEvent::MouseButtonRelease) {
 		changeAvatar();
@@ -212,7 +234,9 @@ bool ProfileView::eventFilter(QObject *watched, QEvent *event) {
 	return QWidget::eventFilter(watched, event);
 }
 
-// 用会话用户信息刷新界面；头像 URL 变化时才重新下载
+/**
+ * @details 用会话用户信息刷新界面；头像 URL 变化时才重新下载
+ */
 void ProfileView::refreshProfile() {
 	const User &user = m_session.user();
 	m_nicknameLabel->setText(user.nickname);
@@ -223,7 +247,9 @@ void ProfileView::refreshProfile() {
 	}
 }
 
-// 下载头像图片；无地址或下载失败时回退到默认 👤 样式
+/**
+ * @details 下载头像图片；无地址或网络下载失败时回退默认头像，图片解码失败则保留当前显示
+ */
 void ProfileView::loadAvatar() {
 	m_loadedAvatarUrl = m_session.user().avatarUrl;
 	if (m_loadedAvatarUrl.isEmpty()) {
@@ -243,7 +269,9 @@ void ProfileView::loadAvatar() {
                        m_avatarLabel->setPixmap(AppIcons::avatar(Qt::black, 40)); });
 }
 
-// 选择图片并以 multipart 表单上传为新头像，成功后更新会话用户
+/**
+ * @details 选择图片并以 multipart 表单上传为新头像，成功后更新会话用户
+ */
 void ProfileView::changeAvatar() {
 	const QString path = QFileDialog::getOpenFileName(this, QStringLiteral("选择头像"), QString(),
 													  QStringLiteral("图片 (*.png *.jpg *.jpeg)"));
@@ -265,6 +293,7 @@ void ProfileView::changeAvatar() {
 	filePart.setHeader(QNetworkRequest::ContentTypeHeader, QMimeDatabase().mimeTypeForFile(path).name());
 	filePart.setBodyDevice(file);
 	multiPart->append(filePart);
+	// 文件随 multipart 生存，multipart 在上传时再挂到网络响应下，避免异步读取悬空。
 	file->setParent(multiPart);
 
 	m_api.upload(QStringLiteral("/me/avatar"), multiPart, [this](const QJsonValue &, const QJsonObject &) {
@@ -274,7 +303,9 @@ void ProfileView::changeAvatar() {
                      m_session.updateUser(user); }, [this](const ApiError &error) { Toast::error(this, error.message.isEmpty() ? error.code : error.message); });
 }
 
-// 输入新昵称并提交 PATCH /me，成功后更新会话用户
+/**
+ * @details 输入新昵称并提交 PATCH /me，成功后更新会话用户
+ */
 void ProfileView::changeNickname() {
 	bool ok = false;
 	const QString nickname = QInputDialog::getText(this, QStringLiteral("修改昵称"), QStringLiteral("新昵称（1-30 字符）"),
@@ -288,7 +319,9 @@ void ProfileView::changeNickname() {
 	m_api.patch(QStringLiteral("/me"), body, [this](const QJsonValue &data, const QJsonObject &) { m_session.updateUser(User::fromJson(data.toObject())); }, [this](const ApiError &error) { Toast::error(this, error.message.isEmpty() ? error.code : error.message); });
 }
 
-// 打开充值对话框，成功后更新会话余额
+/**
+ * @details 打开充值对话框，成功后更新会话余额
+ */
 void ProfileView::openRecharge() {
 	auto *dialog = new RechargeDialog(m_api, this);
 	dialog->setAttribute(Qt::WA_DeleteOnClose);
@@ -298,7 +331,9 @@ void ProfileView::openRecharge() {
 	dialog->open();
 }
 
-// 确认后调用会话退出登录
+/**
+ * @details 确认后调用会话退出登录
+ */
 void ProfileView::signOut() {
 	const auto choice = QMessageBox::question(this, QStringLiteral("退出登录"),
 											  QStringLiteral("确定退出当前账号吗？"));

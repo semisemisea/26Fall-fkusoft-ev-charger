@@ -1,8 +1,14 @@
+/**
+ * @file Station.cpp
+ * @brief 解析电站位置、计价与电桩统计，保留服务端计算的距离。
+ */
 #include "Station.h"
 
 #include <QJsonObject>
 
-// 逐字段解析 JSON；distanceKm 由服务端计算，列表接口才有值
+/**
+ * @details 逐字段解析 JSON；distanceKm 由服务端计算，列表接口才有值
+ */
 Station Station::fromJson(const QJsonObject &object) {
 	Station station;
 	station.id = object.value(QLatin1String("id")).toInt();

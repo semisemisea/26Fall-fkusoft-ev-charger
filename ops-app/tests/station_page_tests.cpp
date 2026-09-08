@@ -1,3 +1,6 @@
+/** @file
+ * @brief 管理员前端回归测试；用本地响应或直接发送信号隔离真实服务。
+ */
 #include "pages/chargerdialog.h"
 #include "pages/mappickerdialog.h"
 #include "pages/stationpage.h"
@@ -15,18 +18,28 @@
 #include <memory>
 #endif
 
+/// @brief 电站选择归属、表单和地图消息校验回归测试。
 class StationPageTests : public QObject {
 	Q_OBJECT
 
 private slots:
+	/// @brief 直接注入列表信号，验证非当前电站的迟到响应不会覆盖当前明细。
 	void selectedStationOwnsDisplayedChargers();
+	/// @brief 验证从电站管理打开新增电桩时，所属电站填入且只读。
 	void chargerDialogLocksSelectedStation();
+	/// @brief 验证新增电站对话框具备选点入口及经纬度输入。
 	void stationDialogOffersMapPicker();
+	/// @brief 验证空密钥时显示地图服务未配置提示。
 	void mapPickerReportsMissingConfiguration();
+	/// @brief 验证标题坐标解析，同时拒绝越界纬度和错误前缀。
 	void parsesTencentMapSelection();
+	/// @brief 准备可信原域、重定向域、错误来源窗口和越界坐标的测试组合。
 	void confirmsRedirectedMapSelection_data();
+	/// @brief 向 WebEngine 注入 MessageEvent，验证来源与坐标均合法才接受；无 WebEngine 时跳过。
 	void confirmsRedirectedMapSelection();
 };
+
+/// @brief 直接注入列表信号，验证非当前电站的迟到响应不会覆盖当前明细。
 
 void StationPageTests::selectedStationOwnsDisplayedChargers() {
 	ops::ApiClient client;
@@ -70,6 +83,8 @@ void StationPageTests::selectedStationOwnsDisplayedChargers() {
 	QCOMPARE(chargerTable->item(0, 1)->text(), QStringLiteral("快充"));
 }
 
+/// @brief 验证从电站管理打开新增电桩时，所属电站填入且只读。
+
 void StationPageTests::chargerDialogLocksSelectedStation() {
 	ChargerDialog dialog(42, nullptr);
 	auto *stationIdEdit = dialog.findChild<QLineEdit *>(QStringLiteral("stationIdEdit"));
@@ -78,12 +93,16 @@ void StationPageTests::chargerDialogLocksSelectedStation() {
 	QVERIFY(stationIdEdit->isReadOnly());
 }
 
+/// @brief 验证新增电站对话框具备选点入口及经纬度输入。
+
 void StationPageTests::stationDialogOffersMapPicker() {
 	AddStationDialog dialog;
 	QVERIFY(dialog.findChild<QPushButton *>(QStringLiteral("pickStationLocationButton")));
 	QVERIFY(dialog.findChild<QLineEdit *>(QStringLiteral("stationLatitudeEdit")));
 	QVERIFY(dialog.findChild<QLineEdit *>(QStringLiteral("stationLongitudeEdit")));
 }
+
+/// @brief 验证空密钥时显示地图服务未配置提示。
 
 void StationPageTests::mapPickerReportsMissingConfiguration() {
 	MapPickerDialog picker({}, 38.889, 121.537);
@@ -92,6 +111,8 @@ void StationPageTests::mapPickerReportsMissingConfiguration() {
 	QVERIFY(unavailable);
 	QCOMPARE(unavailable->text(), QStringLiteral("地图服务未配置"));
 }
+
+/// @brief 验证标题坐标解析，同时拒绝越界纬度和错误前缀。
 
 void StationPageTests::parsesTencentMapSelection() {
 	const auto coordinate = MapPickerDialog::coordinateFromTitle(
@@ -106,6 +127,8 @@ void StationPageTests::parsesTencentMapSelection() {
 				 .has_value());
 }
 
+/// @brief 准备可信原域、重定向域、错误来源窗口和越界坐标的测试组合。
+
 void StationPageTests::confirmsRedirectedMapSelection_data() {
 	QTest::addColumn<QString>("origin");
 	QTest::addColumn<bool>("fromPicker");
@@ -117,6 +140,8 @@ void StationPageTests::confirmsRedirectedMapSelection_data() {
 	QTest::newRow("wrong-window") << QStringLiteral("https://mapapi.qq.com") << false << true << false;
 	QTest::newRow("invalid-coordinate") << QStringLiteral("https://mapapi.qq.com") << true << false << false;
 }
+
+/// @brief 向 WebEngine 注入 MessageEvent，验证来源与坐标均合法才接受；无 WebEngine 时跳过。
 
 void StationPageTests::confirmsRedirectedMapSelection() {
 #ifdef OPS_APP_HAS_WEBENGINE

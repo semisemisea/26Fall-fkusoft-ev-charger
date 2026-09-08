@@ -1,3 +1,6 @@
+/** @file
+ * @brief 营收指标卡片与 7/30 日趋势，包含 Qt Charts 绘图和无图表组件时的文本汇总。
+ */
 #include "salespage.h"
 
 #include <QComboBox>
@@ -20,9 +23,15 @@
 namespace {
 
 	// 卡片样式在全局 QSS 之外单独控制大数字排版
+	/// @brief 预留的大数字排版样式；当前卡片实际使用内联富文本样式。
 	const char *kValueStyle = "font-size: 24px; font-weight: bold; background: transparent;";
+	/// @brief 预留的卡片标题样式；当前卡片实际使用内联富文本样式。
 	const char *kTitleStyle = "color: #8a8f98; background: transparent;";
 
+	/** @brief 将 ISO 时间显示为月日，解析失败时保留前十个字符。
+	 * @param isoUtc ISO 时间文本。
+	 * @return 有效日期的 MM-dd 文本，解析失败时为原字符串前十字符。
+	 */
 	QString dayLabel(const QString &isoUtc) {
 		const QDateTime dt = QDateTime::fromString(isoUtc, Qt::ISODate);
 		return dt.isValid() ? dt.toString(QStringLiteral("MM-dd"))
@@ -31,6 +40,7 @@ namespace {
 
 } // namespace
 
+/// @brief 建立营收卡片和可选图表，并连接范围切换和异步指标结果。
 SalesPage::SalesPage(ops::ApiClient *api, QWidget *parent)
 	: QWidget(parent), m_api(api) {
 	auto *root = new QVBoxLayout(this);
@@ -193,11 +203,14 @@ QLabel *SalesPage::makeCard(const QString &title) {
 	return card;
 }
 
+/// @brief 先交给 QWidget 处理显示事件，再触发本页刷新。
 void SalesPage::showEvent(QShowEvent *event) {
+	/// @brief 先交给 QWidget 处理显示事件，再触发本页刷新。
 	QWidget::showEvent(event);
 	refresh();
 }
 
+/// @brief 按页面加载策略发起数据请求，结果由已连接的信号更新控件。
 void SalesPage::refresh() {
 	if (m_loaded)
 		return;

@@ -1,3 +1,8 @@
+/**
+ * @file database_tests.cpp
+ * @brief 自动化测试：SQLite 连接作用域、模式初始化与启动时业务状态恢复。 使用 Qt Test 验证正常流程、校验失败与业务边界。
+ */
+
 #include "backend/database.h"
 
 #include "backend/security.h"
@@ -7,18 +12,38 @@
 #include <QTemporaryDir>
 #include <QTest>
 
+/** @brief SQLite 连接作用域、模式初始化与启动时业务状态恢复。的 Qt Test 测试集合。 */
 class DatabaseTests : public QObject {
 	Q_OBJECT
 
 private slots:
+	/**
+	 * @brief 验证数据库模式、默认管理员加盐摘要及服务凭据初始化。
+	 */
 	void initializesSchemaAndHashedDefaultAdmin();
+	/**
+	 * @brief 验证每个连接均启用外键、WAL 和配置的忙等待。
+	 */
 	void configuresEveryConnection();
+	/**
+	 * @brief 验证启动取消未到期预约、过期到期预约，并恢复订单充电占用。
+	 */
 	void startupRecoversReservationsAndChargingOccupancy();
+	/**
+	 * @brief 验证预约与订单跨表占用冲突导致初始化失败。
+	 */
 	void startupRejectsCrossTableOccupancyConflict();
 };
 
 namespace {
 
+	/**
+	 * @brief 执行 SQL 语句，失败时保存驱动报告的错误。
+	 * @param database 当前调用线程的数据库连接；不得跨线程保存。
+	 * @param sql 要执行的 SQL 语句。
+	 * @param error 失败时接收 SQL 错误。
+	 * @return SQL 执行成功返回 true；失败返回 false 并写入驱动错误。
+	 */
 	bool execute(QSqlDatabase &database, const QString &sql, QString *error) {
 		QSqlQuery query(database);
 		if (query.exec(sql)) {
@@ -30,6 +55,9 @@ namespace {
 
 } // namespace
 
+/**
+ * @brief 验证数据库模式、默认管理员加盐摘要及服务凭据初始化。
+ */
 void DatabaseTests::initializesSchemaAndHashedDefaultAdmin() {
 	QTemporaryDir directory;
 	QVERIFY(directory.isValid());
@@ -89,6 +117,9 @@ void DatabaseTests::initializesSchemaAndHashedDefaultAdmin() {
 	QVERIFY(!stationColumns.contains(QStringLiteral("address")));
 }
 
+/**
+ * @brief 验证每个连接均启用外键、WAL 和配置的忙等待。
+ */
 void DatabaseTests::configuresEveryConnection() {
 	QTemporaryDir directory;
 	Backend::Database database(directory.filePath(QStringLiteral("test.sqlite3")), 3210);
@@ -124,6 +155,9 @@ void DatabaseTests::configuresEveryConnection() {
 	QCOMPARE(journalMode, QStringLiteral("wal"));
 }
 
+/**
+ * @brief 验证启动取消未到期预约、过期到期预约，并恢复订单充电占用。
+ */
 void DatabaseTests::startupRecoversReservationsAndChargingOccupancy() {
 	QTemporaryDir directory;
 	Backend::Database database(directory.filePath(QStringLiteral("test.sqlite3")), 5000);
@@ -170,6 +204,9 @@ void DatabaseTests::startupRecoversReservationsAndChargingOccupancy() {
 	QCOMPARE(chargerOperationalStatus, QStringLiteral("fault"));
 }
 
+/**
+ * @brief 验证预约与订单跨表占用冲突导致初始化失败。
+ */
 void DatabaseTests::startupRejectsCrossTableOccupancyConflict() {
 	QTemporaryDir directory;
 	Backend::Database database(directory.filePath(QStringLiteral("test.sqlite3")), 5000);

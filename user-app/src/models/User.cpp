@@ -1,8 +1,14 @@
+/**
+ * @file User.cpp
+ * @brief 解析用户资料、头像存在标志与以分为单位的钱包余额。
+ */
 #include "User.h"
 
 #include <QJsonObject>
 
-// 逐字段解析 JSON；余额 walletBalanceFen 为整数（分）
+/**
+ * @details 逐字段解析 JSON；余额 walletBalanceFen 为整数（分）
+ */
 User User::fromJson(const QJsonObject &object) {
 	User user;
 	user.id = object.value(QLatin1String("id")).toInt();

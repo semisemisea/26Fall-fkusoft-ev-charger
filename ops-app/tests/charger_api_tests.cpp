@@ -1,3 +1,6 @@
+/** @file
+ * @brief 管理员前端回归测试；用本地响应或直接发送信号隔离真实服务。
+ */
 #include "api/apiclient.h"
 
 #include <QJsonDocument>
@@ -7,13 +10,18 @@
 #include <QTcpSocket>
 #include <QTest>
 
+/// @brief 电桩 HTTP 请求与状态快照回归测试。
 class ChargerApiTests : public QObject {
 	Q_OBJECT
 
 private slots:
+	/// @brief 通过本地 TCP 响应验证新增、编辑和删除路径及请求字段，删除接受 204。
 	void createsUpdatesAndDeletesCharger();
+	/// @brief 验证快照保留两个维度各三种状态以及完整总数量。
 	void fetchesCompleteStatusOverview();
 };
+
+/// @brief 通过本地 TCP 响应验证新增、编辑和删除路径及请求字段，删除接受 204。
 
 void ChargerApiTests::createsUpdatesAndDeletesCharger() {
 	QTcpServer server;
@@ -23,6 +31,7 @@ void ChargerApiTests::createsUpdatesAndDeletesCharger() {
 	connect(&server, &QTcpServer::newConnection, this, [&] {
 		QTcpSocket *socket = server.nextPendingConnection();
 		connect(socket, &QTcpSocket::readyRead, socket, [socket, &requests] {
+			// TCP readyRead 可能仅收到部分报文；按 Content-Length 收齐后才断言和应答。
 			QByteArray request = socket->property("requestBuffer").toByteArray();
 			request.append(socket->readAll());
 			socket->setProperty("requestBuffer", request);
@@ -89,6 +98,8 @@ void ChargerApiTests::createsUpdatesAndDeletesCharger() {
 	QTRY_COMPARE(finished.count(), 3);
 	QVERIFY(requests.at(2).startsWith("DELETE /api/v1/admin/chargers/9 "));
 }
+
+/// @brief 验证快照保留两个维度各三种状态以及完整总数量。
 
 void ChargerApiTests::fetchesCompleteStatusOverview() {
 	QTcpServer server;

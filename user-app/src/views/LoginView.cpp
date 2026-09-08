@@ -1,3 +1,7 @@
+/**
+ * @file LoginView.cpp
+ * @brief 校验手机号并通过登录接口建立用户会话。
+ */
 #include "LoginView.h"
 
 #include "models/User.h"
@@ -15,10 +19,13 @@
 #include <QVBoxLayout>
 
 namespace {
+	/// @brief 登录输入校验：仅接受恰好十一位数字。
 	const QRegularExpression kPhonePattern{QLatin1String("\\d{11}")};
-}
+} // namespace
 
-// 构造函数：搭建登录界面（Logo/标题/手机号输入/登录按钮），回车或点击均触发 submit
+/**
+ * @details 构造函数：搭建登录界面（Logo/标题/手机号输入/登录按钮），回车或点击均触发 submit
+ */
 LoginView::LoginView(Session &session, ApiClient &api, QWidget *parent)
 	: QWidget(parent), m_session(session), m_api(api) {
 	auto *logoLabel = new QLabel(this);
@@ -85,7 +92,9 @@ LoginView::LoginView(Session &session, ApiClient &api, QWidget *parent)
 	connect(m_phoneEdit, &QLineEdit::returnPressed, this, &LoginView::submit);
 }
 
-// 提交登录：本地校验 11 位手机号，成功后写入 Session 并发 loginSucceeded；新用户提示自动注册
+/**
+ * @details 提交登录：本地校验 11 位手机号，成功后写入 Session 并发 loginSucceeded；新用户提示自动注册
+ */
 void LoginView::submit() {
 	const QString phone = m_phoneEdit->text().trimmed();
 	if (!kPhonePattern.match(phone).hasMatch()) {

@@ -1,3 +1,8 @@
+/**
+ * @file http_tests.cpp
+ * @brief 自动化测试：轻量 HTTP/1.1 请求解析、路由分派及线程池 TCP 服务。 使用 Qt Test 验证正常流程、校验失败与业务边界。
+ */
+
 #include "backend/api.h"
 #include "backend/database.h"
 #include "backend/http.h"
@@ -19,25 +24,48 @@
 #include <atomic>
 #include <memory>
 
+/** @brief 轻量 HTTP/1.1 请求解析、路由分派及线程池 TCP 服务。的 Qt Test 测试集合。 */
 class HttpTests : public QObject {
 	Q_OBJECT
 
 private slots:
+	/**
+	 * @brief 通过真实 HTTP 验证健康检查及请求 ID 回传。
+	 */
 	void servesHealthWithRequestId();
+	/**
+	 * @brief 验证未知路径返回 404，已知路径不支持的方法返回 405。
+	 */
 	void distinguishesMissingPathAndMethod();
+	/**
+	 * @brief 验证非法请求 UUID 返回校验失败。
+	 */
 	void rejectsInvalidRequestId();
+	/**
+	 * @brief 通过真实 HTTP 完成管理员建站建桩及用户充电结算流程。
+	 */
 	void completesUserAndAdminWorkflow();
+	/**
+	 * @brief 验证停止监听遵守等待期限且拒绝新连接。
+	 */
 	void stopHonorsDeadlineAndRejectsConnections();
 };
 
 namespace {
 
+	/** @brief 测试 HTTP 响应的状态、正文与响应头快照。 */
 	struct ReplyData {
-		int status = 0;
-		QByteArray requestId;
-		QJsonObject json;
+		int status = 0;		  ///< HTTP 响应状态码。
+		QByteArray requestId; ///< 请求追踪 UUID。
+		QJsonObject json;	  ///< 已经转换的 JSON 数据，供响应或测试断言使用。
 	};
 
+	/**
+	 * @brief 发送测试 GET 请求并返回响应。
+	 * @param url 地图或测试 HTTP 请求的目标 URL。
+	 * @param requestId 本次请求关联标识。
+	 * @return 真实 HTTP 请求的状态码、请求 ID 与 JSON 正文快照。
+	 */
 	ReplyData get(const QUrl &url, const QByteArray &requestId = {}) {
 		QNetworkAccessManager manager;
 		QNetworkRequest request(url);
@@ -57,6 +85,15 @@ namespace {
 		return result;
 	}
 
+	/**
+	 * @brief 组装测试 HTTP 请求及认证、幂等信息并返回响应。
+	 * @param url 地图或测试 HTTP 请求的目标 URL。
+	 * @param method HTTP 请求方法。
+	 * @param body 待解析或序列化的 JSON 请求对象。
+	 * @param token 明文访问令牌，仅用于生成摘要或返回客户端。
+	 * @param idempotencyKey 测试请求的幂等键。
+	 * @return 真实 HTTP 请求的状态码、请求 ID 与 JSON 正文快照。
+	 */
 	ReplyData send(const QUrl &url, const QByteArray &method, const QJsonObject &body = {}, const QString &token = {}, const QByteArray &idempotencyKey = {}) {
 		QNetworkAccessManager manager;
 		QNetworkRequest request(url);
@@ -84,12 +121,16 @@ namespace {
 		return result;
 	}
 
+	/** @brief 真实 HTTP 测试服务器及其临时数据库的生命周期容器。 */
 	struct RunningServer {
-		QTemporaryDir directory;
-		std::shared_ptr<Backend::Database> database;
-		std::shared_ptr<Backend::Router> router;
-		std::unique_ptr<Backend::HttpServer> server;
+		QTemporaryDir directory;					 ///< 用例独立临时目录，夹具销毁时清理数据库文件。
+		std::shared_ptr<Backend::Database> database; ///< 共享数据库入口；每次操作在调用线程创建连接。
+		std::shared_ptr<Backend::Router> router;	 ///< 测试请求分派器或共享路由。
+		std::unique_ptr<Backend::HttpServer> server; ///< 拥有测试 HTTP 服务器的生命周期。
 
+		/**
+		 * @brief 初始化临时数据库、健康路由并监听本机临时端口。
+		 */
 		RunningServer()
 			: database(std::make_shared<Backend::Database>(directory.filePath(QStringLiteral("test.sqlite3")), 5000)), router(std::make_shared<Backend::Router>()) {
 			QString error;
@@ -117,22 +158,32 @@ namespace {
 			}
 		}
 
+		/**
+		 * @brief 销毁测试夹具前停止 HTTP 服务并等待工作任务。
+		 */
 		~RunningServer() {
 			server->stop(1000);
 		}
 
+		/**
+		 * @brief 将相对 API 路径拼接到测试服务器实际监听地址。
+		 * @param[in] path HTTP 资源路径，不含服务器地址。
+		 * @return 指向本机测试服务器所分配端口及指定路径的完整 URL。
+		 */
 		QUrl url(const QString &path) const {
 			return QUrl(QStringLiteral("http://127.0.0.1:%1%2").arg(server->serverPort()).arg(path));
 		}
 	};
 
+	/** @brief 完整 API 的真实 HTTP 测试夹具，负责服务器与共享依赖的生命周期。 */
 	struct ApiServer {
-		QTemporaryDir directory;
-		std::shared_ptr<Backend::Database> database;
-		std::shared_ptr<EvCharger::FixedClock> clock;
-		std::shared_ptr<Backend::Router> router;
-		std::unique_ptr<Backend::HttpServer> server;
+		QTemporaryDir directory;					  ///< 用例独立临时目录，夹具销毁时清理数据库文件。
+		std::shared_ptr<Backend::Database> database;  ///< 共享数据库入口；每次操作在调用线程创建连接。
+		std::shared_ptr<EvCharger::FixedClock> clock; ///< 可注入时钟，统一提供过期判断和充电计量时间。
+		std::shared_ptr<Backend::Router> router;	  ///< 测试请求分派器或共享路由。
+		std::unique_ptr<Backend::HttpServer> server;  ///< 拥有测试 HTTP 服务器的生命周期。
 
+		/** @brief 创建全部 API 依赖并启动本机临时端口测试服务器。 */
 		ApiServer()
 			: database(std::make_shared<Backend::Database>(directory.filePath(QStringLiteral("api.sqlite3")), 5000)), clock(std::make_shared<EvCharger::FixedClock>(QDateTime(QDate(2026, 9, 1), QTime(8, 0), Qt::UTC))), router(std::make_shared<Backend::Router>()) {
 			QString error;
@@ -147,10 +198,18 @@ namespace {
 			}
 		}
 
+		/**
+		 * @brief 销毁测试夹具前停止 HTTP 服务并等待工作任务。
+		 */
 		~ApiServer() {
 			server->stop(1000);
 		}
 
+		/**
+		 * @brief 将相对 API 路径拼接到测试服务器实际监听地址。
+		 * @param[in] path HTTP 资源路径，不含服务器地址。
+		 * @return 指向本机测试服务器所分配端口及指定路径的完整 URL。
+		 */
 		QUrl url(const QString &path) const {
 			return QUrl(QStringLiteral("http://127.0.0.1:%1%2").arg(server->serverPort()).arg(path));
 		}
@@ -158,6 +217,9 @@ namespace {
 
 } // namespace
 
+/**
+ * @brief 通过真实 HTTP 验证健康检查及请求 ID 回传。
+ */
 void HttpTests::servesHealthWithRequestId() {
 	RunningServer running;
 	const QByteArray requestId = QByteArrayLiteral("0c7d4f5e-7f6e-4d13-9a1c-c4b4b6725a80");
@@ -168,6 +230,9 @@ void HttpTests::servesHealthWithRequestId() {
 	QCOMPARE(reply.json.value(QStringLiteral("meta")).toObject().value(QStringLiteral("requestId")).toString(), QString::fromLatin1(requestId));
 }
 
+/**
+ * @brief 验证未知路径返回 404，已知路径不支持的方法返回 405。
+ */
 void HttpTests::distinguishesMissingPathAndMethod() {
 	RunningServer running;
 	const ReplyData missing = get(running.url(QStringLiteral("/missing")));
@@ -184,6 +249,9 @@ void HttpTests::distinguishesMissingPathAndMethod() {
 	networkReply->deleteLater();
 }
 
+/**
+ * @brief 验证非法请求 UUID 返回校验失败。
+ */
 void HttpTests::rejectsInvalidRequestId() {
 	RunningServer running;
 	const ReplyData reply = get(running.url(QStringLiteral("/health")), QByteArrayLiteral("not-a-uuid"));
@@ -192,6 +260,9 @@ void HttpTests::rejectsInvalidRequestId() {
 	QVERIFY(!reply.requestId.isEmpty());
 }
 
+/**
+ * @brief 通过真实 HTTP 完成管理员建站建桩及用户充电结算流程。
+ */
 void HttpTests::completesUserAndAdminWorkflow() {
 	ApiServer running;
 	const ReplyData adminLogin = send(running.url(QStringLiteral("/api/v1/auth/admin/login")), QByteArrayLiteral("POST"), QJsonObject{{QStringLiteral("username"), QStringLiteral("admin")}, {QStringLiteral("password"), QStringLiteral("123456")}});
@@ -237,6 +308,9 @@ void HttpTests::completesUserAndAdminWorkflow() {
 	QCOMPARE(send(running.url(QStringLiteral("/api/v1/admin/users/%1").arg(userId)), QByteArrayLiteral("GET"), {}, adminToken).status, 200);
 }
 
+/**
+ * @brief 验证停止监听遵守等待期限且拒绝新连接。
+ */
 void HttpTests::stopHonorsDeadlineAndRejectsConnections() {
 	auto router = std::make_shared<Backend::Router>();
 	std::atomic_bool started = false;

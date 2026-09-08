@@ -1,3 +1,6 @@
+/** @file
+ * @brief 电站分页查询、选中站点的电桩管理，以及电站新增和地图选点表单。
+ */
 #include "stationpage.h"
 
 #include "chargerdialog.h"
@@ -16,6 +19,7 @@
 
 namespace {
 
+	/// @brief 表格列索引；与表头和填充位置保持一致。
 	enum StationCol {
 		ColName = 0,
 		ColLocation,
@@ -26,6 +30,7 @@ namespace {
 		ColStatus,
 	};
 
+	/// @brief 表格列索引；与表头和填充位置保持一致。
 	enum ChargerCol {
 		CColCode = 0,
 		CColType,
@@ -39,6 +44,7 @@ namespace {
 
 // ---- StationPage ----
 
+/// @brief 建立电站与电桩两级表格，连接分页、选择、写操作和结果回调。
 StationPage::StationPage(ops::ApiClient *api, QWidget *parent)
 	: QWidget(parent), m_api(api) {
 	auto *root = new QVBoxLayout(this);
@@ -352,6 +358,7 @@ StationPage::StationPage(ops::ApiClient *api, QWidget *parent)
 	updateChargerActions();
 }
 
+/// @brief 切换当前电站，清空旧明细并异步请求新站电桩。
 void StationPage::showStationChargers(qint64 stationId, const QString &stationName) {
 	m_currentStationId = stationId;
 	m_currentStationName = stationName;
@@ -363,6 +370,7 @@ void StationPage::showStationChargers(qint64 stationId, const QString &stationNa
 	m_api->fetchStationChargers(stationId);
 }
 
+/// @brief 按电桩值对象重绘明细，累计分钟转换为一位小数小时。
 void StationPage::applyChargerRows(const QList<ops::Charger> &chargers) {
 	m_chargerTable->setRowCount(chargers.size());
 	for (int i = 0; i < chargers.size(); ++i) {
@@ -385,11 +393,13 @@ void StationPage::applyChargerRows(const QList<ops::Charger> &chargers) {
 									.arg(chargers.size()));
 }
 
+/// @brief 返回选中的电桩行号，无选择返回 -1。
 int StationPage::selectedChargerRow() const {
 	const auto indexes = m_chargerTable->selectionModel()->selectedRows();
 	return indexes.isEmpty() ? -1 : indexes.first().row();
 }
 
+/// @brief 综合权限、当前选择和请求进行中标记启用按钮，重启另受状态限制。
 void StationPage::updateChargerActions() {
 	const int row = selectedChargerRow();
 	const bool selected = row >= 0 && row < m_chargerRows.size();
@@ -401,11 +411,13 @@ void StationPage::updateChargerActions() {
 		writable && selected && ops::isRestartable(m_chargerRows.at(row)));
 }
 
+/// @brief 刷新当前搜索页，列表回调按电站 ID 恢复选择并加载电桩。
 void StationPage::reloadSelectedStation() {
 	m_stationHintLabel->setText(tr("正在刷新电站和电桩数据..."));
 	m_api->fetchStations(m_searchEdit->text().trimmed(), m_page);
 }
 
+/// @brief 依页码和下一页标志设置翻页条可见性及按钮状态。
 void StationPage::updatePager() {
 	const bool show = m_hasNext || m_page > 1;
 	m_prevButton->setVisible(show);
@@ -416,11 +428,14 @@ void StationPage::updatePager() {
 	m_nextButton->setEnabled(m_hasNext);
 }
 
+/// @brief 先交给 QWidget 处理显示事件，再触发本页刷新。
 void StationPage::showEvent(QShowEvent *event) {
+	/// @brief 先交给 QWidget 处理显示事件，再触发本页刷新。
 	QWidget::showEvent(event);
 	refresh();
 }
 
+/// @brief 按页面加载策略发起数据请求，结果由已连接的信号更新控件。
 void StationPage::refresh() {
 	if (m_loaded)
 		return;
@@ -430,6 +445,7 @@ void StationPage::refresh() {
 
 // ---- AddStationDialog ----
 
+/// @brief 建立电站表单，连接地图选点及接受前的名称、坐标和价格校验。
 AddStationDialog::AddStationDialog(QWidget *parent) : QDialog(parent) {
 	setWindowTitle(tr("新增电站"));
 	setMinimumWidth(380);
@@ -502,6 +518,7 @@ AddStationDialog::AddStationDialog(QWidget *parent) : QDialog(parent) {
 	connect(buttons, &QDialogButtonBox::rejected, this, &AddStationDialog::reject);
 }
 
+/// @brief 将当前控件值复制为提交表单，不执行网络操作。
 ops::StationForm AddStationDialog::form() const {
 	ops::StationForm f;
 	f.name = m_nameEdit->text().trimmed();

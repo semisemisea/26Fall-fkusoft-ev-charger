@@ -1,3 +1,8 @@
+/**
+ * @file order_tests.cpp
+ * @brief 自动化测试：充电启动、停止、结算与幂等扣款。 使用 Qt Test 验证正常流程、校验失败与业务边界。
+ */
+
 #include "backend/api.h"
 #include "backend/database.h"
 #include "backend/http.h"
@@ -12,29 +17,45 @@
 #include <future>
 #include <memory>
 
+/** @brief 订单计量与幂等结算的 Qt Test 测试集合。 */
 class OrderTests : public QObject {
 	Q_OBJECT
 
 private slots:
+	/**
+	 * @brief 验证预约启动、停止、支付及重放只累计一次使用和扣款。
+	 */
 	void completesReservedChargingFlowExactlyOnce();
+	/**
+	 * @brief 验证零秒直接充电订单可以停止并以零金额结算。
+	 */
 	void zeroSecondDirectOrderIsValid();
 };
 
 namespace {
 
+	/**
+	 * @brief 解析测试 HTTP 响应正文为 JSON 对象，便于断言信封字段。
+	 * @param response 待发送或解码的 HTTP 响应。
+	 * @return 符合本接口字段约定的 JSON 数据。
+	 */
 	QJsonObject object(const Backend::HttpResponse &response) {
 		return QJsonDocument::fromJson(response.body).object();
 	}
 
+	/** @brief 隔离的测试依赖夹具；临时数据库与固定时钟避免用例间状态污染。 */
 	struct Fixture {
-		QTemporaryDir directory;
-		std::shared_ptr<Backend::Database> database;
-		std::shared_ptr<EvCharger::FixedClock> clock;
-		Backend::Router router;
-		QString adminToken;
-		QString userToken;
-		qint64 stationId = 0;
+		QTemporaryDir directory;					  ///< 用例独立临时目录，夹具销毁时清理数据库文件。
+		std::shared_ptr<Backend::Database> database;  ///< 共享数据库入口；每次操作在调用线程创建连接。
+		std::shared_ptr<EvCharger::FixedClock> clock; ///< 可注入时钟，统一提供过期判断和充电计量时间。
+		Backend::Router router;						  ///< 测试请求分派器或共享路由。
+		QString adminToken;							  ///< 测试管理员访问令牌。
+		QString userToken;							  ///< 测试普通用户访问令牌。
+		qint64 stationId = 0;						  ///< 本组用例创建的主站点标识。
 
+		/**
+		 * @brief 创建临时数据库和固定时钟，注册路由并准备本组测试数据。
+		 */
 		Fixture()
 			: database(std::make_shared<Backend::Database>(directory.filePath(QStringLiteral("test.sqlite3")), 5000)), clock(std::make_shared<EvCharger::FixedClock>(QDateTime(QDate(2026, 9, 1), QTime(8, 0), Qt::UTC))) {
 			QString error;
@@ -55,6 +76,15 @@ namespace {
 			stationId = object(station).value(QStringLiteral("data")).toObject().value(QStringLiteral("id")).toInteger();
 		}
 
+		/**
+		 * @brief 组装测试 HTTP 请求及认证、幂等信息并返回响应。
+		 * @param method HTTP 请求方法。
+		 * @param[in] path HTTP 资源路径，不含服务器地址。
+		 * @param body 待解析或序列化的 JSON 请求对象。
+		 * @param token 明文访问令牌，仅用于生成摘要或返回客户端。
+		 * @param key 地图服务密钥。
+		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
+		 */
 		Backend::HttpResponse send(const QString &method, const QString &path, const QJsonObject &body = {}, const QString &token = {}, const QByteArray &key = {}) const {
 			Backend::HttpRequest request;
 			request.method = method;
@@ -73,6 +103,12 @@ namespace {
 			return router.dispatch(request);
 		}
 
+		/**
+		 * @brief 执行测试登录并提取令牌；登录失败时终止夹具初始化。
+		 * @param[in] path HTTP 资源路径，不含服务器地址。
+		 * @param body 待解析或序列化的 JSON 请求对象。
+		 * @return 按上述规则生成的文本或字节结果。
+		 */
 		QString login(const QString &path, const QJsonObject &body) {
 			const Backend::HttpResponse response = send(QStringLiteral("POST"), path, body);
 			if (response.status != 200) {
@@ -81,6 +117,11 @@ namespace {
 			return object(response).value(QStringLiteral("data")).toObject().value(QStringLiteral("accessToken")).toString();
 		}
 
+		/**
+		 * @brief 创建测试充电桩并返回标识，供预约或订单场景使用。
+		 * @param powerKw 测试桩功率，单位千瓦。
+		 * @return 新建测试充电桩的数据库标识。
+		 */
 		qint64 createCharger(double powerKw = 60) {
 			const Backend::HttpResponse response = send(QStringLiteral("POST"), QStringLiteral("/api/v1/admin/stations/%1/chargers").arg(stationId), QJsonObject{{QStringLiteral("type"), QStringLiteral("fast")}, {QStringLiteral("powerKw"), powerKw}}, adminToken);
 			return object(response).value(QStringLiteral("data")).toObject().value(QStringLiteral("id")).toInteger();
@@ -89,6 +130,9 @@ namespace {
 
 } // namespace
 
+/**
+ * @brief 验证预约启动、停止、支付及重放只累计一次使用和扣款。
+ */
 void OrderTests::completesReservedChargingFlowExactlyOnce() {
 	Fixture fixture;
 	const qint64 chargerId = fixture.createCharger();
@@ -178,6 +222,9 @@ void OrderTests::completesReservedChargingFlowExactlyOnce() {
 	QVERIFY(active.isNull());
 }
 
+/**
+ * @brief 验证零秒直接充电订单可以停止并以零金额结算。
+ */
 void OrderTests::zeroSecondDirectOrderIsValid() {
 	Fixture fixture;
 	const qint64 chargerId = fixture.createCharger();

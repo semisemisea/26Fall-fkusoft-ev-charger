@@ -1,3 +1,6 @@
+/** @file
+ * @brief 用户手机号查询、分页列表及权限控制下的冻结和解冻操作。
+ */
 #include "userpage.h"
 
 #include <QHBoxLayout>
@@ -11,6 +14,7 @@
 
 namespace {
 
+	/// @brief 表格列索引；与表头和填充位置保持一致。
 	enum Col { ColId = 0,
 			   ColPhone,
 			   ColNickname,
@@ -20,6 +24,7 @@ namespace {
 
 } // namespace
 
+/// @brief 建立手机号查询、用户列表和分页控件，连接冻结操作及结果回调。
 UserPage::UserPage(ops::ApiClient *api, QWidget *parent)
 	: QWidget(parent), m_api(api) {
 	auto *root = new QVBoxLayout(this);
@@ -160,6 +165,7 @@ UserPage::UserPage(ops::ApiClient *api, QWidget *parent)
 	m_freezeButton->setEnabled(false); // 选中用户后才可用
 }
 
+/// @brief 依据选择用户的冻结状态设置按钮文案，并按管理员权限启用。
 void UserPage::updateFrozenButton() {
 	const int row = selectedUserRow();
 	if (row < 0 || row >= m_rows.size()) {
@@ -172,6 +178,7 @@ void UserPage::updateFrozenButton() {
 	m_freezeButton->setEnabled(m_api->canWrite());
 }
 
+/// @brief 依页码和下一页标志设置翻页条可见性及按钮状态。
 void UserPage::updatePager() {
 	const bool show = m_hasNext || m_page > 1;
 	m_prevButton->setVisible(show);
@@ -182,16 +189,20 @@ void UserPage::updatePager() {
 	m_nextButton->setEnabled(m_hasNext);
 }
 
+/// @brief 返回选中的用户行号，无选择返回 -1。
 int UserPage::selectedUserRow() const {
 	const auto indexes = m_table->selectionModel()->selectedRows();
 	return indexes.isEmpty() ? -1 : indexes.first().row();
 }
 
+/// @brief 先交给 QWidget 处理显示事件，再触发本页刷新。
 void UserPage::showEvent(QShowEvent *event) {
+	/// @brief 先交给 QWidget 处理显示事件，再触发本页刷新。
 	QWidget::showEvent(event);
 	refresh();
 }
 
+/// @brief 按页面加载策略发起数据请求，结果由已连接的信号更新控件。
 void UserPage::refresh() {
 	if (m_loaded)
 		return;

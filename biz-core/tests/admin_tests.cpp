@@ -1,3 +1,8 @@
+/**
+ * @file admin_tests.cpp
+ * @brief 自动化测试：管理员统计、订单筛选与用户状态管理。 使用 Qt Test 验证正常流程、校验失败与业务边界。
+ */
+
 #include "backend/api.h"
 #include "backend/database.h"
 #include "backend/http.h"
@@ -15,34 +20,59 @@
 
 #include <memory>
 
+/** @brief 管理员统计、查询和权限边界的 Qt Test 测试集合。 */
 class AdminTests : public QObject {
 	Q_OBJECT
 
 private slots:
+	/**
+	 * @brief 验证营收汇总、时区日期序列与充电桩统计。
+	 */
 	void reportsRevenueSeriesAndChargerFacts();
+	/**
+	 * @brief 验证管理统计的时间、时区和筛选参数校验。
+	 */
 	void rejectsInvalidDashboardRequests();
+	/**
+	 * @brief 验证管理员订单列表按条件筛选并保留正确分页数据。
+	 */
 	void filtersAdministrativeOrders();
+	/**
+	 * @brief 验证管理员用户资料、冻结解冻及预约取消联动。
+	 */
 	void managesUsersAndCancelsReservations();
+	/**
+	 * @brief 验证只读管理员在查询与用户写操作之间的权限边界。
+	 */
 	void enforcesReadOnlyAdministratorBoundary();
 };
 
 namespace {
 
+	/**
+	 * @brief 解析测试 HTTP 响应正文为 JSON 对象，便于断言信封字段。
+	 * @param response 待发送或解码的 HTTP 响应。
+	 * @return 符合本接口字段约定的 JSON 数据。
+	 */
 	QJsonObject object(const Backend::HttpResponse &response) {
 		return QJsonDocument::fromJson(response.body).object();
 	}
 
+	/** @brief 隔离的测试依赖夹具；临时数据库与固定时钟避免用例间状态污染。 */
 	struct Fixture {
-		QTemporaryDir directory;
-		std::shared_ptr<Backend::Database> database;
-		std::shared_ptr<EvCharger::FixedClock> clock;
-		Backend::Router router;
-		QString adminToken;
-		QString userToken;
-		qint64 userId = 0;
-		qint64 stationId = 0;
-		qint64 otherStationId = 0;
+		QTemporaryDir directory;					  ///< 用例独立临时目录，夹具销毁时清理数据库文件。
+		std::shared_ptr<Backend::Database> database;  ///< 共享数据库入口；每次操作在调用线程创建连接。
+		std::shared_ptr<EvCharger::FixedClock> clock; ///< 可注入时钟，统一提供过期判断和充电计量时间。
+		Backend::Router router;						  ///< 测试请求分派器或共享路由。
+		QString adminToken;							  ///< 测试管理员访问令牌。
+		QString userToken;							  ///< 测试普通用户访问令牌。
+		qint64 userId = 0;							  ///< 测试用户数据库标识。
+		qint64 stationId = 0;						  ///< 本组用例创建的主站点标识。
+		qint64 otherStationId = 0;					  ///< 用于验证站点筛选的第二个站点标识。
 
+		/**
+		 * @brief 创建临时数据库和固定时钟，注册路由并准备本组测试数据。
+		 */
 		Fixture()
 			: database(std::make_shared<Backend::Database>(directory.filePath(QStringLiteral("test.sqlite3")), 5000)), clock(std::make_shared<EvCharger::FixedClock>(QDateTime(QDate(2026, 9, 1), QTime(8, 0), Qt::UTC))) {
 			QString error;
@@ -69,6 +99,15 @@ namespace {
 			otherStationId = createStation(QStringLiteral("其他站"));
 		}
 
+		/**
+		 * @brief 组装测试 HTTP 请求及认证、幂等信息并返回响应。
+		 * @param method HTTP 请求方法。
+		 * @param target 成功时接收经范围校验的数值。
+		 * @param body 待解析或序列化的 JSON 请求对象。
+		 * @param token 明文访问令牌，仅用于生成摘要或返回客户端。
+		 * @param idempotencyKey 测试请求的幂等键。
+		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
+		 */
 		Backend::HttpResponse send(const QString &method, const QString &target, const QJsonObject &body = {}, const QString &token = {}, const QByteArray &idempotencyKey = {}) const {
 			const QUrl url(target);
 			Backend::HttpRequest request;
@@ -89,6 +128,12 @@ namespace {
 			return router.dispatch(request);
 		}
 
+		/**
+		 * @brief 执行测试登录并提取令牌；登录失败时终止夹具初始化。
+		 * @param[in] path HTTP 资源路径，不含服务器地址。
+		 * @param body 待解析或序列化的 JSON 请求对象。
+		 * @return 按上述规则生成的文本或字节结果。
+		 */
 		QString login(const QString &path, const QJsonObject &body) {
 			const Backend::HttpResponse response = send(QStringLiteral("POST"), path, body);
 			if (response.status != 200) {
@@ -97,6 +142,11 @@ namespace {
 			return object(response).value(QStringLiteral("data")).toObject().value(QStringLiteral("accessToken")).toString();
 		}
 
+		/**
+		 * @brief 创建测试站点，供列表、地图或订单场景使用。
+		 * @param name 待读取或报告的参数名称。
+		 * @return 新建测试站点的数据库标识。
+		 */
 		qint64 createStation(const QString &name) {
 			const Backend::HttpResponse response = send(QStringLiteral("POST"), QStringLiteral("/api/v1/admin/stations"), QJsonObject{
 																															  {QStringLiteral("name"), name},
@@ -108,11 +158,23 @@ namespace {
 			return object(response).value(QStringLiteral("data")).toObject().value(QStringLiteral("id")).toInteger();
 		}
 
+		/**
+		 * @brief 创建测试充电桩并返回标识，供预约或订单场景使用。
+		 * @param ownerStationId 测试充电桩或订单所属站点标识。
+		 * @return 新建测试充电桩的数据库标识。
+		 */
 		qint64 createCharger(qint64 ownerStationId) {
 			const Backend::HttpResponse response = send(QStringLiteral("POST"), QStringLiteral("/api/v1/admin/stations/%1/chargers").arg(ownerStationId), QJsonObject{{QStringLiteral("type"), QStringLiteral("fast")}, {QStringLiteral("powerKw"), 60}}, adminToken);
 			return object(response).value(QStringLiteral("data")).toObject().value(QStringLiteral("id")).toInteger();
 		}
 
+		/**
+		 * @brief 插入指定结算时间和金额的订单，构造营收统计数据。
+		 * @param ownerStationId 测试充电桩或订单所属站点标识。
+		 * @param chargerId 充电桩标识。
+		 * @param settledAt 测试订单的结算时间。
+		 * @param amountFen 测试金额，单位分。
+		 */
 		void insertSettledOrder(qint64 ownerStationId, qint64 chargerId, const QString &settledAt, qint64 amountFen) {
 			QString error;
 			const bool success = database->withConnection([&](QSqlDatabase &connection, QString *operationError) {
@@ -142,6 +204,9 @@ namespace {
 
 } // namespace
 
+/**
+ * @brief 验证营收汇总、时区日期序列与充电桩统计。
+ */
 void AdminTests::reportsRevenueSeriesAndChargerFacts() {
 	Fixture fixture;
 	const qint64 charger = fixture.createCharger(fixture.stationId);
@@ -214,6 +279,9 @@ void AdminTests::reportsRevenueSeriesAndChargerFacts() {
 	QCOMPARE(facts.value(QStringLiteral("operational")).toObject().value(QStringLiteral("offline")).toInteger(), qint64(1));
 }
 
+/**
+ * @brief 验证管理统计的时间、时区和筛选参数校验。
+ */
 void AdminTests::rejectsInvalidDashboardRequests() {
 	Fixture fixture;
 	QCOMPARE(fixture.send(QStringLiteral("GET"), QStringLiteral("/api/v1/admin/dashboard/revenue"), {}, fixture.userToken).status, 403);
@@ -222,6 +290,9 @@ void AdminTests::rejectsInvalidDashboardRequests() {
 	QCOMPARE(fixture.send(QStringLiteral("GET"), QStringLiteral("/api/v1/admin/dashboard/charger-status?stationId=0"), {}, fixture.adminToken).status, 400);
 }
 
+/**
+ * @brief 验证管理员订单列表按条件筛选并保留正确分页数据。
+ */
 void AdminTests::filtersAdministrativeOrders() {
 	Fixture fixture;
 	const qint64 charger = fixture.createCharger(fixture.stationId);
@@ -240,6 +311,9 @@ void AdminTests::filtersAdministrativeOrders() {
 	QCOMPARE(fixture.send(QStringLiteral("GET"), QStringLiteral("/api/v1/admin/orders?status=invalid"), {}, fixture.adminToken).status, 400);
 }
 
+/**
+ * @brief 验证管理员用户资料、冻结解冻及预约取消联动。
+ */
 void AdminTests::managesUsersAndCancelsReservations() {
 	Fixture fixture;
 	const qint64 charger = fixture.createCharger(fixture.stationId);
@@ -292,6 +366,9 @@ void AdminTests::managesUsersAndCancelsReservations() {
 	QCOMPARE(fixture.send(QStringLiteral("PATCH"), QStringLiteral("/api/v1/admin/users/%1").arg(fixture.userId), QJsonObject{{QStringLiteral("status"), QStringLiteral("disabled")}}, fixture.adminToken).status, 400);
 }
 
+/**
+ * @brief 验证只读管理员在查询与用户写操作之间的权限边界。
+ */
 void AdminTests::enforcesReadOnlyAdministratorBoundary() {
 	Fixture fixture;
 	QString error;

@@ -1,3 +1,7 @@
+/**
+ * @file Toast.cpp
+ * @brief 在锚点窗口顶部显示非阻塞提示，并自动完成入场与退出销毁。
+ */
 #include "Toast.h"
 
 #include "common/Demo.h"
@@ -15,6 +19,13 @@
 namespace {
 
 	// 在 anchor 所在窗口顶部居中弹出提示：替换旧提示，淡入下滑入场，2.4s 后淡出销毁
+	/**
+	 * @brief 在锚点所属窗口顶部显示一条可自动销毁的轻提示。
+	 * @param anchor 用于定位顶层窗口的控件，为空时直接返回。
+	 * @param accent 提示圆点颜色，区分成功、失败和一般消息。
+	 * @param text 提示文本。
+	 * @details 旧提示延迟删除，新提示由宿主窗口拥有；动画和定时回调均以提示控件为上下文。
+	 */
 	void showToast(QWidget *anchor, const QColor &accent, const QString &text) {
 		QWidget *host = anchor ? anchor->window() : nullptr;
 		if (!host) {
@@ -97,14 +108,23 @@ namespace {
 namespace Toast {
 
 	// 三种级别仅提示点颜色不同
+	/**
+	 * @brief 成功状态，使用绿色提示点。
+	 */
 	void success(QWidget *anchor, const QString &text) {
 		showToast(anchor, theme::success(), text);
 	}
 
+	/**
+	 * @brief 失败状态，使用红色提示点。
+	 */
 	void error(QWidget *anchor, const QString &text) {
 		showToast(anchor, theme::error(), text);
 	}
 
+	/**
+	 * @brief 一般信息，使用品牌主色提示点。
+	 */
 	void info(QWidget *anchor, const QString &text) {
 		showToast(anchor, theme::primary(), text);
 	}

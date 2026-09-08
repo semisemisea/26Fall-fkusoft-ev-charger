@@ -1,3 +1,7 @@
+/**
+ * @file ChargingTab.cpp
+ * @brief 协调准备、预约、充电和结算页面，并从服务端恢复当前业务状态。
+ */
 #include "ChargingTab.h"
 
 #include "ChargingView.h"
@@ -17,7 +21,9 @@
 #include <QUrlQuery>
 #include <QVBoxLayout>
 
-// 构造：搭建四个子页面装入堆栈，设置背景图并连接充电页 / 结算页信号
+/**
+ * @details 构造：搭建四个子页面装入堆栈，设置背景图并连接充电页 / 结算页信号
+ */
 ChargingTab::ChargingTab(Session &session, ApiClient &api, QWidget *parent)
 	: QWidget(parent), m_session(session), m_api(api) {
 	buildPreparePage();
@@ -51,7 +57,9 @@ ChargingTab::ChargingTab(Session &session, ApiClient &api, QWidget *parent)
 	connect(m_settleView, &SettleView::returnHomeRequested, this, &ChargingTab::returnHomeRequested);
 }
 
-// 搭建“准备充电”页：编号输入框 + 圆形启动按钮
+/**
+ * @details 搭建“准备充电”页：编号输入框 + 圆形启动按钮
+ */
 void ChargingTab::buildPreparePage() {
 	auto *page = new QWidget(this);
 
@@ -111,7 +119,9 @@ void ChargingTab::buildPreparePage() {
 	m_preparePage = page;
 }
 
-// 搭建“我的预约”页：站点 / 电桩信息卡、保留倒计时、启动与取消按钮
+/**
+ * @details 搭建“我的预约”页：站点 / 电桩信息卡、保留倒计时、启动与取消按钮
+ */
 void ChargingTab::buildReservationPage() {
 	auto *page = new QWidget(this);
 
@@ -181,7 +191,9 @@ void ChargingTab::buildReservationPage() {
 	m_reservationPage = page;
 }
 
-// 进入时查询进行中订单：无订单则查预约，否则按状态恢复充电页或结算页
+/**
+ * @details 进入时查询进行中订单：无订单则查预约，否则按状态恢复充电页或结算页
+ */
 void ChargingTab::checkActiveOrder() {
 	m_api.get(QStringLiteral("/me/active-order"), [this](const QJsonValue &data, const QJsonObject &) {
                   if (data.isNull()) {
@@ -197,27 +209,35 @@ void ChargingTab::checkActiveOrder() {
                   } }, [this](const ApiError &error) { fail(error.message.isEmpty() ? error.code : error.message); });
 }
 
-// 打开充电进行页并广播“有进行中订单”
+/**
+ * @details 打开充电进行页并广播“有进行中订单”
+ */
 void ChargingTab::showCharging(const Order &order) {
 	emit activeOrderChanged(true);
 	m_chargingView->open(order);
 	m_stack->setCurrentWidget(m_chargingView);
 }
 
-// 打开结算页并广播“有进行中订单”
+/**
+ * @details 打开结算页并广播“有进行中订单”
+ */
 void ChargingTab::showSettlement(const Order &order) {
 	emit activeOrderChanged(true);
 	m_settleView->open(order);
 	m_stack->setCurrentWidget(m_settleView);
 }
 
-// 切回准备页
+/**
+ * @details 切回准备页
+ */
 void ChargingTab::showPrepare() {
 	m_stack->setCurrentWidget(m_preparePage);
 	m_codeEdit->setFocus();
 }
 
-// 校验输入的电桩编号，置忙后先拉取附近站点再逐站匹配
+/**
+ * @details 校验输入的电桩编号，置忙后先拉取附近站点再逐站匹配
+ */
 void ChargingTab::startWithCode() {
 	const QString code = m_codeEdit->text().trimmed().toUpper();
 	if (code.isEmpty()) {
@@ -233,7 +253,9 @@ void ChargingTab::startWithCode() {
 	fetchNearbyStations();
 }
 
-// 按当前定位请求附近站点 id 列表，作为查找电桩编号的候选
+/**
+ * @details 按当前定位请求附近站点 id 列表，作为查找电桩编号的候选
+ */
 void ChargingTab::fetchNearbyStations() {
 	QUrlQuery query;
 	query.addQueryItem(QLatin1String("latitude"), QString::number(m_session.latitude()));
@@ -250,7 +272,9 @@ void ChargingTab::fetchNearbyStations() {
                   tryNextCandidate(); }, [this](const ApiError &error) { fail(error.message.isEmpty() ? error.code : error.message); });
 }
 
-// 在下一个候选站点的电桩列表中匹配编号，命中则创建订单，否则继续或报错
+/**
+ * @details 在下一个候选站点的电桩列表中匹配编号，命中则创建订单，否则继续或报错
+ */
 void ChargingTab::tryNextCandidate() {
 	if (m_candidateIndex >= m_candidateStationIds.size()) {
 		fail(QStringLiteral("未找到编号为 %1 的电桩").arg(m_pendingCode));
@@ -268,7 +292,9 @@ void ChargingTab::tryNextCandidate() {
                   tryNextCandidate(); }, [this](const ApiError &) { tryNextCandidate(); });
 }
 
-// 创建充电订单；若已有进行中订单（ACTIVE_ORDER_EXISTS）则改为恢复现场
+/**
+ * @details 创建充电订单；若已有进行中订单（ACTIVE_ORDER_EXISTS）则改为恢复现场
+ */
 void ChargingTab::createOrder(int chargerId) {
 	QJsonObject body;
 	body.insert(QLatin1String("chargerId"), chargerId);
@@ -284,7 +310,9 @@ void ChargingTab::createOrder(int chargerId) {
                    fail(error.message.isEmpty() ? error.code : error.message); });
 }
 
-// 统一失败处理：恢复按钮、显示错误并回到准备页
+/**
+ * @details 统一失败处理：恢复按钮、显示错误并回到准备页
+ */
 void ChargingTab::fail(const QString &message) {
 	m_startButton->setEnabled(true);
 	m_hintLabel->setText(message);
@@ -292,7 +320,9 @@ void ChargingTab::fail(const QString &message) {
 	showPrepare();
 }
 
-// 展示预约信息并启动每秒倒计时
+/**
+ * @details 展示预约信息并启动每秒倒计时
+ */
 void ChargingTab::showReservation(const Reservation &reservation) {
 	m_reservation = reservation;
 	m_reservationStationLabel->setText(reservation.stationName);
@@ -304,7 +334,9 @@ void ChargingTab::showReservation(const Reservation &reservation) {
 	m_stack->setCurrentWidget(m_reservationPage);
 }
 
-// 查询生效中的预约：有则进预约页，无则回准备页
+/**
+ * @details 查询生效中的预约：有则进预约页，无则回准备页
+ */
 void ChargingTab::checkActiveReservation() {
 	m_api.get(QStringLiteral("/reservations?status=active"), [this](const QJsonValue &data, const QJsonObject &) {
                   const QJsonArray items = data.toArray();
@@ -318,7 +350,9 @@ void ChargingTab::checkActiveReservation() {
                   showPrepare(); });
 }
 
-// 用预约对应的电桩创建订单启动充电；电桩不可用等状态时延时重新拉取现场
+/**
+ * @details 用预约对应的电桩创建订单启动充电；电桩不可用等状态时延时重新拉取现场
+ */
 void ChargingTab::startFromReservation() {
 	setReservationBusy(true);
 	const int reservationId = m_reservation.id;
@@ -344,7 +378,9 @@ void ChargingTab::startFromReservation() {
                    QTimer::singleShot(1200, this, &ChargingTab::checkActiveOrder); });
 }
 
-// 取消预约：成功后停倒计时并回准备页
+/**
+ * @details 取消预约：成功后停倒计时并回准备页
+ */
 void ChargingTab::cancelReservation() {
 	setReservationBusy(true);
 	const int reservationId = m_reservation.id;
@@ -360,7 +396,9 @@ void ChargingTab::cancelReservation() {
                    QTimer::singleShot(1200, this, &ChargingTab::checkActiveOrder); });
 }
 
-// 计算剩余保留秒数并刷新 mm:ss 显示；到期则提示并重新检查现场
+/**
+ * @details 计算剩余保留秒数并刷新 mm:ss 显示；到期则提示并重新检查现场
+ */
 void ChargingTab::updateCountdown() {
 	const qint64 remaining = QDateTime::currentDateTimeUtc().secsTo(m_reservation.expiresAt); // 使用服务端给的到期时间
 	if (remaining <= 0) {
@@ -375,7 +413,9 @@ void ChargingTab::updateCountdown() {
 								  .arg(remaining % 60, 2, 10, QLatin1Char('0')));
 }
 
-// 预约操作期间禁用两个按钮，防止重复提交
+/**
+ * @details 预约操作期间禁用两个按钮，防止重复提交
+ */
 void ChargingTab::setReservationBusy(bool busy) {
 	m_reservationStartButton->setEnabled(!busy);
 	m_reservationCancelButton->setEnabled(!busy);

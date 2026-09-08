@@ -1,3 +1,8 @@
+/**
+ * @file station_api.cpp
+ * @brief 站点附近搜索及管理员站点生命周期管理接口。
+ */
+
 #include "api_support.h"
 
 #include "resource_support.h"
@@ -22,11 +27,20 @@
 namespace Backend {
 	namespace {
 
+		/** @brief 经参数校验的页码和页大小，用于 LIMIT/OFFSET 和响应元数据。 */
 		struct Pagination {
-			int page = 1;
-			int pageSize = 20;
+			int page = 1;	   ///< 从 1 开始的页码。
+			int pageSize = 20; ///< 每页记录数。
 		};
 
+		/**
+		 * @brief 验证管理员身份、账号状态及该接口要求的角色权限。
+		 * @param request 当前 HTTP 请求，包含查询、请求体、头和路径参数。
+		 * @param dependencies 数据库、配置、时钟与地图客户端依赖。
+		 * @param write 是否按写操作要求完整管理员权限。
+		 * @param[out] failure 必须有效；失败时写入对应 HTTP 错误响应，成功时不应读取该输出。
+		 * @return 通过该接口角色和账号状态检查的管理员；认证或授权失败时返回 std::nullopt，并写入 failure。
+		 */
 		std::optional<Principal> requireAdmin(const HttpRequest &request, const ApiDependencies &dependencies, bool write, HttpResponse *failure) {
 			const auto principal = authenticate(request, dependencies, failure);
 			if (!principal.has_value()) {
@@ -40,6 +54,11 @@ namespace Backend {
 			return principal;
 		}
 
+		/**
+		 * @brief 解析严格大于零的整数资源标识，拒绝非法格式或非正值。
+		 * @param value 待校验、舍入或转换的输入值。
+		 * @return 解析出的正整数标识；无法按相应字符串或 JSON 整数规则解析时返回 std::nullopt。
+		 */
 		std::optional<qint64> positiveId(const QString &value) {
 			bool ok = false;
 			const qint64 id = value.toLongLong(&ok);
@@ -49,6 +68,12 @@ namespace Backend {
 			return id;
 		}
 
+		/**
+		 * @brief 解析页码和每页数量并验证接口允许的范围。
+		 * @param request 当前 HTTP 请求，包含查询、请求体、头和路径参数。
+		 * @param[out] failure 必须有效；失败时写入对应 HTTP 错误响应，成功时不应读取该输出。
+		 * @return 包含默认值或已校验参数的分页值；非法页码/页大小返回 std::nullopt，并写入 failure。
+		 */
 		std::optional<Pagination> pagination(const HttpRequest &request, HttpResponse *failure) {
 			Pagination result;
 			auto value = [&](const QString &name, int fallback, int maximum) -> std::optional<int> {
@@ -73,6 +98,12 @@ namespace Backend {
 			return result;
 		}
 
+		/**
+		 * @brief 构造页码、每页数量和总记录数的分页元数据。
+		 * @param pagination 已校验的页码与页大小。
+		 * @param total 筛选后的总记录数。
+		 * @return 符合本接口字段约定的 JSON 数据。
+		 */
 		QJsonObject pageMeta(const Pagination &pagination, qint64 total) {
 			return QJsonObject{
 				{QStringLiteral("page"), pagination.page},
@@ -82,6 +113,12 @@ namespace Backend {
 			};
 		}
 
+		/**
+		 * @brief 返回未删除且启用的公开站点详情。
+		 * @param request 当前 HTTP 请求，包含查询、请求体、头和路径参数。
+		 * @param dependencies 数据库、配置、时钟与地图客户端依赖。
+		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
+		 */
 		HttpResponse publicStation(const HttpRequest &request, const ApiDependencies &dependencies) {
 			const auto stationId = positiveId(request.pathParameters.value(QStringLiteral("stationId")));
 			if (!stationId.has_value()) {
@@ -104,6 +141,12 @@ namespace Backend {
 			return found ? jsonData(station, request.requestId) : jsonError(QStringLiteral("NOT_FOUND"), QStringLiteral("电站不存在"), {}, request.requestId, 404);
 		}
 
+		/**
+		 * @brief 解析坐标或地址，按球面距离筛选半径内站点并分页排序。
+		 * @param request 当前 HTTP 请求，包含查询、请求体、头和路径参数。
+		 * @param dependencies 数据库、配置、时钟与地图客户端依赖。
+		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
+		 */
 		HttpResponse nearbyStations(const HttpRequest &request, const ApiDependencies &dependencies) {
 			HttpResponse failure;
 			const auto page = pagination(request, &failure);
@@ -156,11 +199,12 @@ namespace Backend {
 			if (!latitudeOk || !longitudeOk || !std::isfinite(latitude) || !std::isfinite(longitude) || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
 				return jsonError(QStringLiteral("VALIDATION_ERROR"), QStringLiteral("附近查询参数无效"), {}, request.requestId, 400);
 			}
+			/** @brief 附近搜索候选站点，保存排序键与已生成的响应投影。 */
 			struct Candidate {
-				qint64 id;
-				qint64 price;
-				double distance;
-				QJsonObject json;
+				qint64 id;		  ///< 主体或资源的数据库标识。
+				qint64 price;	  ///< 站点单价，单位分每千瓦时。
+				double distance;  ///< 相对搜索中心的球面距离，单位千米。
+				QJsonObject json; ///< 已经转换的 JSON 数据，供响应或测试断言使用。
 			};
 			std::vector<Candidate> candidates;
 			QString databaseError;
@@ -213,14 +257,24 @@ namespace Backend {
 			return jsonData(result, request.requestId, 200, pageMeta(*page, candidates.size()));
 		}
 
+		/** @brief 已校验的站点写入字段，供创建和部分更新共用。 */
 		struct StationInput {
-			QString name;
-			double latitude = 0;
-			double longitude = 0;
-			qint64 price = 0;
-			QString status;
+			QString name;		  ///< 去掉首尾空白的站点名称。
+			double latitude = 0;  ///< 纬度，单位度。
+			double longitude = 0; ///< 经度，单位度。
+			qint64 price = 0;	  ///< 站点单价，单位分每千瓦时。
+			QString status;		  ///< 账号或站点的业务状态文本。
 		};
 
+		/**
+		 * @brief 校验站点名称、经纬度、价格和状态；patch 模式只检查提交的字段。
+		 * @param body 待解析或序列化的 JSON 请求对象。
+		 * @param config 业务校验所使用的配置上下限。
+		 * @param[out] input 接收请求中已校验的站点字段；patch 下未提交字段由调用方处理。
+		 * @param[in,out] details 累积字段级校验失败原因；调用方须提供有效对象。
+		 * @param patch 是否允许仅提交部分站点字段。
+		 * @return 字段和创建/更新必填条件全部满足返回 true，否则返回 false；details 包含失败字段。
+		 */
 		bool validateStationFields(const QJsonObject &body, const Config &config, StationInput *input, QJsonObject *details, bool patch) {
 			bool any = false;
 			auto text = [&](const QString &name, qsizetype maximum, QString *target) {
@@ -273,6 +327,12 @@ namespace Backend {
 			return details->isEmpty();
 		}
 
+		/**
+		 * @brief 校验站点字段并创建站点，返回完整站点投影。
+		 * @param request 当前 HTTP 请求，包含查询、请求体、头和路径参数。
+		 * @param dependencies 数据库、配置、时钟与地图客户端依赖。
+		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
+		 */
 		HttpResponse createStation(const HttpRequest &request, const ApiDependencies &dependencies) {
 			HttpResponse failure;
 			if (!requireAdmin(request, dependencies, true, &failure).has_value()) {
@@ -319,6 +379,12 @@ namespace Backend {
 			return success ? jsonData(result, request.requestId, 201) : databaseFailure(request.requestId, databaseError);
 		}
 
+		/**
+		 * @brief 返回管理员可见的站点详情。
+		 * @param request 当前 HTTP 请求，包含查询、请求体、头和路径参数。
+		 * @param dependencies 数据库、配置、时钟与地图客户端依赖。
+		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
+		 */
 		HttpResponse adminStationDetail(const HttpRequest &request, const ApiDependencies &dependencies) {
 			HttpResponse failure;
 			if (!requireAdmin(request, dependencies, false, &failure).has_value()) {
@@ -345,6 +411,12 @@ namespace Backend {
 			return found ? jsonData(station, request.requestId) : jsonError(QStringLiteral("NOT_FOUND"), QStringLiteral("电站不存在"), {}, request.requestId, 404);
 		}
 
+		/**
+		 * @brief 按管理筛选条件分页列出站点及总数。
+		 * @param request 当前 HTTP 请求，包含查询、请求体、头和路径参数。
+		 * @param dependencies 数据库、配置、时钟与地图客户端依赖。
+		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
+		 */
 		HttpResponse listAdminStations(const HttpRequest &request, const ApiDependencies &dependencies) {
 			HttpResponse failure;
 			if (!requireAdmin(request, dependencies, false, &failure).has_value()) {
@@ -428,6 +500,12 @@ namespace Backend {
 			return success ? jsonData(items, request.requestId, 200, pageMeta(*page, total)) : databaseFailure(request.requestId, databaseError);
 		}
 
+		/**
+		 * @brief 修改站点属性，停用时同步将活动预约设为 expired 并释放占用。
+		 * @param request 当前 HTTP 请求，包含查询、请求体、头和路径参数。
+		 * @param dependencies 数据库、配置、时钟与地图客户端依赖。
+		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
+		 */
 		HttpResponse updateStation(const HttpRequest &request, const ApiDependencies &dependencies) {
 			HttpResponse failure;
 			if (!requireAdmin(request, dependencies, true, &failure).has_value()) {
@@ -516,6 +594,12 @@ namespace Backend {
 			return found ? jsonData(result, request.requestId) : jsonError(QStringLiteral("NOT_FOUND"), QStringLiteral("电站不存在"), {}, request.requestId, 404);
 		}
 
+		/**
+		 * @brief 在检查预约与订单冲突后软删除站点及其充电桩。
+		 * @param request 当前 HTTP 请求，包含查询、请求体、头和路径参数。
+		 * @param dependencies 数据库、配置、时钟与地图客户端依赖。
+		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
+		 */
 		HttpResponse deleteStation(const HttpRequest &request, const ApiDependencies &dependencies) {
 			HttpResponse failure;
 			if (!requireAdmin(request, dependencies, true, &failure).has_value()) {
@@ -597,6 +681,11 @@ namespace Backend {
 
 	} // namespace
 
+	/**
+	 * @brief 注册站点路由；处理器按值捕获依赖，供服务运行期间使用。
+	 * @param router 接收路由注册或用于分派请求的路由器。
+	 * @param dependencies 数据库、配置、时钟与地图客户端依赖。
+	 */
 	void registerStationRoutes(Router &router, const ApiDependencies &dependencies) {
 		router.add(QStringLiteral("GET"), QStringLiteral("/api/v1/stations/nearby"), [dependencies](const HttpRequest &request) { return nearbyStations(request, dependencies); });
 		router.add(QStringLiteral("GET"), QStringLiteral("/api/v1/stations/{stationId}"), [dependencies](const HttpRequest &request) { return publicStation(request, dependencies); });

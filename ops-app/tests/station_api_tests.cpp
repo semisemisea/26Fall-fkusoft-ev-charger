@@ -1,3 +1,6 @@
+/** @file
+ * @brief 管理员前端回归测试；用本地响应或直接发送信号隔离真实服务。
+ */
 #include "api/apiclient.h"
 
 #include <QJsonDocument>
@@ -6,17 +9,27 @@
 #include <QTcpSocket>
 #include <QTest>
 
+/** @brief 检测旧的批量电桩数量字段是否仍存在。
+ * @tparam T 被检查的表单类型。
+ */
 template <typename T>
 concept HasChargerCount = requires(T value) {
 	value.chargerCount;
 	value.fastCount;
 };
 
+/** @brief 检测已移除的地址字段是否仍存在。
+ * @tparam T 被检查的表单类型。
+ */
 template <typename T>
 concept HasAddress = requires(T value) {
 	value.address;
 };
 
+/** @brief 兼容旧表单的测试准备；现代表单不含这些字段时不做操作。
+ * @tparam T 待检测的表单类型。
+ * @param form 若含旧字段则填入数量，供请求次数回归断言检测。
+ */
 template <typename T>
 void configureLegacyChargerCounts(T &form) {
 	if constexpr (HasChargerCount<T>) {
@@ -25,22 +38,32 @@ void configureLegacyChargerCounts(T &form) {
 	}
 }
 
+/// @brief 电站表单边界和请求序列回归测试。
 class StationApiTests : public QObject {
 	Q_OBJECT
 
 private slots:
+	/// @brief 用 C++20 requires 检查电站表单不含旧电桩数量字段。
 	void stationFormDoesNotOwnChargers();
+	/// @brief 检查电站表单不再含地址文本字段。
 	void stationFormDoesNotOwnAddress();
+	/// @brief 检查新增电站只发送一次请求及四个基本字段，单价按分发送。
 	void createStationSendsOneRequest();
 };
+
+/// @brief 用 C++20 requires 检查电站表单不含旧电桩数量字段。
 
 void StationApiTests::stationFormDoesNotOwnChargers() {
 	QVERIFY(!HasChargerCount<ops::StationForm>);
 }
 
+/// @brief 检查电站表单不再含地址文本字段。
+
 void StationApiTests::stationFormDoesNotOwnAddress() {
 	QVERIFY(!HasAddress<ops::StationForm>);
 }
+
+/// @brief 检查新增电站只发送一次请求及四个基本字段，单价按分发送。
 
 void StationApiTests::createStationSendsOneRequest() {
 	QTcpServer server;
@@ -49,6 +72,7 @@ void StationApiTests::createStationSendsOneRequest() {
 	connect(&server, &QTcpServer::newConnection, this, [&] {
 		QTcpSocket *socket = server.nextPendingConnection();
 		connect(socket, &QTcpSocket::readyRead, socket, [socket, &requests] {
+			// TCP readyRead 可能仅收到部分报文；按 Content-Length 收齐后才断言和应答。
 			QByteArray request = socket->property("requestBuffer").toByteArray();
 			request.append(socket->readAll());
 			socket->setProperty("requestBuffer", request);
