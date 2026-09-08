@@ -1,6 +1,7 @@
 #include "stationpage.h"
 
 #include "chargerdialog.h"
+#include "mappickerdialog.h"
 
 #include <QDialogButtonBox>
 #include <QFormLayout>
@@ -440,17 +441,37 @@ AddStationDialog::AddStationDialog(QWidget *parent) : QDialog(parent) {
 	m_nameEdit->setPlaceholderText(tr("如: 软件园充电站"));
 	form->addRow(tr("站名"), m_nameEdit);
 
+	m_pickLocationButton = new QPushButton(tr("地图选点"), this);
+	m_pickLocationButton->setObjectName(QStringLiteral("pickStationLocationButton"));
+	form->addRow(tr("位置"), m_pickLocationButton);
+
 	m_latEdit = new QLineEdit(this);
+	m_latEdit->setObjectName(QStringLiteral("stationLatitudeEdit"));
 	m_latEdit->setPlaceholderText(tr("-90 .. 90"));
 	form->addRow(tr("纬度"), m_latEdit);
 
 	m_lonEdit = new QLineEdit(this);
+	m_lonEdit->setObjectName(QStringLiteral("stationLongitudeEdit"));
 	m_lonEdit->setPlaceholderText(tr("-180 .. 180"));
 	form->addRow(tr("经度"), m_lonEdit);
 
 	m_priceEdit = new QLineEdit(this);
 	m_priceEdit->setPlaceholderText(tr("元/度, 如 0.98"));
 	form->addRow(tr("充电价格"), m_priceEdit);
+
+	connect(m_pickLocationButton, &QPushButton::clicked, this, [this] {
+		bool latitudeOk = false;
+		bool longitudeOk = false;
+		const double latitude = m_latEdit->text().toDouble(&latitudeOk);
+		const double longitude = m_lonEdit->text().toDouble(&longitudeOk);
+		MapPickerDialog picker(qEnvironmentVariable("TENCENT_MAP_KEY"),
+							   latitudeOk ? latitude : 38.914,
+							   longitudeOk ? longitude : 121.614, this);
+		if (picker.exec() != QDialog::Accepted)
+			return;
+		m_latEdit->setText(QString::number(picker.latitude(), 'f', 6));
+		m_lonEdit->setText(QString::number(picker.longitude(), 'f', 6));
+	});
 
 	auto *buttons =
 		new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);

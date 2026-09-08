@@ -1,0 +1,132 @@
+#include "mappickerdialog.h"
+
+#include <QDialogButtonBox>
+#include <QLabel>
+#include <QUrl>
+#include <QUrlQuery>
+#include <QVBoxLayout>
+
+#ifdef OPS_APP_HAS_WEBENGINE
+#include <QWebEngineView>
+#endif
+
+namespace {
+
+	constexpr double kDefaultLatitude = 38.914;
+	constexpr double kDefaultLongitude = 121.614;
+	const QLatin1String kSelectionPrefix{"ev-charger-location:"};
+
+	bool validCoordinate(double latitude, double longitude) {
+		return qIsFinite(latitude) && qIsFinite(longitude) && latitude >= -90.0 &&
+			   latitude <= 90.0 && longitude >= -180.0 && longitude <= 180.0;
+	}
+
+#ifdef OPS_APP_HAS_WEBENGINE
+	QUrl pickerUrl(const QString &mapKey, const MapPickerDialog::Coordinate &coordinate) {
+		QUrl url(QStringLiteral("https://apis.map.qq.com/tools/locpicker"));
+		QUrlQuery query;
+		query.addQueryItem(QStringLiteral("search"), QStringLiteral("1"));
+		query.addQueryItem(QStringLiteral("type"), QStringLiteral("1"));
+		query.addQueryItem(QStringLiteral("mapdraggable"), QStringLiteral("1"));
+		query.addQueryItem(QStringLiteral("zoom"), QStringLiteral("15"));
+		query.addQueryItem(QStringLiteral("coord"),
+						   QStringLiteral("%1,%2")
+							   .arg(QString::number(coordinate.latitude, 'f', 6),
+									QString::number(coordinate.longitude, 'f', 6)));
+		query.addQueryItem(QStringLiteral("coordtype"), QStringLiteral("5"));
+		query.addQueryItem(QStringLiteral("key"), mapKey);
+		query.addQueryItem(QStringLiteral("referer"), QStringLiteral("ev-charger"));
+		url.setQuery(query);
+		return url;
+	}
+#endif
+
+} // namespace
+
+MapPickerDialog::MapPickerDialog(const QString &mapKey, double initialLatitude,
+								 double initialLongitude, QWidget *parent)
+	: QDialog(parent) {
+	setWindowTitle(tr("地图选点"));
+	resize(760, 560);
+	m_coordinate = validCoordinate(initialLatitude, initialLongitude)
+					   ? Coordinate{initialLatitude, initialLongitude}
+					   : Coordinate{kDefaultLatitude, kDefaultLongitude};
+
+	auto *layout = new QVBoxLayout(this);
+	layout->setContentsMargins(12, 12, 12, 12);
+	layout->setSpacing(12);
+
+#ifdef OPS_APP_HAS_WEBENGINE
+	if (!mapKey.trimmed().isEmpty()) {
+		auto *map = new QWebEngineView(this);
+		map->setObjectName(QStringLiteral("stationMapPicker"));
+		layout->addWidget(map, 1);
+
+		connect(map, &QWebEngineView::titleChanged, this, [this](const QString &title) {
+			const auto selected = coordinateFromTitle(title);
+			if (!selected.has_value())
+				return;
+			m_coordinate = *selected;
+			accept();
+		});
+
+		const QString source = pickerUrl(mapKey, m_coordinate)
+								   .toString(QUrl::FullyEncoded)
+								   .toHtmlEscaped();
+		const QString html = QStringLiteral(R"HTML(
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <style>html,body,iframe{width:100%;height:100%;margin:0;border:0;overflow:hidden;background:#1b1e23}</style>
+</head>
+<body>
+  <iframe src="%1" allow="geolocation"></iframe>
+  <script>
+    window.addEventListener('message', function(event) {
+      if (event.origin !== 'https://apis.map.qq.com') return;
+      const value = event.data;
+      if (!value || value.module !== 'locationPicker' || !value.latlng) return;
+      const lat = Number(value.latlng.lat);
+      const lng = Number(value.latlng.lng);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+      document.title = 'ev-charger-location:' + lat.toFixed(8) + ',' + lng.toFixed(8);
+    }, false);
+  </script>
+</body>
+</html>)HTML")
+								 .arg(source);
+		map->setHtml(html, QUrl(QStringLiteral("https://apis.map.qq.com/")));
+	} else {
+#endif
+		auto *unavailable = new QLabel(tr("地图服务未配置"), this);
+		unavailable->setObjectName(QStringLiteral("mapUnavailableLabel"));
+		unavailable->setAlignment(Qt::AlignCenter);
+		layout->addWidget(unavailable, 1);
+#ifdef OPS_APP_HAS_WEBENGINE
+	}
+#else
+	Q_UNUSED(mapKey)
+#endif
+
+	auto *buttons = new QDialogButtonBox(QDialogButtonBox::Cancel, this);
+	connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
+	layout->addWidget(buttons);
+}
+
+std::optional<MapPickerDialog::Coordinate>
+MapPickerDialog::coordinateFromTitle(const QString &title) {
+	if (!title.startsWith(kSelectionPrefix))
+		return std::nullopt;
+	const QStringList values = title.mid(kSelectionPrefix.size()).split(QLatin1Char(','));
+	if (values.size() != 2)
+		return std::nullopt;
+	bool latitudeOk = false;
+	bool longitudeOk = false;
+	const double latitude = values.at(0).toDouble(&latitudeOk);
+	const double longitude = values.at(1).toDouble(&longitudeOk);
+	if (!latitudeOk || !longitudeOk || !validCoordinate(latitude, longitude))
+		return std::nullopt;
+	return Coordinate{latitude, longitude};
+}

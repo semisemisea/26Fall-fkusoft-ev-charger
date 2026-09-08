@@ -14,6 +14,8 @@ set(PROJECT_SOURCES
     pages/chargerstatuspage.h
     pages/chargerdialog.cpp
     pages/chargerdialog.h
+    pages/mappickerdialog.cpp
+    pages/mappickerdialog.h
     pages/stationpage.cpp
     pages/stationpage.h
     pages/userpage.cpp
@@ -33,6 +35,11 @@ target_link_libraries(ops-app PRIVATE
 if(TARGET Qt6::Charts)
     target_link_libraries(ops-app PRIVATE Qt6::Charts)
     target_compile_definitions(ops-app PRIVATE OPS_APP_HAS_CHARTS)
+endif()
+
+if(TARGET Qt6::WebEngineWidgets)
+    target_link_libraries(ops-app PRIVATE Qt6::WebEngineWidgets)
+    target_compile_definitions(ops-app PRIVATE OPS_APP_HAS_WEBENGINE)
 endif()
 
 set_target_properties(ops-app PROPERTIES
@@ -104,12 +111,18 @@ if(BUILD_TESTING)
         pages/stationpage.h
         pages/chargerdialog.cpp
         pages/chargerdialog.h
+        pages/mappickerdialog.cpp
+        pages/mappickerdialog.h
         api/apiclient.cpp
         api/apiclient.h
         api/types.h
     )
     target_include_directories(ops-app-station-page-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     target_link_libraries(ops-app-station-page-tests PRIVATE Qt6::Network Qt6::Test Qt6::Widgets)
+    if(TARGET Qt6::WebEngineWidgets)
+        target_link_libraries(ops-app-station-page-tests PRIVATE Qt6::WebEngineWidgets)
+        target_compile_definitions(ops-app-station-page-tests PRIVATE OPS_APP_HAS_WEBENGINE)
+    endif()
     add_test(NAME ops-app-station-page-tests COMMAND ops-app-station-page-tests)
     set_tests_properties(ops-app-station-page-tests PROPERTIES
         ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
@@ -127,6 +140,8 @@ if(BUILD_TESTING)
         pages/stationpage.h
         pages/chargerdialog.cpp
         pages/chargerdialog.h
+        pages/mappickerdialog.cpp
+        pages/mappickerdialog.h
         pages/userpage.cpp
         pages/userpage.h
         api/apiclient.cpp

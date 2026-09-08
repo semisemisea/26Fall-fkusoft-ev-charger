@@ -1,8 +1,10 @@
 #include "pages/chargerdialog.h"
+#include "pages/mappickerdialog.h"
 #include "pages/stationpage.h"
 
 #include <QLabel>
 #include <QLineEdit>
+#include <QPushButton>
 #include <QTableWidget>
 #include <QTest>
 
@@ -12,6 +14,9 @@ class StationPageTests : public QObject {
 private slots:
 	void selectedStationOwnsDisplayedChargers();
 	void chargerDialogLocksSelectedStation();
+	void stationDialogOffersMapPicker();
+	void mapPickerReportsMissingConfiguration();
+	void parsesTencentMapSelection();
 };
 
 void StationPageTests::selectedStationOwnsDisplayedChargers() {
@@ -62,6 +67,34 @@ void StationPageTests::chargerDialogLocksSelectedStation() {
 	QVERIFY(stationIdEdit);
 	QCOMPARE(stationIdEdit->text(), QStringLiteral("42"));
 	QVERIFY(stationIdEdit->isReadOnly());
+}
+
+void StationPageTests::stationDialogOffersMapPicker() {
+	AddStationDialog dialog;
+	QVERIFY(dialog.findChild<QPushButton *>(QStringLiteral("pickStationLocationButton")));
+	QVERIFY(dialog.findChild<QLineEdit *>(QStringLiteral("stationLatitudeEdit")));
+	QVERIFY(dialog.findChild<QLineEdit *>(QStringLiteral("stationLongitudeEdit")));
+}
+
+void StationPageTests::mapPickerReportsMissingConfiguration() {
+	MapPickerDialog picker({}, 38.889, 121.537);
+	auto *unavailable =
+		picker.findChild<QLabel *>(QStringLiteral("mapUnavailableLabel"));
+	QVERIFY(unavailable);
+	QCOMPARE(unavailable->text(), QStringLiteral("地图服务未配置"));
+}
+
+void StationPageTests::parsesTencentMapSelection() {
+	const auto coordinate = MapPickerDialog::coordinateFromTitle(
+		QStringLiteral("ev-charger-location:38.88900000,121.53700000"));
+	QVERIFY(coordinate.has_value());
+	QCOMPARE(coordinate->latitude, 38.889);
+	QCOMPARE(coordinate->longitude, 121.537);
+	QVERIFY(!MapPickerDialog::coordinateFromTitle(
+				 QStringLiteral("ev-charger-location:91,121.537"))
+				 .has_value());
+	QVERIFY(!MapPickerDialog::coordinateFromTitle(QStringLiteral("untrusted:38,121"))
+				 .has_value());
 }
 
 QTEST_MAIN(StationPageTests)
