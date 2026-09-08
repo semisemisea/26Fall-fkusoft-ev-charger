@@ -56,26 +56,19 @@ QPixmap AppIcons::pin(const QColor &color, int size, bool badge)
     return pixmap;
 }
 
-// 闪电：多边形路径一次填充
+// 闪电：SVG 路径渲染（填充与描边同色）
 QPixmap AppIcons::bolt(const QColor &color, int size, bool badge)
 {
+    const QString hex = color.name();
+    const QString svg = QStringLiteral(
+        "<svg viewBox=\"0 0 24 24\" xmlns=\"http://www.w3.org/2000/svg\" fill=\"none\">"
+        "<path fill=\"%1\" stroke=\"%1\" stroke-linecap=\"round\" stroke-linejoin=\"round\" "
+        "stroke-width=\"2\" d=\"M4 14 14 3v7h6L10 21v-7H4z\"/></svg>").arg(hex);
+    QSvgRenderer renderer(svg.toUtf8());
     QPixmap pixmap = makePixmap(size);
     QPainter painter(&pixmap);
     painter.setRenderHint(QPainter::Antialiasing);
-    painter.scale(size / 24.0, size / 24.0);
-    painter.setPen(Qt::NoPen);
-    painter.setBrush(color);
-
-    QPainterPath path;
-    path.moveTo(13.5, 2.5);
-    path.lineTo(5.5, 13.5);
-    path.lineTo(10.5, 13.5);
-    path.lineTo(9.0, 21.5);
-    path.lineTo(18.5, 9.5);
-    path.lineTo(13.0, 9.5);
-    path.closeSubpath();
-    painter.drawPath(path);
-
+    renderer.render(&painter);
     if (badge) {
         drawBadge(painter);
     }

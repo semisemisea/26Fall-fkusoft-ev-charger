@@ -6,7 +6,7 @@
 #include <QWidget>
 
 class ChargePollThread;
-class BatteryWaveWidget;
+class ChargingSpinnerWidget;
 class QLabel;
 class QPushButton; class QTimer;
 
@@ -40,7 +40,7 @@ private:
     ApiClient &m_api;
     Order m_order;
     ChargePollThread *m_pollThread = nullptr;
-    BatteryWaveWidget *m_batteryWidget = nullptr;
+    ChargingSpinnerWidget *m_spinnerWidget = nullptr;
     QLabel *m_rangeValueLabel = nullptr;
     QLabel *m_energyValueLabel = nullptr;
     QLabel *m_typeValueLabel = nullptr;

@@ -43,6 +43,8 @@ qt_add_executable(user-app
     src/widgets/AppIcons.cpp
     src/widgets/BatteryWaveWidget.h
     src/widgets/BatteryWaveWidget.cpp
+    src/widgets/ChargingSpinnerWidget.h
+    src/widgets/ChargingSpinnerWidget.cpp
     src/widgets/ScaleButton.h
     src/widgets/ScaleButton.cpp
     src/widgets/Spinner.h

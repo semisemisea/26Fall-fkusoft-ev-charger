@@ -3,7 +3,7 @@
 #include "app/ChargePollThread.h"
 #include "common/Format.h"
 #include "widgets/AppIcons.h"
-#include "widgets/BatteryWaveWidget.h"
+#include "widgets/ChargingSpinnerWidget.h"
 #include "widgets/Toast.h"
 
 #include <QFrame>
@@ -38,9 +38,8 @@ ChargingView::ChargingView(ApiClient &api, QWidget *parent)
     pal.setBrush(QPalette::Window, QBrush(bg.scaled(390, 780, Qt::IgnoreAspectRatio, Qt::SmoothTransformation)));
     setPalette(pal);
 
-    m_batteryWidget = new BatteryWaveWidget(this);
-    m_batteryWidget->setFixedSize(134, 266);
-    m_batteryWidget->setPercent(0.0);
+    m_spinnerWidget = new ChargingSpinnerWidget(this);
+    m_spinnerWidget->setFixedSize(260, 260);
 
     // ===== 第一行卡片：续航里程 / 已充入电量（宽高比约 1.5）=====
     auto *row1 = new QHBoxLayout;
@@ -109,7 +108,7 @@ ChargingView::ChargingView(ApiClient &api, QWidget *parent)
     layout->setSpacing(6);
     layout->addStretch(6);
     layout->addSpacing(50);
-    layout->addWidget(m_batteryWidget, 0, Qt::AlignCenter);
+    layout->addWidget(m_spinnerWidget, 0, Qt::AlignCenter);
     layout->addSpacing(20);
     layout->addLayout(row1);
     layout->addLayout(row2);
@@ -151,15 +150,12 @@ void ChargingView::updateDisplay(const Order &order)
     const double displayEnergy = qMin(order.energyKwh, kFullBatteryKwh);
 
     // 电池填充百分比
-    const double percent = displayEnergy / kFullBatteryKwh;
-    m_batteryWidget->setPercent(percent);
 
-    // 续航里程 = 已充电量 × 每度电公里数
-    const double range = displayEnergy * kKmPerKwh;
+    // 单价（充电站统一价格）
     m_rangeValueLabel->setText(QStringLiteral(
-        "<div style='font-size:13px; color:#6b7280; line-height:1.0;'>续航里程</div>"
-        "<div style='font-size:26px; color:#000000; line-height:1.0;'>%1"
-        "<span style='font-size:13px; color:#6b7280;'> km</span></div>").arg(range, 0, 'f', 0));
+        "<div style='font-size:13px; color:#6b7280; line-height:1.0;'>单价</div>"
+        "<div style='font-size:26px; color:#000000; line-height:1.0;'>￥%1"
+        "<span style='font-size:13px; color:#6b7280;'> /度</span></div>").arg(fenToYuan(order.unitPriceFenPerKwh)));
 
     // 已充入电量
     m_energyValueLabel->setText(QStringLiteral(
@@ -175,13 +171,10 @@ void ChargingView::updateDisplay(const Order &order)
         "<div style='font-size:13px; color:#6b7280; line-height:1.0;'>充电方式</div>"
         "<div style='font-size:18px; color:#000000; line-height:1.0;'>%1</div>").arg(typeText));
 
-    // 剩余时间 = (满电电量 - 已充电量) × 每度电分钟数
-    const double remainKwh = qMax(0.0, kFullBatteryKwh - order.energyKwh);
-    const int remainMinutes = qRound(remainKwh * kMinutesPerKwh);
+    // 充电桩编号
     m_remainValueLabel->setText(QStringLiteral(
-        "<div style='font-size:13px; color:#6b7280; line-height:1.0;'>剩余时间</div>"
-        "<div style='font-size:20px; color:#000000; line-height:1.0;'>%1"
-        "<span style='font-size:13px; color:#6b7280;'> Min</span></div>").arg(remainMinutes));
+        "<div style='font-size:13px; color:#6b7280; line-height:1.0;'>充电桩编号</div>"
+        "<div style='font-size:20px; color:#000000; line-height:1.0;'>%1</div>").arg(order.chargerCode));
 
     // 预估费用
     m_feeValueLabel->setText(QStringLiteral("￥%1").arg(fenToYuan(order.amountFen)));
