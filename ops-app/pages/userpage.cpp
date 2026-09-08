@@ -47,6 +47,11 @@ UserPage::UserPage(ops::ApiClient *api, QWidget *parent)
 	m_searchEdit->setClearButtonEnabled(true);
 	m_searchEdit->setFixedWidth(220);
 	topBar->addWidget(m_searchEdit);
+	auto *refreshButton = new QPushButton(tr("刷新"), this);
+	topBar->addWidget(refreshButton);
+	connect(refreshButton, &QPushButton::clicked, this, [this] {
+		m_api->fetchUsers(m_searchEdit->text().trimmed(), m_page);
+	});
 	m_freezeButton = new QPushButton(tr("冻结/解冻"), this);
 	m_freezeButton->setObjectName(QStringLiteral("danger"));
 	topBar->addWidget(m_freezeButton);

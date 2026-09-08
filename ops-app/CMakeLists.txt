@@ -155,4 +155,16 @@ if(BUILD_TESTING)
     set_tests_properties(ops-app-mainwindow-layout-tests PROPERTIES
         ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
     )
+
+    qt_add_executable(ops-app-user-page-tests
+        tests/user_page_tests.cpp
+        pages/userpage.cpp
+        pages/userpage.h
+        api/apiclient.cpp
+        api/apiclient.h
+    )
+    target_include_directories(ops-app-user-page-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    target_link_libraries(ops-app-user-page-tests PRIVATE Qt6::Network Qt6::Test Qt6::Widgets)
+    add_test(NAME ops-app-user-page-tests COMMAND ops-app-user-page-tests)
+    set_tests_properties(ops-app-user-page-tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 endif()
