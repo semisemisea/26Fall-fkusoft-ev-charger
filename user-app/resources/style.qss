@@ -374,7 +374,7 @@ QFrame#receiptCard QLabel {
     border: none;
 }
 QFrame#profileHeader {
-    background: #00B84C;
+    background: #1AD600;
     border: 1px solid #22C55E;
     border-radius: 18px;
 }

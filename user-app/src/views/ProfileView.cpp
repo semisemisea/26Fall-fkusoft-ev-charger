@@ -95,9 +95,9 @@ ProfileView::ProfileView(Session &session, ApiClient &api, QWidget *parent)
     m_balanceLabel->setObjectName(QStringLiteral("balance"));
     auto *topUpButton = new ScaleButton(QStringLiteral("立即充值"), walletCard);
     topUpButton->setStyleSheet(QStringLiteral(
-        "QPushButton { background: #00B84C; color: #000000; border: none; border-radius: 10px; font-size: 15px; font-weight: bold; padding: 10px 14px; }"
-        "QPushButton:hover { background: #00B84C; color: #000000; }"
-        "QPushButton:pressed { background: #00B84C; }"));
+        "QPushButton { background: #1AD600; color: #000000; border: none; border-radius: 10px; font-size: 15px; font-weight: bold; padding: 10px 14px; }"
+        "QPushButton:hover { background: #1AD600; color: #000000; }"
+        "QPushButton:pressed { background: #1AD600; }"));
 
     auto *walletLayout = new QVBoxLayout(walletCard);
     walletLayout->setContentsMargins(16, 16, 16, 16);

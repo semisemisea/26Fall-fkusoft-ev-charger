@@ -59,9 +59,9 @@ SettleView::SettleView(Session &session, ApiClient &api, QWidget *parent)
 
     m_payButton = new ScaleButton(QStringLiteral("确认支付（钱包）"), this);
     m_payButton->setStyleSheet(QStringLiteral(
-        "QPushButton { background: #00B84C; color: #000000; border: none; border-radius: 10px; font-size: 15px; font-weight: bold; padding: 10px 14px; }"
-        "QPushButton:hover { background: #00B84C; color: #000000; }"
-        "QPushButton:pressed { background: #00B84C; }"
+        "QPushButton { background: #1AD600; color: #000000; border: none; border-radius: 10px; font-size: 15px; font-weight: bold; padding: 10px 14px; }"
+        "QPushButton:hover { background: #1AD600; color: #000000; }"
+        "QPushButton:pressed { background: #1AD600; }"
         "QPushButton:disabled { background: #9AFFC4; color: rgba(0,0,0,0.5); }"));
 
     m_topUpButton = new ScaleButton(QStringLiteral("余额不足，去充值"), this);
@@ -73,9 +73,9 @@ SettleView::SettleView(Session &session, ApiClient &api, QWidget *parent)
 
     m_homeButton = new ScaleButton(QStringLiteral("返回首页"), this);
     m_homeButton->setStyleSheet(QStringLiteral(
-        "QPushButton { background: #00B84C; color: #000000; border: none; border-radius: 10px; font-size: 15px; font-weight: bold; padding: 10px 14px; }"
-        "QPushButton:hover { background: #00B84C; color: #000000; }"
-        "QPushButton:pressed { background: #00B84C; }"));
+        "QPushButton { background: #1AD600; color: #000000; border: none; border-radius: 10px; font-size: 15px; font-weight: bold; padding: 10px 14px; }"
+        "QPushButton:hover { background: #1AD600; color: #000000; }"
+        "QPushButton:pressed { background: #1AD600; }"));
     m_homeButton->hide();
 
     // 结算页容器

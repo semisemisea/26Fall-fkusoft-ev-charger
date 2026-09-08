@@ -34,7 +34,7 @@ namespace theme {
 	// 第二主色（深一档荧光绿）：用于卡片背景、强调按钮
 	inline QColor secondary()
 	{
-		return QColor(0x00, 0xE6, 0x76);
+		return QColor(0x1A, 0xD6, 0x00);
 	}
 	// 状态色 - 成功：常规/激活/文字/浅底
 	inline QColor success()

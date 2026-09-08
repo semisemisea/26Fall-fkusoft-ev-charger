@@ -8,6 +8,7 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
+#include <QPixmap>
 #include <QRegularExpression>
 #include <QRegularExpressionValidator>
 #include <QVBoxLayout>
@@ -23,9 +24,12 @@ LoginView::LoginView(Session &session, ApiClient &api, QWidget *parent)
 	  , m_session(session)
 	  , m_api(api)
 {
-	auto *logoLabel = new QLabel(QStringLiteral("⚡"), this);
+	auto *logoLabel = new QLabel(this);
 	logoLabel->setAlignment(Qt::AlignCenter);
 	logoLabel->setObjectName(QStringLiteral("prepareIcon"));
+	logoLabel->setPixmap(QPixmap(QStringLiteral(":/backgrounds/logo.png"))
+								 .scaled(160, 160, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+	logoLabel->setFixedSize(160, 160);
 
 	auto *title = new QLabel(QStringLiteral("欢迎使用智能充电系统"), this);
 	title->setAlignment(Qt::AlignCenter);
@@ -75,7 +79,7 @@ LoginView::LoginView(Session &session, ApiClient &api, QWidget *parent)
 	layout->setContentsMargins(28, 12, 28, 12);
 
 	layout->addStretch(1);
-	layout->addWidget(logoLabel);
+	layout->addWidget(logoLabel, 0, Qt::AlignHCenter);
 	layout->addWidget(title);
 	layout->addSpacing(8);
 	layout->addWidget(hint);
@@ -84,7 +88,7 @@ LoginView::LoginView(Session &session, ApiClient &api, QWidget *parent)
 	layout->addSpacing(18);
 	layout->addLayout(btnContainer);
 	layout->addWidget(m_messageLabel);
-	layout->addStretch(2);
+	layout->addStretch(4);
 
 	connect(m_loginButton, &QPushButton::clicked, this, &LoginView::submit);
 	connect(m_phoneEdit, &QLineEdit::returnPressed, this, &LoginView::submit);
