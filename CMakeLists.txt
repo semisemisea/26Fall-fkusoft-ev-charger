@@ -22,6 +22,10 @@ find_package(Qt6 6.2.4 EXACT REQUIRED COMPONENTS
 include(GNUInstallDirs)
 include(CTest)
 
+add_subdirectory(common/logging)
+# All applications and their test targets share the same logging support.
+link_libraries(evcharger-logging)
+
 add_subdirectory(biz-core)
 add_subdirectory(user-app)
 add_subdirectory(ops-app)
