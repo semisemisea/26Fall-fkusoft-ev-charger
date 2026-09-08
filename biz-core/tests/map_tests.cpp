@@ -3,6 +3,7 @@
  * @brief 自动化测试：地图接口与提供方错误映射。 使用 Qt Test 验证正常流程、校验失败与业务边界。
  */
 
+#include "../src/tencent_map_request.h"
 #include "backend/api.h"
 #include "backend/database.h"
 #include "backend/http.h"
@@ -23,6 +24,21 @@ class MapTests : public QObject {
 	Q_OBJECT
 
 private slots:
+	void signsTencentRequests() {
+		QMap<QString, QString> query;
+		query.insert(QStringLiteral("region"), QStringLiteral("大连"));
+		query.insert(QStringLiteral("key"), QStringLiteral("test-api-key"));
+		query.insert(QStringLiteral("address"), QStringLiteral("星海广场 & A+B#%"));
+		const QUrl url(QStringLiteral("https://apis.map.qq.com/ws/geocoder/v1/"));
+		const auto request = Backend::tencentMapRequest(url, query, QStringLiteral("test-secret"));
+		const QUrlQuery sent(request.url());
+		QCOMPARE(sent.queryItemValue(QStringLiteral("sig")), QStringLiteral("7978f58bf67a9f267331a9243f98f029"));
+		QCOMPARE(sent.queryItemValue(QStringLiteral("address"), QUrl::FullyDecoded), QStringLiteral("星海广场 & A+B#%"));
+		QCOMPARE(request.rawHeader("x-legacy-url-decode"), QByteArray("no"));
+		QVERIFY(!request.url().toString().contains(QStringLiteral("test-secret")));
+		QVERIFY(!QUrlQuery(Backend::tencentMapRequest(url, query, {}).url()).hasQueryItem(QStringLiteral("sig")));
+	}
+
 	/**
 	 * @brief 注入假地图客户端，验证地址解析、路线及地址附近站点搜索。
 	 */

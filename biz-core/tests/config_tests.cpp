@@ -45,6 +45,7 @@ void ConfigTests::defaultsAreResolvedFromExecutableDirectory() {
 	QVERIFY2(config.has_value(), qPrintable(error));
 	QCOMPARE(config->host, QStringLiteral("127.0.0.1"));
 	QCOMPARE(config->port, quint16(8080));
+	QVERIFY(config->tencentMapSecretKey.isEmpty());
 	QCOMPARE(config->databasePath, directory.filePath(QStringLiteral("data/ev-charger.sqlite3")));
 	QCOMPARE(config->maxChargerPowerW, qint64(1'000'000));
 }
@@ -62,10 +63,14 @@ void ConfigTests::environmentOverridesIni() {
 
 	QProcessEnvironment environment;
 	environment.insert(QStringLiteral("EV_CHARGER_HTTP_PORT"), QStringLiteral("8123"));
+	environment.insert(QStringLiteral("TENCENT_MAP_KEY"), QStringLiteral("test-key"));
+	environment.insert(QStringLiteral("TENCENT_MAP_SECRET_KEY"), QStringLiteral("test-secret"));
 	QString error;
 	const auto config = Backend::Config::load(file.fileName(), directory.path(), environment, &error);
 	QVERIFY2(config.has_value(), qPrintable(error));
 	QCOMPARE(config->port, quint16(8123));
+	QCOMPARE(config->tencentMapKey, QStringLiteral("test-key"));
+	QCOMPARE(config->tencentMapSecretKey, QStringLiteral("test-secret"));
 	QCOMPARE(config->maxChargerPowerW, qint64(60'125));
 }
 

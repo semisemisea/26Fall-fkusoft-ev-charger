@@ -153,6 +153,18 @@ void StationTests::managesStationLifecycleAndNearbySearch() {
 	QCOMPARE(nearby.size(), 2);
 	QCOMPARE(nearby.first().toObject().value(QStringLiteral("id")).toInteger(), secondId);
 
+	// 距离排序随查询中心改变，不受价格排序或建站顺序影响。
+	nearbyQuery.removeAllQueryItems(QStringLiteral("sort"));
+	nearbyQuery.addQueryItem(QStringLiteral("sort"), QStringLiteral("distance"));
+	const QJsonArray byDistance = object(fixture.send(QStringLiteral("GET"), QStringLiteral("/api/v1/stations/nearby"), {}, {}, nearbyQuery)).value(QStringLiteral("data")).toArray();
+	QCOMPARE(byDistance.size(), 2);
+	QCOMPARE(byDistance.first().toObject().value(QStringLiteral("id")).toInteger(), firstId);
+	nearbyQuery.removeAllQueryItems(QStringLiteral("latitude"));
+	nearbyQuery.addQueryItem(QStringLiteral("latitude"), QStringLiteral("0.01"));
+	const QJsonArray fromNewLocation = object(fixture.send(QStringLiteral("GET"), QStringLiteral("/api/v1/stations/nearby"), {}, {}, nearbyQuery)).value(QStringLiteral("data")).toArray();
+	QCOMPARE(fromNewLocation.size(), 2);
+	QCOMPARE(fromNewLocation.first().toObject().value(QStringLiteral("id")).toInteger(), secondId);
+
 	QString error;
 	QVERIFY2(fixture.database->withConnection([&](QSqlDatabase &database, QString *operationError) {
 		QSqlQuery user(database);

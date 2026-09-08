@@ -20,6 +20,7 @@ add_library(biz-core-runtime STATIC
 	src/http.cpp
 	src/location_api.cpp
 	src/map_client.cpp
+	src/tencent_map_request.h
 	src/order_api.cpp
 	src/order_support.cpp
 	src/reservation_api.cpp

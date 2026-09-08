@@ -1,7 +1,7 @@
 /** @file
  * @brief 腾讯地图选点对话框，校验 iframe 来源和坐标标题，兼容缺少 WebEngine 或密钥的情况。
  */
-#include "mappickerdialog.h"
+#include "evcharger/mappickerdialog.h"
 #include <evcharger/logging.h>
 
 #include <QDialogButtonBox>
@@ -10,11 +10,11 @@
 #include <QUrlQuery>
 #include <QVBoxLayout>
 
-#ifdef OPS_APP_HAS_WEBENGINE
+#ifdef EVCHARGER_HAS_WEBENGINE
 #include <QWebEngineView>
 #endif
 
-Q_LOGGING_CATEGORY(opsMappickerdialogLog, "evcharger.ops.map", QtInfoMsg)
+Q_LOGGING_CATEGORY(mapPickerLog, "evcharger.ui.map", QtInfoMsg)
 
 namespace {
 
@@ -35,7 +35,7 @@ namespace {
 			   latitude <= 90.0 && longitude >= -180.0 && longitude <= 180.0;
 	}
 
-#ifdef OPS_APP_HAS_WEBENGINE
+#ifdef EVCHARGER_HAS_WEBENGINE
 	/** @brief 构造腾讯选点器 URL，编码密钥和初始中心坐标。
 	 * @param mapKey 腾讯地图服务密钥。
 	 * @param coordinate 初始中心坐标。
@@ -66,8 +66,8 @@ namespace {
 MapPickerDialog::MapPickerDialog(const QString &mapKey, double initialLatitude,
 								 double initialLongitude, QWidget *parent)
 	: QDialog(parent) {
-	setObjectName(QStringLiteral("opsMapPickerDialog"));
-	EV_LOG_DEBUG(opsMappickerdialogLog, this) << "MapPickerDialog initialized";
+	setObjectName(QStringLiteral("mapPickerDialog"));
+	EV_LOG_DEBUG(mapPickerLog, this) << "MapPickerDialog initialized";
 	setWindowTitle(tr("地图选点"));
 	resize(760, 560);
 	m_coordinate = validCoordinate(initialLatitude, initialLongitude)
@@ -78,16 +78,16 @@ MapPickerDialog::MapPickerDialog(const QString &mapKey, double initialLatitude,
 	layout->setContentsMargins(12, 12, 12, 12);
 	layout->setSpacing(12);
 
-#ifdef OPS_APP_HAS_WEBENGINE
+#ifdef EVCHARGER_HAS_WEBENGINE
 	if (!mapKey.trimmed().isEmpty()) {
 		auto *map = new QWebEngineView(this);
 		map->setObjectName(QStringLiteral("stationMapPicker"));
 		layout->addWidget(map, 1);
 		connect(map, &QWebEngineView::loadFinished, this, [this](bool ok) {
 			if (!ok) {
-				EV_LOG_WARNING(opsMappickerdialogLog, this) << "Map page loading failed";
+				EV_LOG_WARNING(mapPickerLog, this) << "Map page loading failed";
 			} else {
-				EV_LOG_DEBUG(opsMappickerdialogLog, this) << "Map page loaded";
+				EV_LOG_DEBUG(mapPickerLog, this) << "Map page loaded";
 			}
 		});
 
@@ -95,7 +95,7 @@ MapPickerDialog::MapPickerDialog(const QString &mapKey, double initialLatitude,
 			const auto selected = coordinateFromTitle(title);
 			if (!selected.has_value())
 				return;
-			EV_LOG_INFO(opsMappickerdialogLog, this) << "Station location selected";
+			EV_LOG_INFO(mapPickerLog, this) << "Station location selected";
 			m_coordinate = *selected;
 			accept();
 		});
@@ -135,12 +135,12 @@ MapPickerDialog::MapPickerDialog(const QString &mapKey, double initialLatitude,
 		map->setHtml(html, QUrl(QStringLiteral("https://apis.map.qq.com/")));
 	} else {
 #endif
-		EV_LOG_WARNING(opsMappickerdialogLog, this) << "Map picker unavailable; map key or WebEngine support missing";
+		EV_LOG_WARNING(mapPickerLog, this) << "Map picker unavailable; map key or WebEngine support missing";
 		auto *unavailable = new QLabel(tr("地图服务未配置"), this);
 		unavailable->setObjectName(QStringLiteral("mapUnavailableLabel"));
 		unavailable->setAlignment(Qt::AlignCenter);
 		layout->addWidget(unavailable, 1);
-#ifdef OPS_APP_HAS_WEBENGINE
+#ifdef EVCHARGER_HAS_WEBENGINE
 	}
 #else
 	Q_UNUSED(mapKey)
