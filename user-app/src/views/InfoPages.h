@@ -91,20 +91,6 @@ private:
     QVBoxLayout *m_listLayout = nullptr;
 };
 
-// 我的爱车展示页（静态演示数据）
-class CarView : public QWidget
-{
-    Q_OBJECT
-
-public:
-    // 构造：搭建车辆信息展示页
-    explicit CarView(QWidget *parent = nullptr);
-
-signals:
-    // 用户点击返回
-    void backRequested();
-};
-
 // 关于系统页（版本与简介）
 class AboutView : public QWidget
 {

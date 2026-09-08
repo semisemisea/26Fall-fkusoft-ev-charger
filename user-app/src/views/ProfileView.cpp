@@ -121,7 +121,6 @@ ProfileView::ProfileView(Session &session, ApiClient &api, QWidget *parent)
         {"📋  历史充电订单", &ProfileView::ordersRequested},
         {"📅  我的预约记录", &ProfileView::reservationsRequested},
         {"💰  钱包流水", &ProfileView::transactionsRequested},
-        {"🚗  我的爱车", &ProfileView::carRequested},
         {"ℹ️  关于系统", &ProfileView::aboutRequested},
     };
 

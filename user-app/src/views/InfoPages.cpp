@@ -339,46 +339,6 @@ void ReservationHistoryView::load()
               });
 }
 
-// 构造“我的爱车”静态展示页
-CarView::CarView(QWidget *parent)
-    : QWidget(parent)
-{
-    auto *backButton = new BackButton(this);
-    connect(backButton, &QPushButton::clicked, this, &CarView::backRequested);
-    auto *headerRow = new QHBoxLayout;
-    headerRow->addWidget(backButton);
-    headerRow->addStretch();
-
-	QLabel *iconLabel = new QLabel(this);
-	iconLabel->setAlignment(Qt::AlignCenter);
-	iconLabel->setObjectName(QStringLiteral("heroIcon"));
-	QPixmap carPixmap = AppIcons::car(theme::primary(), 48, false);
-	iconLabel->setPixmap(carPixmap);
-
-    auto *nameLabel = new QLabel(QStringLiteral("比亚迪 · 汉 EV"), this);
-    nameLabel->setAlignment(Qt::AlignCenter);
-    nameLabel->setObjectName(QStringLiteral("heroTitle"));
-
-    auto *detailLabel = new QLabel(QStringLiteral("电池容量 60.5 kWh · 支持快充\n车牌 辽B·D88888"), this);
-    detailLabel->setAlignment(Qt::AlignCenter);
-    detailLabel->setObjectName(QStringLiteral("muted"));
-
-    auto *card = new QFrame(this);
-    card->setObjectName(QStringLiteral("profileCard"));
-    auto *cardLayout = new QVBoxLayout(card);
-    cardLayout->setContentsMargins(24, 32, 24, 32);
-    cardLayout->setSpacing(12);
-    cardLayout->addWidget(iconLabel);
-    cardLayout->addWidget(nameLabel);
-    cardLayout->addWidget(detailLabel);
-
-    auto *layout = new QVBoxLayout(this);
-    layout->setContentsMargins(12, 12, 12, 12);
-    layout->addLayout(headerRow);
-    layout->addWidget(card);
-    layout->addStretch();
-}
-
 // 构造“关于系统”静态展示页
 AboutView::AboutView(QWidget *parent)
     : QWidget(parent)

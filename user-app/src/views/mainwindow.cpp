@@ -71,7 +71,6 @@ MainWindow::MainWindow(QWidget *parent)
 	auto *orderHistoryView = new OrderHistoryView(*m_api, this); // 订单历史页
 	auto *reservationHistoryView = new ReservationHistoryView(*m_api, this); // 预约记录页
 	auto *transactionsView = new TransactionsView(*m_api, this); // 钱包流水
-	auto *carView = new CarView(this); // 车辆信息页
 	auto *aboutView = new AboutView(this); // 关于页
 
 	// QStackedWidget 作为 Tab 页容器，找桩/充电/我的三页在其中切换
@@ -92,7 +91,6 @@ MainWindow::MainWindow(QWidget *parent)
     ui->pages->addWidget(orderHistoryView);
     ui->pages->addWidget(reservationHistoryView);
     ui->pages->addWidget(transactionsView);
-    ui->pages->addWidget(carView);
     ui->pages->addWidget(aboutView);
 
 	// 各页面跳转信号连接
@@ -130,13 +128,11 @@ MainWindow::MainWindow(QWidget *parent)
             [this, reservationHistoryView] { enterOverlay(reservationHistoryView); });
     connect(m_profileView, &ProfileView::transactionsRequested, this,
             [this, transactionsView] { enterOverlay(transactionsView); });
-    connect(m_profileView, &ProfileView::carRequested, this, [this, carView] { enterOverlay(carView); });
     connect(m_profileView, &ProfileView::aboutRequested, this, [this, aboutView] { enterOverlay(aboutView); });
 	// 各覆盖页的返回按钮
     connect(orderHistoryView, &OrderHistoryView::backRequested, this, [this] { showTab(2); });
     connect(reservationHistoryView, &ReservationHistoryView::backRequested, this, [this] { showTab(2); });
     connect(transactionsView, &TransactionsView::backRequested, this, [this] { showTab(2); });
-    connect(carView, &CarView::backRequested, this, [this] { showTab(2); });
     connect(aboutView, &AboutView::backRequested, this, [this] { showTab(2); });
 
     connect(m_navigationView, &NavigationView::backRequested, this, [this] {

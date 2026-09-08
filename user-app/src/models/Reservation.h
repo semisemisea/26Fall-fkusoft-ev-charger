@@ -14,7 +14,7 @@ struct Reservation
     int userId = 0;
     QString status;
     QString startAt;
-    QDateTime expiresAt;
+	QDateTime expiresAt; // 服务端给的到期时间
     QString stationName;
     QString chargerCode;
 

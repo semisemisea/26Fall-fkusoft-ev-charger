@@ -29,6 +29,7 @@ ChargingTab::ChargingTab(Session &session, ApiClient &api, QWidget *parent)
     m_chargingView = new ChargingView(m_api, this);
     m_settleView = new SettleView(m_session, m_api, this);
 
+	// 四个页面装入堆栈，初始显示准备页
     m_stack = new QStackedWidget(this);
     m_stack->addWidget(m_preparePage);
     m_stack->addWidget(m_chargingView);
@@ -39,13 +40,16 @@ ChargingTab::ChargingTab(Session &session, ApiClient &api, QWidget *parent)
     layout->setContentsMargins(0, 0, 0, 0);
     layout->addWidget(m_stack);
 
+	// 连接充电页的 orderStopped 信号：显示结算页
     connect(m_chargingView, &ChargingView::orderStopped, this, [this](const Order &order) {
         showSettlement(order);
     });
+	// 结算页的 settled 信号：发出 activeOrderChanged(false) 与 orderSettled()，通知主窗口刷新余额等
     connect(m_settleView, &SettleView::settled, this, [this] {
         emit activeOrderChanged(false);
         emit orderSettled();
     });
+	// 稍后支付和返回首页都发出 returnHomeRequested 信号，通知主窗口切回首页
     connect(m_settleView, &SettleView::dismissed, this, &ChargingTab::returnHomeRequested);
     connect(m_settleView, &SettleView::returnHomeRequested, this, &ChargingTab::returnHomeRequested);
 }
@@ -64,7 +68,7 @@ void ChargingTab::buildPreparePage()
     card->setFixedWidth(280);
     card->setObjectName(QStringLiteral("chargingPrepareCard"));
 
-    // 输入充电编号标签（左对齐，不加粗）
+	// 输入充电编号标签
     auto *inputHintLabel = new QLabel(QStringLiteral("输入充电编号（如S01-001）"), card);
     inputHintLabel->setAlignment(Qt::AlignLeft);
     inputHintLabel->setObjectName(QStringLiteral("chargingPrepareHint"));
@@ -104,6 +108,7 @@ void ChargingTab::buildPreparePage()
     layout->addWidget(m_hintLabel);
     layout->addStretch(2);
 
+	// 输入框回车或按钮点击都触发 startWithCode()，校验编号并尝试启动充电
     connect(m_codeEdit, &QLineEdit::returnPressed, this, &ChargingTab::startWithCode);
     connect(m_startButton, &QPushButton::clicked, this, &ChargingTab::startWithCode);
 
@@ -118,7 +123,8 @@ void ChargingTab::buildReservationPage()
     auto *titleLabel = new QLabel(QStringLiteral("我的预约"), page);
     titleLabel->setAlignment(Qt::AlignCenter);
     titleLabel->setObjectName(QStringLiteral("pageHeading"));
-    
+
+	// 信息卡
     auto *card = new QFrame(page);
     card->setObjectName(QStringLiteral("infoCard"));
 
@@ -129,7 +135,7 @@ void ChargingTab::buildReservationPage()
     m_reservationChargerLabel = new QLabel(card);
     m_reservationChargerLabel->setObjectName(QStringLiteral("muted"));
 
-    m_countdownLabel = new QLabel(card);
+	m_countdownLabel = new QLabel(card); // 倒计时
     m_countdownLabel->setAlignment(Qt::AlignCenter);
     m_countdownLabel->setObjectName(QStringLiteral("countdown"));
 
@@ -403,7 +409,7 @@ void ChargingTab::cancelReservation()
 // 计算剩余保留秒数并刷新 mm:ss 显示；到期则提示并重新检查现场
 void ChargingTab::updateCountdown()
 {
-    const qint64 remaining = QDateTime::currentDateTimeUtc().secsTo(m_reservation.expiresAt);
+	const qint64 remaining = QDateTime::currentDateTimeUtc().secsTo(m_reservation.expiresAt); // 使用服务端给的到期时间
     if (remaining <= 0) {
         m_countdownTimer->stop();
         m_countdownLabel->setText(QStringLiteral("00:00"));
