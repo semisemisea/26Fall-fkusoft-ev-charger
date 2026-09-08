@@ -1,7 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- @file mainwindow.ui
- @brief 主窗口 Designer 骨架：顶部状态栏、页面堆栈和底部标签栏。
- @details 具体业务页面由 MainWindow 在运行时创建并加入 pages。 -->
 <ui version="4.0">
  <class>MainWindow</class>
  <widget class="QMainWindow" name="MainWindow">

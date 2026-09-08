@@ -1,6 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- @file logindialog.ui
-     @brief 管理员登录对话框布局；控件名供 LoginDialog 连接异步登录和显示错误。 -->
 <ui version="4.0">
  <class>LoginDialog</class>
  <widget class="QDialog" name="LoginDialog">
