@@ -1,4 +1,4 @@
-#include "ComboBox.h"
+﻿#include "ComboBox.h"
 
 #include "common/Theme.h"
 
@@ -92,7 +92,7 @@ void ComboBox::paintEvent(QPaintEvent *event)
     painter.setRenderHint(QPainter::Antialiasing);
 
     const QRectF frame = QRectF(rect()).adjusted(0.5, 0.5, -0.5, -0.5);
-    painter.setPen(hasFocus() || underMouse() ? theme::primary() : theme::border());
+    painter.setPen(theme::border());
     painter.setBrush(Qt::white);
     painter.drawRoundedRect(frame, 10, 10);
 

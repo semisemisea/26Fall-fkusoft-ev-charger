@@ -4,6 +4,7 @@
 
 #include <QPainter>
 #include <QPainterPath>
+#include <cmath>
 #include <QSvgRenderer>
 
 namespace {
@@ -361,6 +362,65 @@ QPixmap AppIcons::battery(int size, bool badge)
 	return pixmap;
 }
 
+QPixmap AppIcons::batteryVertical(int size, double percent, double wavePhase)
+{
+	const double pct = qBound(0.0, percent, 1.0);
+
+	QString svgTemplate = R"SVG(
+		<svg viewBox="0 0 17.10 34" xmlns="http://www.w3.org/2000/svg">
+		<rect x="5.80" y="1.5" width="5.5" height="2" rx="1" fill="#000000"/>
+		<rect x="1.5" y="3.5" width="14.10" height="29.5" rx="1.5" stroke="#000000" stroke-width="0.5" fill="#000000"/>
+		</svg>
+	)SVG";
+
+	QSvgRenderer renderer(svgTemplate.toUtf8());
+	const int width = size * 17.10 / 32;
+	const int height = size * 34 / 32;
+	QPixmap pixmap(width, height);
+	pixmap.fill(Qt::transparent);
+	QPainter painter(&pixmap);
+	painter.setRenderHint(QPainter::Antialiasing);
+	renderer.render(&painter);
+
+	// 绘制波浪上边沿的渐变填充
+	const double scale = size / 32.0;
+	const double fillX = 1.75 * scale;
+	const double fillW = 13.60 * scale;
+	const double fillBaseY = (3.75 + 29.0 * (1.0 - pct)) * scale;
+	const double fillBottomY = (3.75 + 29.0) * scale;
+	const double amplitude = 0.5 * scale;
+	const int segments = 24;
+
+	QPainterPath wavePath;
+	wavePath.moveTo(fillX, fillBottomY);
+	wavePath.lineTo(fillX, fillBaseY + amplitude * std::sin(wavePhase));
+	for (int i = 1; i <= segments; ++i) {
+		const double x = fillX + (fillW * i) / segments;
+		const double y = fillBaseY + amplitude * std::sin(wavePhase + (i * 2.0 * M_PI * 2.0) / segments);
+		wavePath.lineTo(x, y);
+	}
+	wavePath.lineTo(fillX + fillW, fillBottomY);
+	wavePath.closeSubpath();
+
+	QLinearGradient grad(fillX, fillBottomY, fillX, fillBaseY);
+	grad.setColorAt(0.0, QColor("#FFF200"));
+	grad.setColorAt(1.0, QColor("#2BFF7D"));
+	painter.fillPath(wavePath, grad);
+
+	// 绘制百分比文字（白色，居中于电池主体区域）
+	const QString text = QString::number(pct * 100, 'f', 0) + "%";
+	QFont font = painter.font();
+	font.setPixelSize(28);
+	painter.setFont(font);
+	painter.setPen(QColor("#FFFFFF"));
+	const int topPad = size * 3.5 / 32;
+	const int bodyH = size * 29.5 / 32;
+	const int bottomMargin = size * 4 / 32;
+	const QRect textRect(0, topPad, width, bodyH - bottomMargin);
+	painter.drawText(textRect, Qt::AlignBottom | Qt::AlignHCenter, text);
+
+	return pixmap;
+}
 // 绘制用户头像图标（面部轮廓）
 QPixmap AppIcons::avatar(const QColor &color, int size, bool badge)
 {

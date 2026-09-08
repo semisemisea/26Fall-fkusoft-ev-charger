@@ -194,8 +194,8 @@ QPushButton#aiBanner {
 }
 QPushButton#aiBanner:hover {
     background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                                stop:0 #D5F5E3,
-                                stop:1 #e8daef);
+                                stop:0 #EAF8F0,
+                                stop:1 #f3e8ff);
 }
 QPushButton#iconGhost {
     background: transparent;
@@ -374,7 +374,7 @@ QFrame#receiptCard QLabel {
     border: none;
 }
 QFrame#profileHeader {
-    background: #00E676;
+    background: #00B84C;
     border: 1px solid #22C55E;
     border-radius: 18px;
 }
@@ -417,7 +417,7 @@ StationCard {
     border-radius: 14px;
 }
 StationCard:hover {
-    border-color: #2BFF7D;
+    border-color: rgba(0, 0, 0, 0.04);
 }
 StationCard QLabel {
     border: none;

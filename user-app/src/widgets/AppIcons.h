@@ -31,6 +31,7 @@ QPixmap turnRight(const QColor &color, int size = 24, bool badge = false);
 // 信号强度
 QPixmap signal(const QColor &color, int size = 24, bool badge = false);
 QPixmap battery(int size = 24, bool badge = false);
+QPixmap batteryVertical(int size = 24, double percent = 0.0, double wavePhase = 0.0);
 QPixmap avatar(const QColor &color, int size = 24, bool badge = false);
 // 支付成功：渐变圆圈（主色→黄绿色）+ 主色打勾，自定义宽高
 QPixmap successCheck(int width, int height);

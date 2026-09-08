@@ -115,6 +115,7 @@ MainWindow::MainWindow(QWidget *parent)
         updateTabIcons();
     });
 
+
     connect(m_profileView, &ProfileView::ordersRequested, this,
             [this, orderHistoryView] { enterOverlay(orderHistoryView); });
     connect(m_profileView, &ProfileView::reservationsRequested, this,

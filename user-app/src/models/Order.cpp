@@ -1,4 +1,4 @@
-#include "Order.h"
+﻿#include "Order.h"
 
 #include <QJsonObject>
 
@@ -20,6 +20,7 @@ Order Order::fromJson(const QJsonObject &object)
     order.amountFen = object.value(QLatin1String("amountFen")).toInteger();
     order.stationName = object.value(QLatin1String("stationName")).toString();
     order.chargerCode = object.value(QLatin1String("chargerCode")).toString();
+    order.chargerType = object.value(QLatin1String("chargerType")).toString();
     return order;
 }
 

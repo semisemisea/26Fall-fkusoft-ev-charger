@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "api/ApiClient.h"
 #include "app/Session.h"

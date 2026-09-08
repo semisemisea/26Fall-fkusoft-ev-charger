@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16)
+﻿cmake_minimum_required(VERSION 3.16)
 
 project(user-app VERSION 0.1 LANGUAGES CXX)
 
@@ -41,6 +41,8 @@ qt_add_executable(user-app
     src/widgets/ComboBox.cpp
     src/widgets/AppIcons.h
     src/widgets/AppIcons.cpp
+    src/widgets/BatteryWaveWidget.h
+    src/widgets/BatteryWaveWidget.cpp
     src/widgets/ScaleButton.h
     src/widgets/ScaleButton.cpp
     src/widgets/Spinner.h

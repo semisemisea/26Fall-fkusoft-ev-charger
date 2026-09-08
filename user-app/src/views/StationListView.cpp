@@ -1,4 +1,4 @@
-#include "StationListView.h"
+﻿#include "StationListView.h"
 
 #include "common/Demo.h"
 #include "common/Theme.h"
@@ -60,6 +60,9 @@ StationListView::StationListView(Session &session, ApiClient &api, QWidget *pare
 	locationLayout->addStretch();
 
 	m_locationCombo = new ComboBox(this);
+	m_locationCombo->setStyleSheet(QStringLiteral(
+		"QComboBox:hover { background: white; border: 1px solid #e2e8f0; color: #1e293b; }"
+		"QComboBox:on { background: white; border: 1px solid #e2e8f0; color: #1e293b; }"));
 	for (const LocationPreset &preset : kLocationPresets) {
 		m_locationCombo->addItem(preset.name);
 	}
