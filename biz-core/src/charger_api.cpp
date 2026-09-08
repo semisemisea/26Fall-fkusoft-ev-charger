@@ -1,3 +1,5 @@
+#include "evcharger/logging.h"
+
 #include "api_support.h"
 
 #include "resource_support.h"
@@ -12,6 +14,8 @@
 
 #include <limits>
 #include <optional>
+
+Q_LOGGING_CATEGORY(backendChargers, "evcharger.backend.chargers", QtInfoMsg)
 
 namespace Backend {
 	namespace {
@@ -233,6 +237,7 @@ namespace Backend {
 		}
 
 		HttpResponse createCharger(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendChargers, nullptr) << "Handling createCharger" << "requestId=" << request.requestId;
 			HttpResponse failure;
 			if (!requireAdmin(request, dependencies, true, &failure).has_value()) {
 				return failure;
@@ -306,6 +311,7 @@ namespace Backend {
 		}
 
 		HttpResponse updateCharger(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendChargers, nullptr) << "Handling updateCharger" << "requestId=" << request.requestId;
 			HttpResponse failure;
 			if (!requireAdmin(request, dependencies, true, &failure).has_value()) {
 				return failure;
@@ -410,6 +416,7 @@ namespace Backend {
 		}
 
 		HttpResponse restartCharger(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendChargers, nullptr) << "Handling restartCharger" << "requestId=" << request.requestId;
 			HttpResponse failure;
 			if (!requireAdmin(request, dependencies, true, &failure).has_value()) {
 				return failure;
@@ -470,6 +477,7 @@ namespace Backend {
 		}
 
 		HttpResponse deleteCharger(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendChargers, nullptr) << "Handling deleteCharger" << "requestId=" << request.requestId;
 			HttpResponse failure;
 			if (!requireAdmin(request, dependencies, true, &failure).has_value()) {
 				return failure;

@@ -1,3 +1,5 @@
+#include "evcharger/logging.h"
+
 #include "api_support.h"
 
 #include "backend/map_client.h"
@@ -5,6 +7,8 @@
 
 #include <cmath>
 #include <optional>
+
+Q_LOGGING_CATEGORY(backendLocation, "evcharger.backend.location", QtInfoMsg)
 
 namespace Backend {
 	namespace {
@@ -36,6 +40,7 @@ namespace Backend {
 		}
 
 		HttpResponse geocode(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendLocation, nullptr) << "Handling geocode" << "requestId=" << request.requestId;
 			HttpResponse failure;
 			const auto input = parseAddress(request, &failure);
 			if (!input.has_value()) {
@@ -69,6 +74,7 @@ namespace Backend {
 		}
 
 		HttpResponse routes(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendLocation, nullptr) << "Handling routes" << "requestId=" << request.requestId;
 			QJsonObject details;
 			const auto fromLatitude = coordinate(request, QStringLiteral("fromLatitude"), -90, 90, &details);
 			const auto fromLongitude = coordinate(request, QStringLiteral("fromLongitude"), -180, 180, &details);

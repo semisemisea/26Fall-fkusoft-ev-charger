@@ -1,3 +1,5 @@
+#include "evcharger/logging.h"
+
 #include "api_support.h"
 
 #include "backend/database.h"
@@ -15,6 +17,8 @@
 
 #include <limits>
 #include <optional>
+
+Q_LOGGING_CATEGORY(backendAdmin, "evcharger.backend.admin", QtInfoMsg)
 
 namespace Backend {
 	namespace {
@@ -145,6 +149,7 @@ namespace Backend {
 		}
 
 		HttpResponse revenue(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendAdmin, nullptr) << "Handling revenue" << "requestId=" << request.requestId;
 			HttpResponse failure;
 			if (!requireAdmin(request, dependencies, true, &failure).has_value()) {
 				return failure;
@@ -197,6 +202,7 @@ namespace Backend {
 		}
 
 		HttpResponse revenueSeries(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendAdmin, nullptr) << "Handling revenueSeries" << "requestId=" << request.requestId;
 			HttpResponse failure;
 			if (!requireAdmin(request, dependencies, true, &failure).has_value()) {
 				return failure;
@@ -266,6 +272,7 @@ namespace Backend {
 		}
 
 		HttpResponse chargerStatus(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendAdmin, nullptr) << "Handling chargerStatus" << "requestId=" << request.requestId;
 			HttpResponse failure;
 			if (!requireAdmin(request, dependencies, true, &failure).has_value()) {
 				return failure;
@@ -309,6 +316,7 @@ namespace Backend {
 		}
 
 		HttpResponse listAdminOrders(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendAdmin, nullptr) << "Handling listAdminOrders" << "requestId=" << request.requestId;
 			HttpResponse failure;
 			if (!requireAdmin(request, dependencies, false, &failure).has_value()) {
 				return failure;

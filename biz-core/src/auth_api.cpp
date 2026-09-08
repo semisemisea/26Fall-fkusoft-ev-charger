@@ -1,3 +1,5 @@
+#include "evcharger/logging.h"
+
 #include "api_support.h"
 
 #include "backend/database.h"
@@ -8,6 +10,8 @@
 #include <QJsonObject>
 #include <QSqlError>
 #include <QSqlQuery>
+
+Q_LOGGING_CATEGORY(backendAuthentication, "evcharger.backend.authentication", QtInfoMsg)
 
 namespace Backend {
 	namespace {
@@ -36,6 +40,7 @@ namespace Backend {
 		}
 
 		HttpResponse userLogin(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendAuthentication, nullptr) << "Handling userLogin" << "requestId=" << request.requestId;
 			HttpResponse failure;
 			const auto body = parseJsonObject(request, &failure);
 			if (!body.has_value()) {
@@ -114,6 +119,7 @@ namespace Backend {
 			if (hasBusinessFailure) {
 				return businessFailure;
 			}
+			EV_LOG_INFO(backendAuthentication, nullptr) << "User login succeeded" << "requestId=" << request.requestId << "userId=" << user.value(QStringLiteral("id")).toInteger();
 			return jsonData(QJsonObject{
 								{QStringLiteral("accessToken"), token},
 								{QStringLiteral("tokenType"), QStringLiteral("Bearer")},
@@ -124,6 +130,7 @@ namespace Backend {
 		}
 
 		HttpResponse adminLogin(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendAuthentication, nullptr) << "Handling adminLogin" << "requestId=" << request.requestId;
 			HttpResponse failure;
 			const auto body = parseJsonObject(request, &failure);
 			if (!body.has_value()) {
@@ -184,6 +191,7 @@ namespace Backend {
 			if (rejected) {
 				return credentialFailure;
 			}
+			EV_LOG_INFO(backendAuthentication, nullptr) << "Administrator login succeeded" << "requestId=" << request.requestId << "adminId=" << admin.value(QStringLiteral("id")).toInteger();
 			return jsonData(QJsonObject{
 								{QStringLiteral("accessToken"), token},
 								{QStringLiteral("tokenType"), QStringLiteral("Bearer")},
@@ -194,6 +202,7 @@ namespace Backend {
 		}
 
 		HttpResponse currentIdentity(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendAuthentication, nullptr) << "Handling currentIdentity" << "requestId=" << request.requestId;
 			HttpResponse failure;
 			const auto principal = authenticate(request, dependencies, &failure);
 			if (!principal.has_value()) {
@@ -213,6 +222,7 @@ namespace Backend {
 		}
 
 		HttpResponse logout(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendAuthentication, nullptr) << "Handling logout" << "requestId=" << request.requestId;
 			HttpResponse failure;
 			const auto principal = authenticate(request, dependencies, &failure);
 			if (!principal.has_value()) {
@@ -237,6 +247,7 @@ namespace Backend {
 			if (!success) {
 				return databaseFailure(request.requestId, databaseError);
 			}
+			EV_LOG_INFO(backendAuthentication, nullptr) << "Logout succeeded" << "requestId=" << request.requestId << "principalType=" << principal->type << "principalId=" << principal->id;
 			return HttpResponse{204, {}, {}, {}};
 		}
 

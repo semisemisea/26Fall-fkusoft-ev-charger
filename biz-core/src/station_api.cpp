@@ -1,3 +1,5 @@
+#include "evcharger/logging.h"
+
 #include "api_support.h"
 
 #include "resource_support.h"
@@ -18,6 +20,8 @@
 #include <limits>
 #include <optional>
 #include <vector>
+
+Q_LOGGING_CATEGORY(backendStations, "evcharger.backend.stations", QtInfoMsg)
 
 namespace Backend {
 	namespace {
@@ -83,6 +87,7 @@ namespace Backend {
 		}
 
 		HttpResponse publicStation(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendStations, nullptr) << "Handling publicStation" << "requestId=" << request.requestId;
 			const auto stationId = positiveId(request.pathParameters.value(QStringLiteral("stationId")));
 			if (!stationId.has_value()) {
 				return jsonError(QStringLiteral("NOT_FOUND"), QStringLiteral("电站不存在"), {}, request.requestId, 404);
@@ -105,6 +110,7 @@ namespace Backend {
 		}
 
 		HttpResponse nearbyStations(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendStations, nullptr) << "Handling nearbyStations" << "requestId=" << request.requestId;
 			HttpResponse failure;
 			const auto page = pagination(request, &failure);
 			if (!page.has_value()) {
@@ -274,6 +280,7 @@ namespace Backend {
 		}
 
 		HttpResponse createStation(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendStations, nullptr) << "Handling createStation" << "requestId=" << request.requestId;
 			HttpResponse failure;
 			if (!requireAdmin(request, dependencies, true, &failure).has_value()) {
 				return failure;
@@ -320,6 +327,7 @@ namespace Backend {
 		}
 
 		HttpResponse adminStationDetail(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendStations, nullptr) << "Handling adminStationDetail" << "requestId=" << request.requestId;
 			HttpResponse failure;
 			if (!requireAdmin(request, dependencies, false, &failure).has_value()) {
 				return failure;
@@ -346,6 +354,7 @@ namespace Backend {
 		}
 
 		HttpResponse listAdminStations(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendStations, nullptr) << "Handling listAdminStations" << "requestId=" << request.requestId;
 			HttpResponse failure;
 			if (!requireAdmin(request, dependencies, false, &failure).has_value()) {
 				return failure;
@@ -429,6 +438,7 @@ namespace Backend {
 		}
 
 		HttpResponse updateStation(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendStations, nullptr) << "Handling updateStation" << "requestId=" << request.requestId;
 			HttpResponse failure;
 			if (!requireAdmin(request, dependencies, true, &failure).has_value()) {
 				return failure;
@@ -517,6 +527,7 @@ namespace Backend {
 		}
 
 		HttpResponse deleteStation(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendStations, nullptr) << "Handling deleteStation" << "requestId=" << request.requestId;
 			HttpResponse failure;
 			if (!requireAdmin(request, dependencies, true, &failure).has_value()) {
 				return failure;

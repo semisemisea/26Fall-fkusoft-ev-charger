@@ -1,3 +1,5 @@
+#include "evcharger/logging.h"
+
 #include "api_support.h"
 
 #include "order_support.h"
@@ -11,6 +13,8 @@
 
 #include <limits>
 #include <optional>
+
+Q_LOGGING_CATEGORY(backendAdminUsers, "evcharger.backend.adminusers", QtInfoMsg)
 
 namespace Backend {
 	namespace {
@@ -89,6 +93,7 @@ namespace Backend {
 		}
 
 		HttpResponse listUsers(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendAdminUsers, nullptr) << "Handling listUsers" << "requestId=" << request.requestId;
 			HttpResponse failure;
 			if (!requireAdmin(request, dependencies, &failure).has_value()) {
 				return failure;
@@ -154,6 +159,7 @@ namespace Backend {
 		}
 
 		HttpResponse userDetail(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendAdminUsers, nullptr) << "Handling userDetail" << "requestId=" << request.requestId;
 			HttpResponse failure;
 			if (!requireAdmin(request, dependencies, &failure).has_value()) {
 				return failure;
@@ -199,6 +205,7 @@ namespace Backend {
 		}
 
 		HttpResponse updateUser(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendAdminUsers, nullptr) << "Handling updateUser" << "requestId=" << request.requestId;
 			HttpResponse failure;
 			if (!requireAdmin(request, dependencies, &failure).has_value()) {
 				return failure;
@@ -285,6 +292,7 @@ namespace Backend {
 		}
 
 		HttpResponse userWalletTransactions(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendAdminUsers, nullptr) << "Handling userWalletTransactions" << "requestId=" << request.requestId;
 			HttpResponse failure;
 			if (!requireAdmin(request, dependencies, &failure).has_value()) {
 				return failure;

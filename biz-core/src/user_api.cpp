@@ -1,3 +1,5 @@
+#include "evcharger/logging.h"
+
 #include "api_support.h"
 
 #include "backend/database.h"
@@ -12,6 +14,8 @@
 #include <QSqlQuery>
 
 #include <limits>
+
+Q_LOGGING_CATEGORY(backendUsers, "evcharger.backend.users", QtInfoMsg)
 
 namespace Backend {
 	namespace {
@@ -62,6 +66,7 @@ namespace Backend {
 		}
 
 		HttpResponse getProfile(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendUsers, nullptr) << "Handling getProfile" << "requestId=" << request.requestId;
 			HttpResponse failure;
 			const auto principal = requireUser(request, dependencies, false, &failure);
 			if (!principal.has_value()) {
@@ -92,6 +97,7 @@ namespace Backend {
 		}
 
 		HttpResponse updateProfile(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendUsers, nullptr) << "Handling updateProfile" << "requestId=" << request.requestId;
 			HttpResponse failure;
 			const auto principal = requireUser(request, dependencies, true, &failure);
 			if (!principal.has_value()) {
@@ -175,6 +181,7 @@ namespace Backend {
 		}
 
 		HttpResponse uploadAvatar(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendUsers, nullptr) << "Handling uploadAvatar" << "requestId=" << request.requestId;
 			HttpResponse failure;
 			const auto principal = requireUser(request, dependencies, true, &failure);
 			if (!principal.has_value()) {
@@ -207,6 +214,7 @@ namespace Backend {
 		}
 
 		HttpResponse getAvatar(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendUsers, nullptr) << "Handling getAvatar" << "requestId=" << request.requestId;
 			HttpResponse failure;
 			const auto principal = requireUser(request, dependencies, false, &failure);
 			if (!principal.has_value()) {
@@ -237,6 +245,7 @@ namespace Backend {
 		}
 
 		HttpResponse deleteAvatar(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendUsers, nullptr) << "Handling deleteAvatar" << "requestId=" << request.requestId;
 			HttpResponse failure;
 			const auto principal = requireUser(request, dependencies, true, &failure);
 			if (!principal.has_value()) {
@@ -259,6 +268,7 @@ namespace Backend {
 		}
 
 		HttpResponse getWallet(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendUsers, nullptr) << "Handling getWallet" << "requestId=" << request.requestId;
 			HttpResponse failure;
 			const auto principal = requireUser(request, dependencies, false, &failure);
 			if (!principal.has_value()) {
@@ -292,6 +302,7 @@ namespace Backend {
 		}
 
 		HttpResponse listWalletTransactions(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendUsers, nullptr) << "Handling listWalletTransactions" << "requestId=" << request.requestId;
 			HttpResponse failure;
 			const auto principal = requireUser(request, dependencies, false, &failure);
 			if (!principal.has_value()) {
@@ -340,6 +351,7 @@ namespace Backend {
 		}
 
 		HttpResponse topUp(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendUsers, nullptr) << "Handling topUp" << "requestId=" << request.requestId;
 			HttpResponse failure;
 			const auto principal = requireUser(request, dependencies, false, &failure);
 			if (!principal.has_value()) {

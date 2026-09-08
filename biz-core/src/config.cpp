@@ -1,4 +1,5 @@
 #include "backend/config.h"
+#include "evcharger/logging.h"
 
 #include <QDir>
 #include <QFileInfo>
@@ -8,6 +9,8 @@
 
 #include <cmath>
 #include <limits>
+
+Q_LOGGING_CATEGORY(backendConfig, "evcharger.backend.config", QtInfoMsg)
 
 namespace Backend {
 	namespace {
@@ -81,6 +84,7 @@ namespace Backend {
 			qint64 value = 0;
 			if (!parseInteger(raw, minimum, maximum, &value)) {
 				*errorMessage = QStringLiteral("Invalid value for %1").arg(name);
+				EV_LOG_CRITICAL(backendConfig, nullptr) << "Configuration loading failed" << "reason=" << *errorMessage;
 				return false;
 			}
 			*target = static_cast<T>(value);
@@ -102,6 +106,7 @@ namespace Backend {
 		QSettings settings(configPath, QSettings::IniFormat);
 		if (settings.status() != QSettings::NoError) {
 			*errorMessage = QStringLiteral("Unable to read configuration file");
+			EV_LOG_CRITICAL(backendConfig, nullptr) << "Configuration loading failed" << "reason=" << *errorMessage;
 			return std::nullopt;
 		}
 
@@ -110,6 +115,7 @@ namespace Backend {
 		QHostAddress address;
 		if (config.host.isEmpty() || !address.setAddress(config.host)) {
 			*errorMessage = QStringLiteral("Invalid value for server/host");
+			EV_LOG_CRITICAL(backendConfig, nullptr) << "Configuration loading failed" << "reason=" << *errorMessage;
 			return std::nullopt;
 		}
 
@@ -119,20 +125,24 @@ namespace Backend {
 
 		if (!parsePositiveDouble(settingValue(settings, environment, QStringLiteral("location/maxRadiusKm"), QStringLiteral("EV_CHARGER_MAX_RADIUS_KM"), QString::number(config.maxRadiusKm)), &config.maxRadiusKm)) {
 			*errorMessage = QStringLiteral("Invalid value for location/maxRadiusKm");
+			EV_LOG_CRITICAL(backendConfig, nullptr) << "Configuration loading failed" << "reason=" << *errorMessage;
 			return std::nullopt;
 		}
 		if (!parsePowerWatts(settingValue(settings, environment, QStringLiteral("charger/maxPowerKw"), QStringLiteral("EV_CHARGER_MAX_POWER_KW"), QString::number(config.maxChargerPowerW / 1000)), &config.maxChargerPowerW)) {
 			*errorMessage = QStringLiteral("Invalid value for charger/maxPowerKw");
+			EV_LOG_CRITICAL(backendConfig, nullptr) << "Configuration loading failed" << "reason=" << *errorMessage;
 			return std::nullopt;
 		}
 		if (config.topUpMinFen > config.topUpMaxFen || config.maxWalletBalanceFen < config.topUpMinFen) {
 			*errorMessage = QStringLiteral("Wallet configuration limits are inconsistent");
+			EV_LOG_CRITICAL(backendConfig, nullptr) << "Configuration loading failed" << "reason=" << *errorMessage;
 			return std::nullopt;
 		}
 
 		QString databasePath = settingValue(settings, environment, QStringLiteral("database/path"), QStringLiteral("EV_CHARGER_DATABASE_PATH"), QStringLiteral("data/ev-charger.sqlite3")).trimmed();
 		if (databasePath.isEmpty()) {
 			*errorMessage = QStringLiteral("Invalid value for database/path");
+			EV_LOG_CRITICAL(backendConfig, nullptr) << "Configuration loading failed" << "reason=" << *errorMessage;
 			return std::nullopt;
 		}
 		if (QFileInfo(databasePath).isRelative()) {
@@ -141,6 +151,7 @@ namespace Backend {
 		config.databasePath = QDir::cleanPath(databasePath);
 		config.tencentMapKey = environment.value(QStringLiteral("TENCENT_MAP_KEY"));
 		config.serviceToken = environment.value(QStringLiteral("ML_SERVICE_TOKEN"));
+		EV_LOG_INFO(backendConfig, nullptr) << "Configuration loaded successfully";
 		return config;
 	}
 

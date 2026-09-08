@@ -1,3 +1,5 @@
+#include "evcharger/logging.h"
+
 #include "backend/database.h"
 
 #include "backend/security.h"
@@ -10,6 +12,8 @@
 #include <QUuid>
 
 #include <utility>
+
+Q_LOGGING_CATEGORY(backendDatabase, "evcharger.backend.database", QtInfoMsg)
 
 namespace Backend {
 	namespace {
@@ -110,12 +114,17 @@ namespace Backend {
 			}
 		}
 		QSqlDatabase::removeDatabase(connectionName);
+		if (!result) {
+			EV_LOG_CRITICAL(backendDatabase, nullptr) << "Database operation failed" << "reason=" << *errorMessage;
+		}
 		return result;
 	}
 
 	bool Database::initialize(const QDateTime &nowUtc, const QString &serviceToken, QString *errorMessage) const {
+		EV_LOG_INFO(backendDatabase, nullptr) << "Initializing database" << "busyTimeoutMs=" << m_busyTimeoutMs;
 		const QFileInfo databaseFile(m_path);
 		if (!QDir().mkpath(databaseFile.absolutePath())) {
+			EV_LOG_CRITICAL(backendDatabase, nullptr) << "Unable to create database directory";
 			if (errorMessage != nullptr) {
 				*errorMessage = QStringLiteral("Unable to create database directory");
 			}
@@ -128,6 +137,7 @@ namespace Backend {
 	}
 
 	bool Database::migrate(QSqlDatabase &database, const QDateTime &nowUtc, QString *errorMessage) const {
+		EV_LOG_INFO(backendDatabase, nullptr) << "Applying schema migration";
 		if (!begin(database, errorMessage)) {
 			return false;
 		}
@@ -173,6 +183,7 @@ namespace Backend {
 	}
 
 	bool Database::validateConsistency(QSqlDatabase &database, QString *errorMessage) const {
+		EV_LOG_INFO(backendDatabase, nullptr) << "Checking database consistency";
 		const QStringList checks = {
 			QStringLiteral("SELECT user_id FROM orders WHERE status IN ('charging','awaiting_payment') GROUP BY user_id HAVING COUNT(*) > 1 LIMIT 1"),
 			QStringLiteral("SELECT charger_id FROM orders WHERE status = 'charging' GROUP BY charger_id HAVING COUNT(*) > 1 LIMIT 1"),
@@ -197,6 +208,7 @@ namespace Backend {
 	}
 
 	bool Database::recoverState(QSqlDatabase &database, const QDateTime &nowUtc, QString *errorMessage) const {
+		EV_LOG_INFO(backendDatabase, nullptr) << "Recovering charger and reservation state";
 		if (!begin(database, errorMessage)) {
 			return false;
 		}
@@ -223,10 +235,15 @@ namespace Backend {
 			*errorMessage = restore.lastError().text();
 			return failTransaction(database);
 		}
-		return commit(database, errorMessage);
+		const bool committed = commit(database, errorMessage);
+		if (committed) {
+			EV_LOG_INFO(backendDatabase, nullptr) << "Startup state recovery committed" << "releasedChargers=" << release.numRowsAffected() << "closedReservations=" << expire.numRowsAffected() << "chargingChargers=" << restore.numRowsAffected();
+		}
+		return committed;
 	}
 
 	bool Database::configureService(QSqlDatabase &database, const QString &serviceToken, const QDateTime &nowUtc, QString *errorMessage) const {
+		EV_LOG_INFO(backendDatabase, nullptr) << "Refreshing service credentials";
 		if (!begin(database, errorMessage)) {
 			return false;
 		}

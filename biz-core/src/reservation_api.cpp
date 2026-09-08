@@ -1,3 +1,5 @@
+#include "evcharger/logging.h"
+
 #include "api_support.h"
 
 #include "resource_support.h"
@@ -11,6 +13,8 @@
 
 #include <limits>
 #include <optional>
+
+Q_LOGGING_CATEGORY(backendReservations, "evcharger.backend.reservations", QtInfoMsg)
 
 namespace Backend {
 	namespace {
@@ -102,6 +106,7 @@ namespace Backend {
 		}
 
 		HttpResponse createReservation(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendReservations, nullptr) << "Handling createReservation" << "requestId=" << request.requestId;
 			HttpResponse failure;
 			const auto principal = requireUser(request, dependencies, true, &failure);
 			if (!principal.has_value()) {
@@ -233,10 +238,12 @@ namespace Backend {
 				const int status = businessCode == QStringLiteral("CHARGER_UNAVAILABLE") ? 409 : 409;
 				return jsonError(businessCode, businessCode == QStringLiteral("CHARGER_UNAVAILABLE") ? QStringLiteral("电桩当前不可用") : QStringLiteral("当前状态不允许创建预约"), {}, request.requestId, status);
 			}
+			EV_LOG_INFO(backendReservations, nullptr) << "Resource created" << "requestId=" << request.requestId << "resourceId=" << result.value(QStringLiteral("id")).toInteger();
 			return jsonData(result, request.requestId, 201);
 		}
 
 		HttpResponse listReservations(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendReservations, nullptr) << "Handling listReservations" << "requestId=" << request.requestId;
 			HttpResponse failure;
 			const auto principal = requireUser(request, dependencies, false, &failure);
 			if (!principal.has_value()) {
@@ -297,6 +304,7 @@ namespace Backend {
 		}
 
 		HttpResponse reservationDetail(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendReservations, nullptr) << "Handling reservationDetail" << "requestId=" << request.requestId;
 			HttpResponse failure;
 			const auto principal = requireUser(request, dependencies, false, &failure);
 			if (!principal.has_value()) {
@@ -324,6 +332,7 @@ namespace Backend {
 		}
 
 		HttpResponse cancelReservation(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendReservations, nullptr) << "Handling cancelReservation" << "requestId=" << request.requestId;
 			HttpResponse failure;
 			const auto principal = requireUser(request, dependencies, true, &failure);
 			if (!principal.has_value()) {
@@ -384,6 +393,9 @@ namespace Backend {
 			}
 			if (!found) {
 				return jsonError(QStringLiteral("NOT_FOUND"), QStringLiteral("预约不存在"), {}, request.requestId, 404);
+			}
+			if (!invalidState) {
+				EV_LOG_INFO(backendReservations, nullptr) << "Reservation cancellation completed" << "requestId=" << request.requestId << "reservationId=" << *reservationId;
 			}
 			return invalidState ? jsonError(QStringLiteral("INVALID_STATE_TRANSITION"), QStringLiteral("预约状态不允许取消"), {}, request.requestId, 409) : jsonData(result, request.requestId);
 		}
