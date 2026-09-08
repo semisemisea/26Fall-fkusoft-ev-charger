@@ -1,3 +1,8 @@
+## @file CMakeLists.txt
+# @brief 定义普通用户桌面程序与离屏契约测试目标。
+# @details Qt 版本与 C++ 标准继承根工程；此处只列出前端源文件和 Qt 依赖。
+
+## @brief 用户端编译单元、自动处理的 Qt 头文件、Designer 界面和资源集合。
 set(PROJECT_SOURCES
     src/main.cpp
     src/common/Format.h
@@ -78,6 +83,7 @@ target_link_libraries(user-app PRIVATE
     Qt6::Widgets
 )
 
+## @brief 仅在根工程发现 WebEngine 时启用嵌入地图；缺省构建仍保留路线页面提示。
 if(TARGET Qt6::WebEngineWidgets)
     target_link_libraries(user-app PRIVATE Qt6::WebEngineWidgets)
     target_compile_definitions(user-app PRIVATE USER_APP_HAS_WEBENGINE)
@@ -98,6 +104,8 @@ install(TARGETS user-app
 
 qt_finalize_executable(user-app)
 
+## @brief 契约测试复用真实解析器和充电页，以本机 HTTP 替身验证显示行为。
+# @details offscreen 平台避免持续集成依赖桌面显示服务；测试仍严格使用 Qt 6.2.4。
 if(BUILD_TESTING)
     find_package(Qt6 6.2.4 EXACT REQUIRED COMPONENTS Test)
     add_executable(user-app-contract-tests

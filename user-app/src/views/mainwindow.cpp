@@ -1,3 +1,7 @@
+/**
+ * @file mainwindow.cpp
+ * @brief 装配用户前端依赖并统一协调登录、主标签页和覆盖页导航。
+ */
 #include "mainwindow.h"
 #include "ChargingTab.h"
 #include "InfoPages.h"
@@ -32,13 +36,18 @@
 
 // 手机隐喻视口：固定 390x780
 namespace {
+	/// @brief 手机式演示视口宽度，单位像素。
 	constexpr int kPhoneWidth = 390;
+	/// @brief 手机式演示视口高度，单位像素。
 	constexpr int kPhoneHeight = 780;
 	// 演示后端地址（本地 mock server，契约见 docs/apis.md）
+	/// @brief 本地服务默认地址，包含 /api/v1 API 前缀。
 	const QLatin1String kDefaultBaseUrl{"http://localhost:8080/api/v1"};
 } // namespace
 
-// 构造函数：固定手机视口尺寸，装配状态栏/Tab/全部页面，并统一编排页面跳转信号
+/**
+ * @details 构造函数：固定手机视口尺寸，装配状态栏/Tab/全部页面，并统一编排页面跳转信号
+ */
 MainWindow::MainWindow(QWidget *parent)
 	: QMainWindow(parent), ui(new Ui::MainWindow), m_session(new Session(this)), m_api(new ApiClient(kDefaultBaseUrl, this)) {
 	ui->setupUi(this);
@@ -143,12 +152,16 @@ MainWindow::MainWindow(QWidget *parent)
 	ui->pages->setCurrentWidget(loginView);
 }
 
-// 析构：仅释放 Designer 生成的 ui 对象，其余控件由 Qt 父子树管理
+/**
+ * @details 析构：仅释放 Designer 生成的 ui 对象，其余控件由 Qt 父子树管理
+ */
 MainWindow::~MainWindow() {
 	delete ui;
 }
 
-// 构建顶部状态栏：时间每秒刷新，信号/电量为静态示意
+/**
+ * @details 构建顶部状态栏：时间每秒刷新，信号/电量为静态示意
+ */
 void MainWindow::buildStatusBar() {
 	m_timeLabel = new QLabel(ui->statusBar);
 	m_timeLabel->setObjectName(QStringLiteral("statusTime"));
@@ -182,7 +195,9 @@ void MainWindow::buildStatusBar() {
 	m_timeLabel->setText(QTime::currentTime().toString(QStringLiteral("HH:mm")));
 }
 
-// 构建底部胶囊 Tab 栏：互斥按钮组，切到“充电”页时主动检查进行中的订单
+/**
+ * @details 构建底部胶囊 Tab 栏：互斥按钮组，切到“充电”页时主动检查进行中的订单
+ */
 void MainWindow::buildTabBar() {
 	ui->tabBar->setMaximumHeight(84);
 	auto *pill = new QFrame(ui->tabBar); // 胶囊：tabBar 里再放一个 QFrame
@@ -236,7 +251,9 @@ void MainWindow::buildTabBar() {
 	updateTabIcons();
 }
 
-// 刷新 Tab 图标：自绘选中态圆底，充电 Tab 在有进行中订单时叠加红点
+/**
+ * @details 刷新 Tab 图标：自绘选中态圆底，充电 Tab 在有进行中订单时叠加红点
+ */
 void MainWindow::updateTabIcons() {
 	const QColor active = QColor(0x2B, 0xFF, 0x7D);
 	const QColor inactive = theme::textSecondary();
@@ -284,7 +301,9 @@ void MainWindow::updateTabIcons() {
 	}
 }
 
-// 切换主 Tab 并确保显示主内容区与底部 Tab 栏
+/**
+ * @details 切换主 Tab 并确保显示主内容区与底部 Tab 栏
+ */
 void MainWindow::showTab(int index) {
 	m_tabStack->setCurrentIndex(index);
 	for (int i = 0; i < m_tabButtons.size(); ++i) {
@@ -295,11 +314,14 @@ void MainWindow::showTab(int index) {
 	ui->tabBar->show();
 }
 
-// 进入覆盖页：隐藏 Tab 栏；导航页跳过淡入，其余页面播放淡入动画后移除效果
+/**
+ * @details 进入覆盖页：隐藏 Tab 栏；导航页跳过淡入，其余页面播放淡入动画后移除效果
+ */
 void MainWindow::enterOverlay(QWidget *page) {
 	ui->pages->setCurrentWidget(page);
 	ui->tabBar->hide();
 
+	// WebEngine 原生合成视图不套 QWidget 透明度效果，避免地图被覆盖页淡入影响。
 	if (page == m_navigationView) {
 		return;
 	}
@@ -315,14 +337,18 @@ void MainWindow::enterOverlay(QWidget *page) {
 	anim->start(QAbstractAnimation::DeleteWhenStopped);
 }
 
-// 打开导航页并记录返回目标（详情页或主页），供返回按钮使用
+/**
+ * @details 打开导航页并记录返回目标（详情页或主页），供返回按钮使用
+ */
 void MainWindow::navigateTo(const Station &station, QWidget *returnPage) {
 	m_navigationReturnPage = returnPage;
 	m_navigationView->open(station);
 	enterOverlay(m_navigationView);
 }
 
-// 从详情页立即充电：确认后 POST /orders；已有进行中订单时直接切到充电页
+/**
+ * @details 从详情页立即充电：确认后 POST /orders；已有进行中订单时直接切到充电页
+ */
 void MainWindow::startChargingFromDetail(const Charger &charger) {
 	const auto choice = QMessageBox::question(this, QStringLiteral("选择电桩"),
 											  QStringLiteral("是否选择电桩 %1 立即充电？").arg(charger.code));
@@ -343,7 +369,9 @@ void MainWindow::startChargingFromDetail(const Charger &charger) {
                     Toast::error(this, error.message.isEmpty() ? error.code : error.message); });
 }
 
-// 从详情页预约电桩：确认后 POST /reservations（保留 15 分钟），处理已有订单冲突
+/**
+ * @details 从详情页预约电桩：确认后 POST /reservations（保留 15 分钟），处理已有订单冲突
+ */
 void MainWindow::handleReservationFromDetail(const Charger &charger) {
 	const auto choice = QMessageBox::question(this, QStringLiteral("预约电桩"),
 											  QStringLiteral("是否预约电桩 %1？保留 15 分钟。").arg(charger.code));
@@ -365,7 +393,9 @@ void MainWindow::handleReservationFromDetail(const Charger &charger) {
                     Toast::error(this, error.message.isEmpty() ? error.code : error.message); });
 }
 
-// 结算完成后拉取 GET /me 刷新 Session 中的余额（失败静默忽略）
+/**
+ * @details 结算完成后拉取 GET /me 刷新 Session 中的余额（失败静默忽略）
+ */
 void MainWindow::refreshBalance() {
 	m_api->get(QStringLiteral("/me"), [this](const QJsonValue &data, const QJsonObject &) { m_session->updateBalance(data.toObject().value(QLatin1String("walletBalanceFen")).toInteger()); }, [](const ApiError &) {});
 }

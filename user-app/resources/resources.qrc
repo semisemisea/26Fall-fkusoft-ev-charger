@@ -1,4 +1,6 @@
-﻿<RCC>
+﻿<!-- @file resources.qrc
+ @brief 将全局 QSS 和界面背景图打包为 Qt 资源，运行时通过冒号路径访问。 -->
+<RCC>
     <qresource prefix="/">
         <file>style.qss</file>
         <file>backgrounds/bg.png</file>
