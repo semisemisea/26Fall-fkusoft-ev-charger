@@ -3,8 +3,8 @@
 #include "../main.cpp"
 #undef main
 
-#include "logindialog.h"
-#include "mainwindow.h"
+#include "login_dialog.h"
+#include "main_window.h"
 #include <QPointer>
 #include <QTimer>
 #include <cstdlib>

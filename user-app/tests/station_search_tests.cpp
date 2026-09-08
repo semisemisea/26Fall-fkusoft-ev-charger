@@ -1,7 +1,7 @@
-#include "api/ApiClient.h"
-#include "app/Session.h"
-#include "views/StationListView.h"
-#include "widgets/StationCard.h"
+#include "api/api_client.h"
+#include "app/session.h"
+#include "views/station_list_view.h"
+#include "widgets/station_card.h"
 
 #include <QComboBox>
 #include <QDialog>

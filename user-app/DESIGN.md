@@ -279,7 +279,7 @@ components:
 
 - Do 保持一个页面只有一个 primary 主操作。
 - Do 金额一律 error-strong 加粗，余额/倒计时用 primary。
-- Do 状态色通过 Theme.h 引用，禁止硬编码。
+- Do 状态色通过 theme.h 引用，禁止硬编码。
 - Do 文字用 slate 系（#1e293b/#64748d），永远不用纯黑。
 - Don't 在 warning 底上用白字，在浅底上用 text-disabled。
 - Don't 新增第三种渐变或第三级阴影。

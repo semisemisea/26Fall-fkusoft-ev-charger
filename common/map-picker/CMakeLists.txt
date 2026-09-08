@@ -1,6 +1,6 @@
 add_library(evcharger-map-picker STATIC
-    mappickerdialog.cpp
-    include/evcharger/mappickerdialog.h
+    map_picker_dialog.cpp
+    include/evcharger/map_picker_dialog.h
 )
 target_include_directories(evcharger-map-picker PUBLIC include)
 target_link_libraries(evcharger-map-picker PUBLIC Qt6::Widgets)

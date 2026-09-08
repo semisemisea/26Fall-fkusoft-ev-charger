@@ -1,25 +1,25 @@
 set(PROJECT_SOURCES
     main.cpp
-    applicationcontroller.cpp
-    applicationcontroller.h
-    api/apiclient.cpp
-    api/apiclient.h
+    application_controller.cpp
+    application_controller.h
+    api/api_client.cpp
+    api/api_client.h
     api/types.h
-    mainwindow.cpp
-    mainwindow.h
-    logindialog.cpp
-    logindialog.h
-    logindialog.ui
-    pages/salespage.cpp
-    pages/salespage.h
-    pages/chargerstatuspage.cpp
-    pages/chargerstatuspage.h
-    pages/chargerdialog.cpp
-    pages/chargerdialog.h
-    pages/stationpage.cpp
-    pages/stationpage.h
-    pages/userpage.cpp
-    pages/userpage.h
+    main_window.cpp
+    main_window.h
+    login_dialog.cpp
+    login_dialog.h
+    login_dialog.ui
+    pages/sales_page.cpp
+    pages/sales_page.h
+    pages/charger_status_page.cpp
+    pages/charger_status_page.h
+    pages/charger_dialog.cpp
+    pages/charger_dialog.h
+    pages/station_page.cpp
+    pages/station_page.h
+    pages/user_page.cpp
+    pages/user_page.h
     resources/resources.qrc
 )
 
@@ -74,8 +74,8 @@ if(BUILD_TESTING)
 
     qt_add_executable(ops-app-charger-api-tests
         tests/charger_api_tests.cpp
-        api/apiclient.cpp
-        api/apiclient.h
+        api/api_client.cpp
+        api/api_client.h
         api/types.h
     )
     target_include_directories(ops-app-charger-api-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
@@ -84,10 +84,10 @@ if(BUILD_TESTING)
 
     qt_add_executable(ops-app-charger-status-page-tests
         tests/charger_status_page_tests.cpp
-        pages/chargerstatuspage.cpp
-        pages/chargerstatuspage.h
-        api/apiclient.cpp
-        api/apiclient.h
+        pages/charger_status_page.cpp
+        pages/charger_status_page.h
+        api/api_client.cpp
+        api/api_client.h
         api/types.h
     )
     target_include_directories(ops-app-charger-status-page-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
@@ -99,8 +99,8 @@ if(BUILD_TESTING)
 
     qt_add_executable(ops-app-station-api-tests
         tests/station_api_tests.cpp
-        api/apiclient.cpp
-        api/apiclient.h
+        api/api_client.cpp
+        api/api_client.h
         api/types.h
     )
     target_include_directories(ops-app-station-api-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
@@ -109,12 +109,12 @@ if(BUILD_TESTING)
 
     qt_add_executable(ops-app-station-page-tests
         tests/station_page_tests.cpp
-        pages/stationpage.cpp
-        pages/stationpage.h
-        pages/chargerdialog.cpp
-        pages/chargerdialog.h
-        api/apiclient.cpp
-        api/apiclient.h
+        pages/station_page.cpp
+        pages/station_page.h
+        pages/charger_dialog.cpp
+        pages/charger_dialog.h
+        api/api_client.cpp
+        api/api_client.h
         api/types.h
     )
     target_include_directories(ops-app-station-page-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
@@ -129,21 +129,21 @@ if(BUILD_TESTING)
     )
 
     qt_add_executable(ops-app-mainwindow-layout-tests
-        tests/mainwindow_layout_tests.cpp
-        mainwindow.cpp
-        mainwindow.h
-        pages/salespage.cpp
-        pages/salespage.h
-        pages/chargerstatuspage.cpp
-        pages/chargerstatuspage.h
-        pages/stationpage.cpp
-        pages/stationpage.h
-        pages/chargerdialog.cpp
-        pages/chargerdialog.h
-        pages/userpage.cpp
-        pages/userpage.h
-        api/apiclient.cpp
-        api/apiclient.h
+        tests/main_window_layout_tests.cpp
+        main_window.cpp
+        main_window.h
+        pages/sales_page.cpp
+        pages/sales_page.h
+        pages/charger_status_page.cpp
+        pages/charger_status_page.h
+        pages/station_page.cpp
+        pages/station_page.h
+        pages/charger_dialog.cpp
+        pages/charger_dialog.h
+        pages/user_page.cpp
+        pages/user_page.h
+        api/api_client.cpp
+        api/api_client.h
         api/types.h
     )
     target_include_directories(ops-app-mainwindow-layout-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
@@ -155,10 +155,10 @@ if(BUILD_TESTING)
 
     qt_add_executable(ops-app-user-page-tests
         tests/user_page_tests.cpp
-        pages/userpage.cpp
-        pages/userpage.h
-        api/apiclient.cpp
-        api/apiclient.h
+        pages/user_page.cpp
+        pages/user_page.h
+        api/api_client.cpp
+        api/api_client.h
     )
     target_include_directories(ops-app-user-page-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     target_link_libraries(ops-app-user-page-tests PRIVATE Qt6::Network Qt6::Test Qt6::Widgets)

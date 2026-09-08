@@ -2,15 +2,15 @@
  * @file contract_tests.cpp
  * @brief 验证用户端模型与主接口契约，以及充电界面的类型和大电量显示。
  */
-#include "api/ApiClient.h"
-#include "models/Charger.h"
-#include "models/Order.h"
-#include "models/Reservation.h"
-#include "models/Station.h"
-#include "models/User.h"
-#include "views/ChargingView.h"
+#include "api/api_client.h"
+#include "models/charger.h"
+#include "models/order.h"
+#include "models/reservation.h"
+#include "models/station.h"
+#include "models/user.h"
+#include "views/charging_view.h"
 
-#include "widgets/Toast.h"
+#include "widgets/toast.h"
 
 #include <QGraphicsOpacityEffect>
 #include <QJsonDocument>

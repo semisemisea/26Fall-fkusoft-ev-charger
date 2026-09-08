@@ -1,9 +1,9 @@
 /** @file
  * @brief 管理员前端回归测试；用本地响应或直接发送信号隔离真实服务。
  */
-#include "evcharger/mappickerdialog.h"
-#include "pages/chargerdialog.h"
-#include "pages/stationpage.h"
+#include "evcharger/map_picker_dialog.h"
+#include "pages/charger_dialog.h"
+#include "pages/station_page.h"
 
 #include <QLabel>
 #include <QLineEdit>
