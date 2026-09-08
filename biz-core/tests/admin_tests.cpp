@@ -100,7 +100,6 @@ namespace {
 		qint64 createStation(const QString &name) {
 			const Backend::HttpResponse response = send(QStringLiteral("POST"), QStringLiteral("/api/v1/admin/stations"), QJsonObject{
 																															  {QStringLiteral("name"), name},
-																															  {QStringLiteral("address"), QStringLiteral("测试地址")},
 																															  {QStringLiteral("latitude"), 38.9},
 																															  {QStringLiteral("longitude"), 121.6},
 																															  {QStringLiteral("priceFenPerKwh"), 100},

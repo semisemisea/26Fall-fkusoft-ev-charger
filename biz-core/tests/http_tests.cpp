@@ -204,7 +204,6 @@ void HttpTests::completesUserAndAdminWorkflow() {
 
 	const ReplyData station = send(running.url(QStringLiteral("/api/v1/admin/stations")), QByteArrayLiteral("POST"), QJsonObject{
 																														 {QStringLiteral("name"), QStringLiteral("HTTP 流程站")},
-																														 {QStringLiteral("address"), QStringLiteral("测试地址")},
 																														 {QStringLiteral("latitude"), 38.889},
 																														 {QStringLiteral("longitude"), 121.537},
 																														 {QStringLiteral("priceFenPerKwh"), 100},

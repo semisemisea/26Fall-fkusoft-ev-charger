@@ -47,7 +47,6 @@ namespace {
 			userToken = login(QStringLiteral("/api/v1/auth/user/login"), QJsonObject{{QStringLiteral("phone"), QStringLiteral("13800138000")}});
 			const Backend::HttpResponse station = send(QStringLiteral("POST"), QStringLiteral("/api/v1/admin/stations"), QJsonObject{
 																															 {QStringLiteral("name"), QStringLiteral("订单测试站")},
-																															 {QStringLiteral("address"), QStringLiteral("测试地址")},
 																															 {QStringLiteral("latitude"), 0},
 																															 {QStringLiteral("longitude"), 0},
 																															 {QStringLiteral("priceFenPerKwh"), 100},

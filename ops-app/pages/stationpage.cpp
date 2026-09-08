@@ -17,7 +17,6 @@ namespace {
 
 	enum StationCol {
 		ColName = 0,
-		ColAddress,
 		ColLocation,
 		ColPrice,
 		ColChargers,
@@ -61,8 +60,8 @@ StationPage::StationPage(ops::ApiClient *api, QWidget *parent)
 
 	m_table = new QTableWidget(this);
 	m_table->setObjectName(QStringLiteral("stationTable"));
-	m_table->setColumnCount(8);
-	m_table->setHorizontalHeaderLabels({tr("站名"), tr("地址"), tr("经纬度"),
+	m_table->setColumnCount(7);
+	m_table->setHorizontalHeaderLabels({tr("站名"), tr("经纬度"),
 										tr("价格 (元/度)"), tr("电桩总数"), tr("空闲"),
 										tr("在线率"), tr("状态")});
 	m_table->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
@@ -170,7 +169,6 @@ StationPage::StationPage(ops::ApiClient *api, QWidget *parent)
 					if (s.id == selectedStationId)
 						selectedStationRow = i;
 					m_table->setItem(i, ColName, new QTableWidgetItem(s.name));
-					m_table->setItem(i, ColAddress, new QTableWidgetItem(s.address));
 					m_table->setItem(
 						i, ColLocation,
 						new QTableWidgetItem(QStringLiteral("%1, %2")
@@ -442,10 +440,6 @@ AddStationDialog::AddStationDialog(QWidget *parent) : QDialog(parent) {
 	m_nameEdit->setPlaceholderText(tr("如: 软件园充电站"));
 	form->addRow(tr("站名"), m_nameEdit);
 
-	m_addressEdit = new QLineEdit(this);
-	m_addressEdit->setPlaceholderText(tr("详细地址"));
-	form->addRow(tr("地址"), m_addressEdit);
-
 	m_latEdit = new QLineEdit(this);
 	m_latEdit->setPlaceholderText(tr("-90 .. 90"));
 	form->addRow(tr("纬度"), m_latEdit);
@@ -462,9 +456,8 @@ AddStationDialog::AddStationDialog(QWidget *parent) : QDialog(parent) {
 		new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
 	form->addRow(buttons);
 	connect(buttons, &QDialogButtonBox::accepted, this, [this] {
-		if (m_nameEdit->text().trimmed().isEmpty() ||
-			m_addressEdit->text().trimmed().isEmpty()) {
-			QMessageBox::warning(this, tr("信息不完整"), tr("请填写站名和地址"));
+		if (m_nameEdit->text().trimmed().isEmpty()) {
+			QMessageBox::warning(this, tr("信息不完整"), tr("请填写站名"));
 			return;
 		}
 		bool latitudeOk = false;
@@ -491,7 +484,6 @@ AddStationDialog::AddStationDialog(QWidget *parent) : QDialog(parent) {
 ops::StationForm AddStationDialog::form() const {
 	ops::StationForm f;
 	f.name = m_nameEdit->text().trimmed();
-	f.address = m_addressEdit->text().trimmed();
 	f.latitude = m_latEdit->text().toDouble();
 	f.longitude = m_lonEdit->text().toDouble();
 	f.pricePerKwhFen = qRound64(m_priceEdit->text().toDouble() * 100);

@@ -44,6 +44,7 @@ void DatabaseTests::initializesSchemaAndHashedDefaultAdmin() {
 	int adminCount = 0;
 	int schemaVersion = 0;
 	QByteArray serviceHash;
+	QStringList stationColumns;
 	QVERIFY2(database.withConnection([&](QSqlDatabase &connection, QString *operationError) {
 		QSqlQuery admin(connection);
 		if (!admin.exec(QStringLiteral("SELECT password_salt, password_hash FROM admins WHERE username = 'admin'"))) {
@@ -67,6 +68,13 @@ void DatabaseTests::initializesSchemaAndHashedDefaultAdmin() {
 			return false;
 		}
 		serviceHash = service.value(0).toByteArray();
+		QSqlQuery stationInfo(connection);
+		if (!stationInfo.exec(QStringLiteral("PRAGMA table_info(stations)"))) {
+			*operationError = stationInfo.lastError().text();
+			return false;
+		}
+		while (stationInfo.next())
+			stationColumns.append(stationInfo.value(1).toString());
 		return true;
 	},
 									 &error),
@@ -78,6 +86,7 @@ void DatabaseTests::initializesSchemaAndHashedDefaultAdmin() {
 	QVERIFY(Backend::Security::verifyPassword(QStringLiteral("123456"), salt, hash));
 	QVERIFY(!Backend::Security::verifyPassword(QStringLiteral("wrong"), salt, hash));
 	QCOMPARE(serviceHash, Backend::Security::tokenHash(QStringLiteral("service-secret")));
+	QVERIFY(!stationColumns.contains(QStringLiteral("address")));
 }
 
 void DatabaseTests::configuresEveryConnection() {
@@ -125,7 +134,7 @@ void DatabaseTests::startupRecoversReservationsAndChargingOccupancy() {
 	const QString future = Backend::toDatabaseTimestamp(now.addSecs(60));
 	const QString timestamp = Backend::toDatabaseTimestamp(now.addSecs(-120));
 	QVERIFY2(database.withConnection([&](QSqlDatabase &connection, QString *operationError) {
-		return execute(connection, QStringLiteral("INSERT INTO users(phone,nickname,status,created_at,updated_at) VALUES ('13800138001','u1','active','%1','%1'),('13800138002','u2','active','%1','%1'),('13800138003','u3','active','%1','%1')").arg(timestamp), operationError) && execute(connection, QStringLiteral("INSERT INTO stations(name,address,latitude,longitude,price_fen_per_kwh,status,created_at,updated_at) VALUES ('s','a',1,1,100,'active','%1','%1')").arg(timestamp), operationError) && execute(connection, QStringLiteral("INSERT INTO chargers(station_id,type,power_w,occupancy_status,operational_status,created_at,updated_at) VALUES (1,'fast',60000,'reserved','online','%1','%1'),(1,'fast',60000,'reserved','online','%1','%1'),(1,'fast',60000,'available','fault','%1','%1')").arg(timestamp), operationError) && execute(connection, QStringLiteral("INSERT INTO reservations(user_id,station_id,charger_id,status,created_at,expires_at,updated_at) VALUES (1,1,1,'active','%1','%2','%1'),(2,1,2,'active','%1','%3','%1')").arg(timestamp, past, future), operationError) && execute(connection, QStringLiteral("INSERT INTO orders(user_id,station_id,charger_id,status,power_w,unit_price_fen_per_kwh,started_at,created_at,updated_at) VALUES (3,1,3,'charging',60000,100,'%1','%1','%1')").arg(timestamp), operationError);
+		return execute(connection, QStringLiteral("INSERT INTO users(phone,nickname,status,created_at,updated_at) VALUES ('13800138001','u1','active','%1','%1'),('13800138002','u2','active','%1','%1'),('13800138003','u3','active','%1','%1')").arg(timestamp), operationError) && execute(connection, QStringLiteral("INSERT INTO stations(name,latitude,longitude,price_fen_per_kwh,status,created_at,updated_at) VALUES ('s',1,1,100,'active','%1','%1')").arg(timestamp), operationError) && execute(connection, QStringLiteral("INSERT INTO chargers(station_id,type,power_w,occupancy_status,operational_status,created_at,updated_at) VALUES (1,'fast',60000,'reserved','online','%1','%1'),(1,'fast',60000,'reserved','online','%1','%1'),(1,'fast',60000,'available','fault','%1','%1')").arg(timestamp), operationError) && execute(connection, QStringLiteral("INSERT INTO reservations(user_id,station_id,charger_id,status,created_at,expires_at,updated_at) VALUES (1,1,1,'active','%1','%2','%1'),(2,1,2,'active','%1','%3','%1')").arg(timestamp, past, future), operationError) && execute(connection, QStringLiteral("INSERT INTO orders(user_id,station_id,charger_id,status,power_w,unit_price_fen_per_kwh,started_at,created_at,updated_at) VALUES (3,1,3,'charging',60000,100,'%1','%1','%1')").arg(timestamp), operationError);
 	},
 									 &error),
 			 qPrintable(error));
@@ -169,7 +178,7 @@ void DatabaseTests::startupRejectsCrossTableOccupancyConflict() {
 	const QString timestamp = Backend::toDatabaseTimestamp(now);
 	QVERIFY2(database.initialize(now, QString(), &error), qPrintable(error));
 	QVERIFY2(database.withConnection([&](QSqlDatabase &connection, QString *operationError) {
-		return execute(connection, QStringLiteral("INSERT INTO users(phone,nickname,status,created_at,updated_at) VALUES ('13800138001','u1','active','%1','%1'),('13800138002','u2','active','%1','%1')").arg(timestamp), operationError) && execute(connection, QStringLiteral("INSERT INTO stations(name,address,latitude,longitude,price_fen_per_kwh,status,created_at,updated_at) VALUES ('s','a',1,1,100,'active','%1','%1')").arg(timestamp), operationError) && execute(connection, QStringLiteral("INSERT INTO chargers(station_id,type,power_w,occupancy_status,operational_status,created_at,updated_at) VALUES (1,'fast',60000,'reserved','online','%1','%1')").arg(timestamp), operationError) && execute(connection, QStringLiteral("INSERT INTO reservations(user_id,station_id,charger_id,status,created_at,expires_at,updated_at) VALUES (1,1,1,'active','%1','%2','%1')").arg(timestamp, Backend::toDatabaseTimestamp(now.addSecs(60))), operationError) && execute(connection, QStringLiteral("INSERT INTO orders(user_id,station_id,charger_id,status,power_w,unit_price_fen_per_kwh,started_at,created_at,updated_at) VALUES (2,1,1,'charging',60000,100,'%1','%1','%1')").arg(timestamp), operationError);
+		return execute(connection, QStringLiteral("INSERT INTO users(phone,nickname,status,created_at,updated_at) VALUES ('13800138001','u1','active','%1','%1'),('13800138002','u2','active','%1','%1')").arg(timestamp), operationError) && execute(connection, QStringLiteral("INSERT INTO stations(name,latitude,longitude,price_fen_per_kwh,status,created_at,updated_at) VALUES ('s',1,1,100,'active','%1','%1')").arg(timestamp), operationError) && execute(connection, QStringLiteral("INSERT INTO chargers(station_id,type,power_w,occupancy_status,operational_status,created_at,updated_at) VALUES (1,'fast',60000,'reserved','online','%1','%1')").arg(timestamp), operationError) && execute(connection, QStringLiteral("INSERT INTO reservations(user_id,station_id,charger_id,status,created_at,expires_at,updated_at) VALUES (1,1,1,'active','%1','%2','%1')").arg(timestamp, Backend::toDatabaseTimestamp(now.addSecs(60))), operationError) && execute(connection, QStringLiteral("INSERT INTO orders(user_id,station_id,charger_id,status,power_w,unit_price_fen_per_kwh,started_at,created_at,updated_at) VALUES (2,1,1,'charging',60000,100,'%1','%1','%1')").arg(timestamp), operationError);
 	},
 									 &error),
 			 qPrintable(error));

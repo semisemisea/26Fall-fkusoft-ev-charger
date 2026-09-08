@@ -400,7 +400,6 @@ namespace ops {
 					 StationSummary s;
 					 s.id = jsonI64(o, "id");
 					 s.name = jsonStr(o, "name");
-					 s.address = jsonStr(o, "address");
 					 s.latitude = jsonDbl(o, "latitude");
 					 s.longitude = jsonDbl(o, "longitude");
 					 s.pricePerKwhFen = jsonI64(o, "priceFenPerKwh");
@@ -462,7 +461,6 @@ namespace ops {
 	void ApiClient::createStation(const StationForm &form) {
 		QJsonObject body;
 		body.insert(QStringLiteral("name"), form.name);
-		body.insert(QStringLiteral("address"), form.address);
 		body.insert(QStringLiteral("latitude"), form.latitude);
 		body.insert(QStringLiteral("longitude"), form.longitude);
 		body.insert(QStringLiteral("priceFenPerKwh"), static_cast<double>(form.pricePerKwhFen));

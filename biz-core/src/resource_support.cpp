@@ -30,7 +30,7 @@ namespace Backend {
 
 	bool loadStationJson(QSqlDatabase &database, qint64 stationId, bool includeInactive, bool includeDeleted, QJsonObject *station, bool *found, QString *errorMessage) {
 		QSqlQuery query(database);
-		QString sql = QStringLiteral("SELECT id,name,address,latitude,longitude,price_fen_per_kwh,status,created_at,updated_at,deleted_at FROM stations WHERE id = ?");
+		QString sql = QStringLiteral("SELECT id,name,latitude,longitude,price_fen_per_kwh,status,created_at,updated_at,deleted_at FROM stations WHERE id = ?");
 		if (!includeInactive) {
 			sql += QStringLiteral(" AND status = 'active'");
 		}
@@ -57,16 +57,15 @@ namespace Backend {
 		*station = QJsonObject{
 			{QStringLiteral("id"), query.value(0).toLongLong()},
 			{QStringLiteral("name"), query.value(1).toString()},
-			{QStringLiteral("address"), query.value(2).toString()},
-			{QStringLiteral("latitude"), query.value(3).toDouble()},
-			{QStringLiteral("longitude"), query.value(4).toDouble()},
-			{QStringLiteral("priceFenPerKwh"), query.value(5).toLongLong()},
-			{QStringLiteral("status"), query.value(6).toString()},
+			{QStringLiteral("latitude"), query.value(2).toDouble()},
+			{QStringLiteral("longitude"), query.value(3).toDouble()},
+			{QStringLiteral("priceFenPerKwh"), query.value(4).toLongLong()},
+			{QStringLiteral("status"), query.value(5).toString()},
 			{QStringLiteral("chargerCount"), counts.value(0).toLongLong()},
 			{QStringLiteral("availableChargerCount"), counts.value(1).toLongLong()},
-			{QStringLiteral("createdAt"), query.value(7).toString()},
-			{QStringLiteral("updatedAt"), query.value(8).toString()},
-			{QStringLiteral("deletedAt"), query.isNull(9) ? QJsonValue(QJsonValue::Null) : QJsonValue(query.value(9).toString())},
+			{QStringLiteral("createdAt"), query.value(6).toString()},
+			{QStringLiteral("updatedAt"), query.value(7).toString()},
+			{QStringLiteral("deletedAt"), query.isNull(8) ? QJsonValue(QJsonValue::Null) : QJsonValue(query.value(8).toString())},
 		};
 		*found = true;
 		return true;

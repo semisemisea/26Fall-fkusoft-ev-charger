@@ -215,7 +215,6 @@ namespace Backend {
 
 		struct StationInput {
 			QString name;
-			QString address;
 			double latitude = 0;
 			double longitude = 0;
 			qint64 price = 0;
@@ -234,7 +233,6 @@ namespace Backend {
 				}
 			};
 			text(QStringLiteral("name"), 100, &input->name);
-			text(QStringLiteral("address"), 200, &input->address);
 			auto coordinate = [&](const QString &name, double minimum, double maximum, double *target) {
 				if (!body.contains(name)) {
 					return;
@@ -263,7 +261,7 @@ namespace Backend {
 				}
 			}
 			if (!patch) {
-				for (const QString &required : {QStringLiteral("name"), QStringLiteral("address"), QStringLiteral("latitude"), QStringLiteral("longitude"), QStringLiteral("priceFenPerKwh")}) {
+				for (const QString &required : {QStringLiteral("name"), QStringLiteral("latitude"), QStringLiteral("longitude"), QStringLiteral("priceFenPerKwh")}) {
 					if (!body.contains(required)) {
 						details->insert(required, QStringLiteral("必填"));
 					}
@@ -298,9 +296,8 @@ namespace Backend {
 					return false;
 				}
 				QSqlQuery insert(database);
-				insert.prepare(QStringLiteral("INSERT INTO stations(name,address,latitude,longitude,price_fen_per_kwh,status,created_at,updated_at) VALUES (?,?,?,?,?,'active',?,?)"));
+				insert.prepare(QStringLiteral("INSERT INTO stations(name,latitude,longitude,price_fen_per_kwh,status,created_at,updated_at) VALUES (?,?,?,?,'active',?,?)"));
 				insert.addBindValue(input.name);
-				insert.addBindValue(input.address);
 				insert.addBindValue(input.latitude);
 				insert.addBindValue(input.longitude);
 				insert.addBindValue(input.price);
@@ -459,7 +456,7 @@ namespace Backend {
 					return false;
 				}
 				QSqlQuery current(database);
-				current.prepare(QStringLiteral("SELECT name,address,latitude,longitude,price_fen_per_kwh,status FROM stations WHERE id = ? AND deleted_at IS NULL"));
+				current.prepare(QStringLiteral("SELECT name,latitude,longitude,price_fen_per_kwh,status FROM stations WHERE id = ? AND deleted_at IS NULL"));
 				current.addBindValue(*stationId);
 				if (!current.exec()) {
 					*operationError = current.lastError().text();
@@ -473,15 +470,13 @@ namespace Backend {
 				}
 				found = true;
 				const QString name = body->contains(QStringLiteral("name")) ? provided.name : current.value(0).toString();
-				const QString address = body->contains(QStringLiteral("address")) ? provided.address : current.value(1).toString();
-				const double latitude = body->contains(QStringLiteral("latitude")) ? provided.latitude : current.value(2).toDouble();
-				const double longitude = body->contains(QStringLiteral("longitude")) ? provided.longitude : current.value(3).toDouble();
-				const qint64 price = body->contains(QStringLiteral("priceFenPerKwh")) ? provided.price : current.value(4).toLongLong();
-				const QString status = body->contains(QStringLiteral("status")) ? provided.status : current.value(5).toString();
+				const double latitude = body->contains(QStringLiteral("latitude")) ? provided.latitude : current.value(1).toDouble();
+				const double longitude = body->contains(QStringLiteral("longitude")) ? provided.longitude : current.value(2).toDouble();
+				const qint64 price = body->contains(QStringLiteral("priceFenPerKwh")) ? provided.price : current.value(3).toLongLong();
+				const QString status = body->contains(QStringLiteral("status")) ? provided.status : current.value(4).toString();
 				QSqlQuery update(database);
-				update.prepare(QStringLiteral("UPDATE stations SET name=?,address=?,latitude=?,longitude=?,price_fen_per_kwh=?,status=?,updated_at=? WHERE id=?"));
+				update.prepare(QStringLiteral("UPDATE stations SET name=?,latitude=?,longitude=?,price_fen_per_kwh=?,status=?,updated_at=? WHERE id=?"));
 				update.addBindValue(name);
-				update.addBindValue(address);
 				update.addBindValue(latitude);
 				update.addBindValue(longitude);
 				update.addBindValue(price);

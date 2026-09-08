@@ -32,6 +32,9 @@ void StationPageTests::selectedStationOwnsDisplayedChargers() {
 	station.name = QStringLiteral("软件园充电站");
 	client.stationsFetched({station}, {}, {});
 	QCOMPARE(stationTable->rowCount(), 1);
+	QCOMPARE(stationTable->columnCount(), 7);
+	for (int column = 0; column < stationTable->columnCount(); ++column)
+		QVERIFY(stationTable->horizontalHeaderItem(column)->text() != QStringLiteral("地址"));
 
 	stationTable->cellClicked(0, 0);
 	QCOMPARE(heading->text(), QStringLiteral("软件园充电站 · 站内电桩"));

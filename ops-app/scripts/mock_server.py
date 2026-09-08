@@ -29,11 +29,11 @@ TOKENS = {}  # token -> username
 
 # 预置电站与电桩
 STATIONS = [
-    {"id": 1, "name": "软件园充电站", "address": "大连市甘井子区软件园路1号",
+    {"id": 1, "name": "软件园充电站",
      "latitude": 38.889, "longitude": 121.537, "pricePerKwhFen": 98, "status": "active"},
-    {"id": 2, "name": "星海广场充电站", "address": "大连市沙河口区中山路588号",
+    {"id": 2, "name": "星海广场充电站",
      "latitude": 38.877, "longitude": 121.590, "pricePerKwhFen": 108, "status": "active"},
-    {"id": 3, "name": "机场快充站", "address": "大连市甘井子区迎客路100号",
+    {"id": 3, "name": "机场快充站",
      "latitude": 38.958, "longitude": 121.541, "pricePerKwhFen": 128, "status": "active"},
 ]
 
@@ -183,11 +183,10 @@ class Handler(BaseHTTPRequestHandler):
                 chunk, meta = self.paginate(items, q)
                 self.ok(chunk, **meta)
             elif p == "/api/v1/admin/stations":
-                search = (q.get("search") or "").lower()
+                search = (q.get("name") or "").lower()
                 items = []
                 for st in STATIONS:
-                    if search and search not in st["name"].lower() \
-                            and search not in st["address"].lower():
+                    if search and search not in st["name"].lower():
                         continue
                     cs = [c for c in CHARGERS.values() if c["stationId"] == st["id"]]
                     online = sum(1 for c in cs if c["operationalStatus"] == "online")
@@ -251,7 +250,6 @@ class Handler(BaseHTTPRequestHandler):
                     return
                 sid = max(s["id"] for s in STATIONS) + 1
                 STATIONS.append({"id": sid, "name": name,
-                                 "address": body.get("address", ""),
                                  "latitude": body.get("latitude", 0),
                                  "longitude": body.get("longitude", 0),
                                  "pricePerKwhFen": body.get("pricePerKwhFen", 98),

@@ -96,7 +96,6 @@ namespace ops {
 	struct StationSummary {
 		qint64 id = 0;
 		QString name;
-		QString address;
 		double latitude = 0.0;
 		double longitude = 0.0;
 		qint64 pricePerKwhFen = 0;
@@ -118,7 +117,6 @@ namespace ops {
 	// 新增电站表单;电桩通过独立管理操作逐个创建。
 	struct StationForm {
 		QString name;
-		QString address;
 		double latitude = 0.0;
 		double longitude = 0.0;
 		qint64 pricePerKwhFen = 0;

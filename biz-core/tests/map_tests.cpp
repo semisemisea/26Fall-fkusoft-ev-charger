@@ -93,7 +93,6 @@ namespace {
 		void createStation() {
 			const Backend::HttpResponse response = send(QStringLiteral("POST"), QStringLiteral("/api/v1/admin/stations"), QJsonObject{
 																															  {QStringLiteral("name"), QStringLiteral("软件园站")},
-																															  {QStringLiteral("address"), QStringLiteral("软件园")},
 																															  {QStringLiteral("latitude"), 38.889},
 																															  {QStringLiteral("longitude"), 121.537},
 																															  {QStringLiteral("priceFenPerKwh"), 100},

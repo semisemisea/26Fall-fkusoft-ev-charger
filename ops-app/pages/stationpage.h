@@ -64,7 +64,6 @@ public:
 
 private:
 	QLineEdit *m_nameEdit = nullptr;
-	QLineEdit *m_addressEdit = nullptr;
 	QLineEdit *m_latEdit = nullptr;
 	QLineEdit *m_lonEdit = nullptr;
 	QLineEdit *m_priceEdit = nullptr;
