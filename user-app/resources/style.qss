@@ -71,10 +71,6 @@ QPushButton {
     font-size: 15px;
     color: #1e293b;
 }
-QPushButton:hover {
-    border-color: #2BFF7D;
-    color: #2BFF7D;
-}
 QPushButton:pressed {
     border-color: #1A9E6E;
     color: #1A9E6E;
@@ -115,11 +111,6 @@ QPushButton#loginSubmitButton {
     font-size: 15px;
     padding: 10px 14px;
 }
-QPushButton#loginSubmitButton:hover {
-    background: #2BFF7D;
-    color: #000000;
-    border-color: #2BFF7D;
-}
 QPushButton#loginSubmitButton:pressed {
     background: #2BFF7D;
     color: #1A9E6E;
@@ -138,10 +129,6 @@ QPushButton#chargingStartButton {
     font-size: 15px;
     font-weight: bold;
 }
-QPushButton#chargingStartButton:hover {
-    border-color: #2BFF7D;
-    color: #2BFF7D;
-}
 QPushButton#chargingStartButton:pressed {
     background: #22e56e;
     border-color: #1A9E6E;
@@ -153,10 +140,6 @@ QPushButton#chargingStopButton {
     border: 1px solid #22C55E;
     border-radius: 25px;
     font-size: 16px;
-}
-QPushButton#chargingStopButton:hover {
-    border-color: #2BFF7D;
-    color: #2BFF7D;
 }
 QPushButton#chargingStopButton:pressed {
     border-color: #1A9E6E;
@@ -220,10 +203,6 @@ QPushButton#roundBackButton {
     font-size: 18px;
     font-weight: bold;
     padding: 0;
-}
-QPushButton#roundBackButton:hover {
-    border-color: #2BFF7D;
-    color: #2BFF7D;
 }
 QPushButton#roundBackButton:pressed {
     background: #EAF8F0;
@@ -672,9 +651,6 @@ QComboBox::down-arrow {
     border-right: 5px solid transparent;
     border-top: 6px solid #94a3b8;
     margin-right: 8px;
-}
-QComboBox:hover {
-    border-color: #2BFF7D;
 }
 QComboBox:on {
     border-color: #2BFF7D;
