@@ -63,7 +63,7 @@ int main(int argc, char *argv[]) {
 
 	auto router = std::make_shared<Backend::Router>();
 	auto clock = std::make_shared<EvCharger::SystemClock>();
-	auto mapClient = std::make_shared<Backend::TencentMapClient>(config->tencentMapKey, config->mapTimeoutMs, config->mapRetryCount);
+	auto mapClient = std::make_shared<Backend::TencentMapClient>(config->tencentMapKey, config->mapTimeoutMs, config->mapRetryCount, config->tencentMapSecretKey);
 	Backend::registerApiRoutes(*router, Backend::ApiDependencies{database, *config, clock, mapClient});
 
 	Backend::HttpServer server(router, config->jsonBodyLimitBytes, config->avatarBodyLimitBytes);

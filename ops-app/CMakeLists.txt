@@ -16,8 +16,6 @@ set(PROJECT_SOURCES
     pages/chargerstatuspage.h
     pages/chargerdialog.cpp
     pages/chargerdialog.h
-    pages/mappickerdialog.cpp
-    pages/mappickerdialog.h
     pages/stationpage.cpp
     pages/stationpage.h
     pages/userpage.cpp
@@ -31,6 +29,7 @@ qt_add_executable(ops-app
 )
 
 target_link_libraries(ops-app PRIVATE
+    evcharger-map-picker
     Qt6::Network
     Qt6::Widgets
 )
@@ -114,16 +113,14 @@ if(BUILD_TESTING)
         pages/stationpage.h
         pages/chargerdialog.cpp
         pages/chargerdialog.h
-        pages/mappickerdialog.cpp
-        pages/mappickerdialog.h
         api/apiclient.cpp
         api/apiclient.h
         api/types.h
     )
     target_include_directories(ops-app-station-page-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-    target_link_libraries(ops-app-station-page-tests PRIVATE Qt6::Network Qt6::Test Qt6::Widgets)
+    target_link_libraries(ops-app-station-page-tests PRIVATE evcharger-map-picker Qt6::Network Qt6::Test Qt6::Widgets)
     if(TARGET Qt6::WebEngineWidgets)
-        target_link_libraries(ops-app-station-page-tests PRIVATE Qt6::WebEngineWidgets)
+        target_link_libraries(ops-app-station-page-tests PRIVATE evcharger-map-picker Qt6::WebEngineWidgets)
         target_compile_definitions(ops-app-station-page-tests PRIVATE OPS_APP_HAS_WEBENGINE)
     endif()
     add_test(NAME ops-app-station-page-tests COMMAND ops-app-station-page-tests)
@@ -143,8 +140,6 @@ if(BUILD_TESTING)
         pages/stationpage.h
         pages/chargerdialog.cpp
         pages/chargerdialog.h
-        pages/mappickerdialog.cpp
-        pages/mappickerdialog.h
         pages/userpage.cpp
         pages/userpage.h
         api/apiclient.cpp
@@ -152,7 +147,7 @@ if(BUILD_TESTING)
         api/types.h
     )
     target_include_directories(ops-app-mainwindow-layout-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-    target_link_libraries(ops-app-mainwindow-layout-tests PRIVATE Qt6::Network Qt6::Test Qt6::Widgets)
+    target_link_libraries(ops-app-mainwindow-layout-tests PRIVATE evcharger-map-picker Qt6::Network Qt6::Test Qt6::Widgets)
     add_test(NAME ops-app-mainwindow-layout-tests COMMAND ops-app-mainwindow-layout-tests)
     set_tests_properties(ops-app-mainwindow-layout-tests PROPERTIES
         ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
@@ -176,7 +171,7 @@ if(BUILD_TESTING)
     list(REMOVE_ITEM LIFECYCLE_SOURCES main.cpp)
     qt_add_executable(ops-app-lifecycle-tests tests/lifecycle_tests.cpp ${LIFECYCLE_SOURCES})
     target_include_directories(ops-app-lifecycle-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-    target_link_libraries(ops-app-lifecycle-tests PRIVATE Qt6::Network Qt6::Widgets)
+    target_link_libraries(ops-app-lifecycle-tests PRIVATE evcharger-map-picker Qt6::Network Qt6::Widgets)
     if(TARGET Qt6::Charts)
         target_link_libraries(ops-app-lifecycle-tests PRIVATE Qt6::Charts)
         target_compile_definitions(ops-app-lifecycle-tests PRIVATE OPS_APP_HAS_CHARTS)

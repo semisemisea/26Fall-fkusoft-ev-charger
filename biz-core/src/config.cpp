@@ -202,6 +202,7 @@ namespace Backend {
 		}
 		config.databasePath = QDir::cleanPath(databasePath);
 		config.tencentMapKey = environment.value(QStringLiteral("TENCENT_MAP_KEY"));
+		config.tencentMapSecretKey = environment.value(QStringLiteral("TENCENT_MAP_SECRET_KEY"));
 		config.serviceToken = environment.value(QStringLiteral("ML_SERVICE_TOKEN"));
 		EV_LOG_INFO(backendConfig, nullptr) << "Configuration loaded successfully";
 		return config;

@@ -5,7 +5,7 @@
 #include <evcharger/logging.h>
 
 #include "chargerdialog.h"
-#include "mappickerdialog.h"
+#include "evcharger/mappickerdialog.h"
 
 #include <QDialogButtonBox>
 #include <QFormLayout>

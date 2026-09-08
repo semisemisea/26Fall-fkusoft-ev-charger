@@ -72,8 +72,9 @@ namespace Backend {
 		 * @param key 地图服务密钥。
 		 * @param timeoutMs 等待超时，单位毫秒。
 		 * @param retryCount 初次请求之外允许的重试次数。
+		 * @param secretKey 可选的腾讯 SN 签名密钥。
 		 */
-		TencentMapClient(QString key, int timeoutMs, int retryCount);
+		TencentMapClient(QString key, int timeoutMs, int retryCount, QString secretKey = {});
 
 		/**
 		 * @brief 将地址和区域解析为规范地址及经纬度，保留地图提供方状态。
@@ -94,9 +95,10 @@ namespace Backend {
 		RouteResult route(double fromLatitude, double fromLongitude, double toLatitude, double toLongitude, const QString &mode) override;
 
 	private:
-		QString m_key;	  ///< 腾讯地图 API 密钥。
-		int m_timeoutMs;  ///< 每次地图请求超时，单位毫秒。
-		int m_retryCount; ///< 初次地图请求之外允许重试的次数。
+		QString m_key;		 ///< 腾讯地图 API 密钥。
+		QString m_secretKey; ///< 可选 SN 签名密钥，仅用于计算请求签名。
+		int m_timeoutMs;	 ///< 每次地图请求超时，单位毫秒。
+		int m_retryCount;	 ///< 初次地图请求之外允许重试的次数。
 	};
 
 } // namespace Backend
