@@ -1,5 +1,7 @@
 set(PROJECT_SOURCES
     main.cpp
+    applicationcontroller.cpp
+    applicationcontroller.h
     api/apiclient.cpp
     api/apiclient.h
     api/types.h
@@ -167,4 +169,25 @@ if(BUILD_TESTING)
     target_link_libraries(ops-app-user-page-tests PRIVATE Qt6::Network Qt6::Test Qt6::Widgets)
     add_test(NAME ops-app-user-page-tests COMMAND ops-app-user-page-tests)
     set_tests_properties(ops-app-user-page-tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+endif()
+
+if(BUILD_TESTING)
+    set(LIFECYCLE_SOURCES ${PROJECT_SOURCES})
+    list(REMOVE_ITEM LIFECYCLE_SOURCES main.cpp)
+    qt_add_executable(ops-app-lifecycle-tests tests/lifecycle_tests.cpp ${LIFECYCLE_SOURCES})
+    target_include_directories(ops-app-lifecycle-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    target_link_libraries(ops-app-lifecycle-tests PRIVATE Qt6::Network Qt6::Widgets)
+    if(TARGET Qt6::Charts)
+        target_link_libraries(ops-app-lifecycle-tests PRIVATE Qt6::Charts)
+        target_compile_definitions(ops-app-lifecycle-tests PRIVATE OPS_APP_HAS_CHARTS)
+    endif()
+    if(TARGET Qt6::WebEngineWidgets)
+        target_link_libraries(ops-app-lifecycle-tests PRIVATE Qt6::WebEngineWidgets)
+        target_compile_definitions(ops-app-lifecycle-tests PRIVATE OPS_APP_HAS_WEBENGINE)
+    endif()
+    foreach(scenario login-close main-close relogin-close relogin-success app-quit)
+        add_test(NAME ops-app-lifecycle-${scenario} COMMAND ops-app-lifecycle-tests ${scenario})
+        set_tests_properties(ops-app-lifecycle-${scenario} PROPERTIES
+            ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 10)
+    endforeach()
 endif()
