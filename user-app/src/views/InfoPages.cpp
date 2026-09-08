@@ -118,19 +118,18 @@ void OrderHistoryView::load()
                   for (const QJsonValue &value : orders) {
                       const Order order = Order::fromJson(value.toObject());
 
-                      const QString statusColor = order.status == QLatin1String("settled")
-                                                      ? theme::successInkName()
-                                                      : (order.status == QLatin1String("awaiting_payment")
-                                                             ? theme::warningInkName()
-                                                             : theme::primaryDeepName());
+                      // 状态文字颜色按语义类匹配 style.qss（#inkSuccess/#inkWarning/#inkPrimary）
+                      const QLatin1String statusInkClass = order.status == QLatin1String("settled")
+                      ? QLatin1String("inkSuccess")
+                      : (order.status == QLatin1String("awaiting_payment") ? QLatin1String("inkWarning")
+                                                                            : QLatin1String("inkPrimary"));
 
                       auto *card = new QFrame(this);
                       card->setObjectName(QStringLiteral("infoCard"));
                       auto *nameLabel = new QLabel(order.stationName, card);
                       nameLabel->setObjectName(QStringLiteral("cardTitle"));
                       auto *statusLabel = new QLabel(Order::statusLabel(order.status), card);
-                      statusLabel->setObjectName(QStringLiteral("statusStrong"));
-                      statusLabel->setStyleSheet(QStringLiteral("color: %1;").arg(statusColor));
+                      statusLabel->setObjectName(statusInkClass);
                       auto *detailLabel = new QLabel(
                           QStringLiteral("电桩 %1 · %2")
                               .arg(order.chargerCode,
@@ -229,10 +228,8 @@ void TransactionsView::load()
                               .arg(amount >= 0 ? QStringLiteral("+") : QStringLiteral("-"),
                                    fenToYuan(qAbs(amount))),
                           card);
-                      amountLabel->setObjectName(QStringLiteral("strong"));
-                      amountLabel->setStyleSheet(
-                          QStringLiteral("color: %1;")
-                              .arg(amount >= 0 ? theme::successInkName() : theme::errorStrongName()));
+                      amountLabel->setObjectName(amount >= 0 ? QStringLiteral("txIncome")
+                                                             : QStringLiteral("txExpense"));
                       amountLabel->setAlignment(Qt::AlignRight);
                       auto *balanceLabel = new QLabel(
                           QStringLiteral("余额 ￥%1")
@@ -295,21 +292,20 @@ void ReservationHistoryView::load()
                   for (const QJsonValue &value : reservations) {
                       const Reservation reservation = Reservation::fromJson(value.toObject());
 
-                      const QString statusColor = reservation.status == QLatin1String("active")
-                                                      ? theme::primaryDeepName()
-                                                      : (reservation.status == QLatin1String("used")
-                                                             ? theme::successInkName()
-                                                             : (reservation.status == QLatin1String("expired")
-                                                                    ? theme::warningInkName()
-                                                                    : theme::textSecondaryName()));
+                      // 状态文字颜色按语义类匹配 style.qss
+                      const QLatin1String statusInkClass = reservation.status == QLatin1String("active")
+                      ? QLatin1String("inkPrimary")
+                      : (reservation.status == QLatin1String("used")
+                             ? QLatin1String("inkSuccess")
+                             : (reservation.status == QLatin1String("expired") ? QLatin1String("inkWarning")
+                                                                                : QLatin1String("inkMuted")));
 
                       auto *card = new QFrame(this);
                       card->setObjectName(QStringLiteral("infoCard"));
                       auto *nameLabel = new QLabel(reservation.stationName, card);
                       nameLabel->setObjectName(QStringLiteral("cardTitle"));
                       auto *statusLabel = new QLabel(Reservation::statusLabel(reservation.status), card);
-                      statusLabel->setObjectName(QStringLiteral("statusStrong"));
-                      statusLabel->setStyleSheet(QStringLiteral("color: %1;").arg(statusColor));
+                      statusLabel->setObjectName(statusInkClass);
                       auto *detailLabel = new QLabel(
                           QStringLiteral("电桩 %1 · %2")
                               .arg(reservation.chargerCode,

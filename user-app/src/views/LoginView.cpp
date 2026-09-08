@@ -39,24 +39,18 @@ LoginView::LoginView(Session &session, ApiClient &api, QWidget *parent)
 	hint->setAlignment(Qt::AlignCenter);
 
 	m_phoneEdit = new QLineEdit(this);
+	m_phoneEdit->setObjectName(QStringLiteral("loginPhoneInput"));
 	m_phoneEdit->setFixedWidth(280);
 	m_phoneEdit->setMinimumHeight(55);
 	m_phoneEdit->setPlaceholderText(QStringLiteral("请输入11位手机号码"));
 	m_phoneEdit->setValidator(new QRegularExpressionValidator(kPhonePattern, this));
 	m_phoneEdit->setMaxLength(11);
 	m_phoneEdit->setClearButtonEnabled(true);
-	m_phoneEdit->setStyleSheet(QStringLiteral(
-		"QLineEdit { background: white; border: 1px solid #c0c0c0; border-radius: 10px; padding: 10px 12px; }"
-		"QLineEdit:focus { border-color: #c0c0c0; }"));
 
 	m_loginButton = new ScaleButton(QStringLiteral("登录 / 注册"), this);
+	m_loginButton->setObjectName(QStringLiteral("loginSubmitButton"));
 	m_loginButton->setFixedWidth(280);
 	m_loginButton->setMinimumHeight(44);
-	m_loginButton->setStyleSheet(QStringLiteral(
-		"QPushButton { background: #2BFF7D; color: #000000; border: 1px solid #22C55E; border-radius: 10px; font-size: 15px; padding: 10px 14px; }"
-		"QPushButton:hover { background: #2BFF7D; color: #000000; }"
-		"QPushButton:pressed { background: #2BFF7D; }"
-		"QPushButton:disabled { background: #9AFFC4; color: rgba(0,0,0,0.5); }"));
 
 	m_messageLabel = new QLabel(this);
 	m_messageLabel->setAlignment(Qt::AlignCenter);

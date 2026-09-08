@@ -37,6 +37,25 @@ QLineEdit:focus {
 QLineEdit::placeholder {
     color: #94a3b8;
 }
+QLineEdit#loginPhoneInput {
+    background: white;
+    border: 1px solid #c0c0c0;
+    border-radius: 10px;
+    padding: 10px 12px;
+}
+QLineEdit#loginPhoneInput:focus {
+    border-color: #c0c0c0;
+}
+QLineEdit#chargingCodeInput {
+    background: #f3f4f6;
+    border: 1px solid #e5e7eb;
+    border-radius: 22px;
+    font-size: 15px;
+    padding: 0 16px;
+}
+QLineEdit#chargingCodeInput:focus {
+    border-color: #2BFF7D;
+}
 QListWidget {
     background: white;
     border: 1px solid #e2e8f0;
@@ -87,6 +106,66 @@ QPushButton#primaryButton:pressed {
 QPushButton#primaryButton:disabled {
     background: #9AD9B8;
     color: rgba(255, 255, 255, 0.6);
+}
+QPushButton#loginSubmitButton {
+    background: #2BFF7D;
+    color: #000000;
+    border: 1px solid #22C55E;
+    border-radius: 10px;
+    font-size: 15px;
+    padding: 10px 14px;
+}
+QPushButton#loginSubmitButton:hover {
+    background: #2BFF7D;
+    color: #000000;
+    border-color: #2BFF7D;
+}
+QPushButton#loginSubmitButton:pressed {
+    background: #2BFF7D;
+    color: #1A9E6E;
+    border-color: #1A9E6E;
+}
+QPushButton#loginSubmitButton:disabled {
+    background: #9AFFC4;
+    color: rgba(0, 0, 0, 0.5);
+    border-color: #e2e8f0;
+}
+QPushButton#chargingStartButton {
+    background: #2BFF7D;
+    border: 1px solid #22C55E;
+    border-radius: 22px;
+    color: #000000;
+    font-size: 15px;
+    font-weight: bold;
+}
+QPushButton#chargingStartButton:hover {
+    border-color: #2BFF7D;
+    color: #2BFF7D;
+}
+QPushButton#chargingStartButton:pressed {
+    background: #22e56e;
+    border-color: #1A9E6E;
+    color: #1A9E6E;
+}
+QPushButton#chargingStopButton {
+    background: #2BFF7D;
+    color: #000000;
+    border: 1px solid #22C55E;
+    border-radius: 25px;
+    font-size: 16px;
+}
+QPushButton#chargingStopButton:hover {
+    border-color: #2BFF7D;
+    color: #2BFF7D;
+}
+QPushButton#chargingStopButton:pressed {
+    border-color: #1A9E6E;
+    color: #1A9E6E;
+}
+QPushButton#chargingStopButton:disabled {
+    background: #9AFFC4;
+    color: rgba(0, 0, 0, 0.5);
+    border: none;
 }
 QPushButton#dangerButton {
     background: #e11d48;
@@ -175,12 +254,34 @@ QPushButton#roundStartButton:disabled {
 QPushButton#compactButton {
     padding: 8px 16px;
 }
+/* 详情页底部胶囊按钮：禁用态（未选中可用电桩）自动切灰 */
 QPushButton#reserveButton {
-    padding: 4px 10px;
-    color: #2BFF7D;
+    background: #ffffff;
+    border: 1px solid #d1d5db;
+    border-radius: 22px;
+    color: #1e293b;
+    font-size: 15px;
+    padding: 0 16px;
+    min-height: 44px;
+}
+QPushButton#reserveButton:disabled {
+    background: #f3f4f6;
+    border: 1px solid #9ca3af;
+    color: #9ca3af;
 }
 QPushButton#chargeButton {
-    padding: 4px 14px;
+    background: #2BFF7D;
+    border: 1px solid #22C55E;
+    border-radius: 22px;
+    color: #000000;
+    font-size: 15px;
+    padding: 0 16px;
+    min-height: 44px;
+}
+QPushButton#chargeButton:disabled {
+    background: #e5e7eb;
+    border: 1px solid #9ca3af;
+    color: #9ca3af;
 }
 QPushButton#aiBanner {
     background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
@@ -243,6 +344,7 @@ QLabel#statusGlyph {
 /* ===== 排版角色 ===== */
 QLabel#pageHeading {
     font-size: 22px;
+    font-weight: bold;
     color: #1e293b;
 }
 QLabel#pageTitle {
@@ -314,7 +416,7 @@ QLabel#routeInfo {
     color: #1A9E6E;
 }
 QLabel#linkBlue {
-    color: #2BFF7D;
+    color: #1AD600;
     text-decoration: underline;
 }
 QLabel#statusStrong {
@@ -341,6 +443,34 @@ QLabel#reservationStation {
 }
 
 /* ===== 卡片 ===== */
+QFrame#chargingPrepareCard {
+    background: #ffffff;
+    border-radius: 16px;
+}
+QLabel#chargingPrepareHint {
+    font-size: 15px;
+    color: #000000;
+    font-weight: normal;
+}
+/* 充电页四张指标卡（续航/电量/方式/剩余时间），卡内 QLabel 去边框 */
+QFrame#chargingMetricCard {
+    background: #ffffff;
+    border-radius: 14px;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+}
+QFrame#chargingMetricCard QLabel {
+    background: transparent;
+    border: none;
+}
+/* 充电页预估费用：灰色小标题 + 大号金额 */
+QLabel#chargingFeeTitle {
+    color: #6b7280;
+    font-size: 14px;
+}
+QLabel#chargingFeeValue {
+    color: #000000;
+    font-size: 34px;
+}
 QFrame#infoCard {
     background: white;
     border: 1px solid rgba(0, 0, 0, 0.04);
@@ -361,6 +491,10 @@ QFrame#chargerRow {
     background: white;
     border: 1px solid rgba(0, 0, 0, 0.04);
     border-radius: 12px;
+}
+/* 选中的电桩行：代码里 setProperty("selected") + unpolish/polish 触发 */
+QFrame#chargerRow[selected="true"] {
+    border: 2px solid #b0b4bc;
 }
 QFrame#chargerRow QLabel {
     border: none;
@@ -391,7 +525,7 @@ QFrame#menuCard QPushButton {
     background: transparent;
     border: none;
     border-radius: 0;
-    padding: 14px 16px;
+    padding: 12px 20px;
     text-align: left;
     font-size: 16px;
     color: #1e293b;
@@ -399,6 +533,49 @@ QFrame#menuCard QPushButton {
 QFrame#menuCard QPushButton:hover {
     background: #f8fafc;
     color: #1e293b;
+}
+QLabel#profileMenuText {
+    background: transparent;
+    color: #1e293b;
+    font-size: 16px;
+}
+/* 头像两种状态：默认占位（半透明白圆底）/ 已加载图片（仅圆形裁剪） */
+QLabel#profileAvatarDefault {
+    background: rgba(255, 255, 255, 0.35);
+    border-radius: 36px;
+    color: white;
+    font-size: 36px;
+}
+QLabel#profileAvatarImage {
+    border-radius: 36px;
+}
+/* 钱包"立即充值"/结算"确认支付""返回首页"：同款绿色实心按钮 */
+QPushButton#profileTopUpButton,
+QPushButton#settlePayButton,
+QPushButton#settleHomeButton {
+    background: #1AD600;
+    color: #000000;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: bold;
+    padding: 10px 14px;
+}
+QPushButton#profileTopUpButton:hover,
+QPushButton#settlePayButton:hover,
+QPushButton#settleHomeButton:hover {
+    background: #1AD600;
+    color: #000000;
+}
+QPushButton#profileTopUpButton:pressed,
+QPushButton#settlePayButton:pressed,
+QPushButton#settleHomeButton:pressed {
+    background: #1AD600;
+    color: #1A9E6E;
+}
+QPushButton#settlePayButton:disabled {
+    background: #9AFFC4;
+    color: rgba(0, 0, 0, 0.5);
 }
 QLabel#profileName {
     font-size: 18px;
@@ -424,7 +601,7 @@ StationCard QLabel {
     background: transparent;
 }
 StationCard QPushButton#navMini {
-    color: #2BFF7D;
+    color: #1AD600;
     background: #EAF8F0;
     border: none;
     border-radius: 6px;
@@ -456,6 +633,9 @@ QListView#comboPopup::item:hover {
 }
 
 /* ===== 轻提示 ===== */
+QWidget#toastWrapper {
+    background: transparent;
+}
 QFrame#toast {
     background: white;
     border: 1px solid #e2e8f0;
@@ -499,6 +679,13 @@ QComboBox:hover {
 QComboBox:on {
     border-color: #2BFF7D;
 }
+/* 找桩页定位下拉：悬停/展开保持默认描边，不跟随绿色 hover */
+QComboBox#locationCombo:hover,
+QComboBox#locationCombo:on {
+    background: white;
+    border: 1px solid #e2e8f0;
+    color: #1e293b;
+}
 QComboBox QAbstractItemView {
     background: white;
     border: 1px solid #e2e8f0;
@@ -511,4 +698,140 @@ QComboBox QAbstractItemView::item {
 QComboBox QAbstractItemView::item:selected {
     background: #EAF8F0;
     color: #2BFF7D;
+}
+
+/* ===== 电站详情页 ===== */
+QLabel#stationInfoText {
+    color: #64748d;
+    font-size: 15px;
+}
+/* 距离/价格/空闲数灰绿标签 */
+QLabel#stationTag {
+    background: #e8eae7;
+    border-radius: 8px;
+    color: #000000;
+    padding: 5px 9px;
+}
+/* 黑色圆形导航钮 */
+QPushButton#stationNavRoundButton {
+    background: #000000;
+    border: none;
+    border-radius: 24px;
+}
+QLabel#chargerCodeText {
+    color: #000000;
+    font-size: 17px;
+    font-weight: bold;
+}
+QLabel#chargerMetaText {
+    color: #6b7280;
+    font-size: 14px;
+}
+/* 电桩状态徽章：objectName 按 chargerTag_<status> 约定匹配 */
+QLabel#chargerTag_available {
+    background: #ffffff;
+    color: #16A34A;
+    border: 1px solid #22C55E;
+    font-size: 12px;
+    font-weight: bold;
+    padding: 4px 10px;
+    border-radius: 8px;
+}
+QLabel#chargerTag_charging,
+QLabel#chargerTag_reserved {
+    background: #ffffff;
+    color: #C2B700;
+    border: 1px solid #E3D700;
+    font-size: 12px;
+    font-weight: bold;
+    padding: 4px 10px;
+    border-radius: 8px;
+}
+QLabel#chargerTag_fault {
+    background: #ffffff;
+    color: #BE123C;
+    border: 1px solid #BE123C;
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 8px;
+}
+QLabel#chargerTag_offline {
+    background: #ffffff;
+    color: #475569;
+    border: 1px solid #475569;
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 8px;
+}
+QLabel#chargerTag_default {
+    background: #ffffff;
+    color: #64748D;
+    border: 1px solid #64748D;
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 8px;
+}
+
+/* ===== 结算页 ===== */
+QLabel#settleMessage {
+    color: #E11D48;
+}
+QLabel#settleSuccessAmount {
+    color: #000000;
+    font-size: 32px;
+    font-weight: bold;
+}
+QLabel#settleSuccessTitle {
+    color: #000000;
+    font-size: 18px;
+}
+QLabel#settleSuccessSubtitle {
+    color: #6b7280;
+    font-size: 14px;
+}
+QPushButton#settleBackHomeButton {
+    background: #2BFF7D;
+    color: #000000;
+    border: 1px solid #22C55E;
+    border-radius: 27px;
+    font-size: 17px;
+    font-weight: bold;
+    padding: 0 44px;
+}
+QPushButton#settleBackHomeButton:hover {
+    background: #22E56E;
+}
+
+/* ===== 语义文字色（历史页状态/金额、电站卡空闲数） ===== */
+QLabel#inkSuccess {
+    color: #047857;
+    font-weight: bold;
+}
+QLabel#inkWarning {
+    color: #92400E;
+    font-weight: bold;
+}
+QLabel#inkPrimary {
+    color: #1A9E6E;
+    font-weight: bold;
+}
+QLabel#inkMuted {
+    color: #64748D;
+    font-weight: bold;
+}
+QLabel#txIncome {
+    color: #047857;
+    font-weight: bold;
+}
+QLabel#txExpense {
+    color: #E11D48;
+    font-weight: bold;
+}
+QLabel#stationIdleOk {
+    color: #047857;
+    font-weight: bold;
+}
+QLabel#stationIdleAlert {
+    color: #E11D48;
+    font-weight: bold;
 }

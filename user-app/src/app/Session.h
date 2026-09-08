@@ -29,7 +29,7 @@ public:
     // 更新定位（经纬度），用于按距离查询附近电站
     void setLocation(double latitude, double longitude);
 
-    // 当前定位（默认大连海事大学附近坐标）
+	// 当前定位
     [[nodiscard]] double latitude() const { return m_latitude; }
     [[nodiscard]] double longitude() const { return m_longitude; }
 
@@ -40,7 +40,7 @@ signals:
 
 private:
     User m_user;
-    QString m_accessToken;
+	QString m_accessToken;
     double m_latitude = 38.914;
     double m_longitude = 121.614;
 };

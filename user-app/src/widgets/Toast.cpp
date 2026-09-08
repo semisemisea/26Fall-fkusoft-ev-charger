@@ -28,13 +28,13 @@ void showToast(QWidget *anchor, const QColor &accent, const QString &text)
     auto *wrapper = new QWidget(host);
     wrapper->setObjectName(QStringLiteral("toastWrapper"));
     wrapper->setAttribute(Qt::WA_TransparentForMouseEvents);
-    wrapper->setStyleSheet(QStringLiteral("background: transparent;"));
 
     auto *card = new QFrame(wrapper);
     card->setObjectName(QStringLiteral("toast"));
 
     auto *dot = new QLabel(card);
     dot->setObjectName(QStringLiteral("toastDot"));
+    // 状态点颜色随 success/error/info 参数变化，属于运行时动态样式，保留内联
     dot->setStyleSheet(QStringLiteral("background: %1;").arg(accent.name()));
 
     auto *label = new QLabel(text, card);

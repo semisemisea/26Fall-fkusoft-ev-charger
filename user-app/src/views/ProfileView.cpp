@@ -20,13 +20,22 @@
 #include <QMessageBox>
 #include <QMouseEvent>
 #include <QPushButton>
+#include <QStyle>
 #include <QUrl>
 #include <QVBoxLayout>
 
 namespace {
-const QLatin1String kDefaultAvatarStyle{
-    "QLabel { background: rgba(255,255,255,0.35); border-radius: 36px; color: white; font-size: 36px; }"};
-const QLatin1String kAvatarPixmapStyle{"QLabel { border-radius: 36px; }"};
+// 头像的两种样式类（对应 style.qss 中 #profileAvatarDefault / #profileAvatarImage）
+const QLatin1String kAvatarDefaultStyle{QLatin1String("profileAvatarDefault")};
+const QLatin1String kAvatarImageStyle{QLatin1String("profileAvatarImage")};
+
+// 切换头像样式类并强制 QSS 重新匹配（objectName 变化需 unpolish/polish 才生效）
+void applyAvatarStyle(QLabel *label, const QLatin1String &styleName)
+{
+    label->setObjectName(styleName);
+    label->style()->unpolish(label);
+    label->style()->polish(label);
+}
 
 // 手机号脱敏：11 位号码中间四位替换为 ****
 QString maskedPhone(const QString &phone)
@@ -49,7 +58,7 @@ ProfileView::ProfileView(Session &session, ApiClient &api, QWidget *parent)
     m_avatarLabel = new QLabel(headerCard);
     m_avatarLabel->setAlignment(Qt::AlignCenter);
     m_avatarLabel->setFixedSize(72, 72);
-    m_avatarLabel->setStyleSheet(kDefaultAvatarStyle);
+    m_avatarLabel->setObjectName(kAvatarDefaultStyle);
     m_avatarLabel->setPixmap(AppIcons::avatar(Qt::black, 40));
     m_avatarLabel->setCursor(Qt::PointingHandCursor);
     m_avatarLabel->installEventFilter(this);
@@ -94,10 +103,7 @@ ProfileView::ProfileView(Session &session, ApiClient &api, QWidget *parent)
     m_balanceLabel->setAlignment(Qt::AlignCenter);
     m_balanceLabel->setObjectName(QStringLiteral("balance"));
     auto *topUpButton = new ScaleButton(QStringLiteral("立即充值"), walletCard);
-    topUpButton->setStyleSheet(QStringLiteral(
-        "QPushButton { background: #1AD600; color: #000000; border: none; border-radius: 10px; font-size: 15px; font-weight: bold; padding: 10px 14px; }"
-        "QPushButton:hover { background: #1AD600; color: #000000; }"
-        "QPushButton:pressed { background: #1AD600; }"));
+    topUpButton->setObjectName(QStringLiteral("profileTopUpButton"));
 
     auto *walletLayout = new QVBoxLayout(walletCard);
     walletLayout->setContentsMargins(16, 16, 16, 16);
@@ -126,13 +132,9 @@ ProfileView::ProfileView(Session &session, ApiClient &api, QWidget *parent)
     menuLayout->setSpacing(0);
 
 	for (const auto &item : menuItems) {
-		// 用 QPushButton 作为容器
+		// 用 QPushButton 作为可点击行容器（样式见 style.qss QFrame#menuCard QPushButton）
 		auto *row = new QPushButton(menuCard);
 		row->setCursor(Qt::PointingHandCursor);
-		row->setStyleSheet(
-			"QPushButton { background: transparent; border: none; text-align: left; padding: 12px 20px;}"
-			"QPushButton:hover { background: #f8fafc; }"
-			);
 
 			   // 按钮内部用 QHBoxLayout 布局
 		auto *layout = new QHBoxLayout(row);
@@ -161,7 +163,7 @@ ProfileView::ProfileView(Session &session, ApiClient &api, QWidget *parent)
 		QString displayText = QString::fromUtf8(item.text);
 		displayText.remove(QRegularExpression("^(📋|📅|💰|🚗|ℹ️)\\s*"));  // 去掉 emoji 前缀
 		QLabel *textLabel = new QLabel(displayText, row);
-		textLabel->setStyleSheet("color: #1e293b; font-size: 16px; background: transparent;");
+		textLabel->setObjectName(QStringLiteral("profileMenuText"));
 
 			   // ===== 右侧箭头 =====
 		QLabel *chevronLabel = new QLabel(row);
@@ -234,7 +236,7 @@ void ProfileView::loadAvatar()
 {
     m_loadedAvatarUrl = m_session.user().avatarUrl;
     if (m_loadedAvatarUrl.isEmpty()) {
-        m_avatarLabel->setStyleSheet(kDefaultAvatarStyle);
+        applyAvatarStyle(m_avatarLabel, kAvatarDefaultStyle);
         m_avatarLabel->setPixmap(AppIcons::avatar(Qt::black, 40));
         return;
     }
@@ -245,11 +247,11 @@ void ProfileView::loadAvatar()
                            return;
                        }
                        m_avatarLabel->setText(QString());
-                       m_avatarLabel->setStyleSheet(kAvatarPixmapStyle);
+                       applyAvatarStyle(m_avatarLabel, kAvatarImageStyle);
                        m_avatarLabel->setPixmap(pixmap.scaled(m_avatarLabel->size(), Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation));
                    },
                    [this](const ApiError &) {
-                       m_avatarLabel->setStyleSheet(kDefaultAvatarStyle);
+                       applyAvatarStyle(m_avatarLabel, kAvatarDefaultStyle);
                        m_avatarLabel->setPixmap(AppIcons::avatar(Qt::black, 40));
                    });
 }

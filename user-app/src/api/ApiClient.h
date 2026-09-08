@@ -11,10 +11,10 @@ class QUrl;
 
 // 服务端统一错误结构：页面按 code 做决策，不解析 message 文字
 struct ApiError {
-    QString code = QStringLiteral("NETWORK_ERROR");
-    QString message;
-    int httpStatus = 0;
-    QString requestId;
+	QString code = QStringLiteral("NETWORK_ERROR"); // 契约错误码
+	QString message; // 人类可读信息（界面提示用）
+	int httpStatus = 0; // http状态码
+	QString requestId; // 服务端追踪 ID，报 bug 时用
 };
 
 // 唯一网络出口：统一注入 Bearer 令牌与 X-Request-Id，拆 data/meta 信封，失败回调 ApiError

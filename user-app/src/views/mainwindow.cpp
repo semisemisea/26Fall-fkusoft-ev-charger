@@ -61,19 +61,21 @@ MainWindow::MainWindow(QWidget *parent)
         ui->pages->setCurrentWidget(ui->pages->widget(0));
     });
 
+	// 手动 new 出所有页面
     auto *loginView = new LoginView(*m_session, *m_api, this);
-    m_stationListView = new StationListView(*m_session, *m_api, this);
-    m_chargingTab = new ChargingTab(*m_session, *m_api, this);
-    m_profileView = new ProfileView(*m_session, *m_api, this);
-    m_stationDetailView = new StationDetailView(*m_api, this);
-    m_navigationView = new NavigationView(*m_session, *m_api, this);
-    auto *orderHistoryView = new OrderHistoryView(*m_api, this);
-    auto *reservationHistoryView = new ReservationHistoryView(*m_api, this);
-    auto *transactionsView = new TransactionsView(*m_api, this);
-    auto *carView = new CarView(this);
-    auto *aboutView = new AboutView(this);
+	m_stationListView = new StationListView(*m_session, *m_api, this); // 找桩首页
+	m_chargingTab = new ChargingTab(*m_session, *m_api, this); // 充电页
+	m_profileView = new ProfileView(*m_session, *m_api, this); // 个人中心页
+	m_stationDetailView = new StationDetailView(*m_api, this); // 电站详情页
+	m_navigationView = new NavigationView(*m_session, *m_api, this); // 导航页
+	auto *orderHistoryView = new OrderHistoryView(*m_api, this); // 订单历史页
+	auto *reservationHistoryView = new ReservationHistoryView(*m_api, this); // 预约记录页
+	auto *transactionsView = new TransactionsView(*m_api, this); // 钱包流水
+	auto *carView = new CarView(this); // 车辆信息页
+	auto *aboutView = new AboutView(this); // 关于页
 
-    m_tabContainer = new QWidget(this);
+	// QStackedWidget 作为 Tab 页容器，找桩/充电/我的三页在其中切换
+	m_tabContainer = new QWidget(this);
     m_tabStack = new QStackedWidget(m_tabContainer);
     m_tabStack->addWidget(m_stationListView);
     m_tabStack->addWidget(m_chargingTab);
@@ -82,6 +84,7 @@ MainWindow::MainWindow(QWidget *parent)
     tabLayout->setContentsMargins(0, 0, 0, 0);
     tabLayout->addWidget(m_tabStack);
 
+	// 将所有页面加入ui，登录页在最前，Tab 容器在中间，覆盖页在后
     ui->pages->addWidget(loginView);
     ui->pages->addWidget(m_tabContainer);
     ui->pages->addWidget(m_stationDetailView);
@@ -92,14 +95,18 @@ MainWindow::MainWindow(QWidget *parent)
     ui->pages->addWidget(carView);
     ui->pages->addWidget(aboutView);
 
+	// 各页面跳转信号连接
+	// 登录页登录成功后切到找桩页
     connect(loginView, &LoginView::loginSucceeded, this, [this] { showTab(0); });
 
+	// 找桩页
     connect(m_stationListView, &StationListView::stationSelected, this, [this](const Station &station) {
         m_stationDetailView->open(station);
         enterOverlay(m_stationDetailView);
     });
     connect(m_stationListView, &StationListView::navigateRequested, this,
             [this](const Station &station) { navigateTo(station, m_tabContainer); });
+	// 站点详情页
     connect(m_stationDetailView, &StationDetailView::backRequested, this, [this] { showTab(0); });
     connect(m_stationDetailView, &StationDetailView::navigateRequested, this,
             [this](const Station &station) { navigateTo(station, m_stationDetailView); });
@@ -108,6 +115,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(m_stationDetailView, &StationDetailView::reservationRequested, this,
             &MainWindow::handleReservationFromDetail);
 
+	// 充电页
     connect(m_chargingTab, &ChargingTab::orderSettled, this, &MainWindow::refreshBalance);
     connect(m_chargingTab, &ChargingTab::returnHomeRequested, this, [this] { showTab(0); });
     connect(m_chargingTab, &ChargingTab::activeOrderChanged, this, [this](bool hasActive) {
@@ -115,7 +123,7 @@ MainWindow::MainWindow(QWidget *parent)
         updateTabIcons();
     });
 
-
+	// 个人中心页
     connect(m_profileView, &ProfileView::ordersRequested, this,
             [this, orderHistoryView] { enterOverlay(orderHistoryView); });
     connect(m_profileView, &ProfileView::reservationsRequested, this,
@@ -124,6 +132,7 @@ MainWindow::MainWindow(QWidget *parent)
             [this, transactionsView] { enterOverlay(transactionsView); });
     connect(m_profileView, &ProfileView::carRequested, this, [this, carView] { enterOverlay(carView); });
     connect(m_profileView, &ProfileView::aboutRequested, this, [this, aboutView] { enterOverlay(aboutView); });
+	// 各覆盖页的返回按钮
     connect(orderHistoryView, &OrderHistoryView::backRequested, this, [this] { showTab(2); });
     connect(reservationHistoryView, &ReservationHistoryView::backRequested, this, [this] { showTab(2); });
     connect(transactionsView, &TransactionsView::backRequested, this, [this] { showTab(2); });
@@ -154,19 +163,22 @@ void MainWindow::buildStatusBar()
     m_timeLabel = new QLabel(ui->statusBar);
     m_timeLabel->setObjectName(QStringLiteral("statusTime"));
 
+	// 信号
     auto *signalLabel = new QLabel(ui->statusBar);
     signalLabel->setPixmap(AppIcons::signal(QColor(0x1e, 0x29, 0x3b), 14));
     signalLabel->setAlignment(Qt::AlignCenter);
+	// 电池
     auto *batteryIconLabel = new QLabel(ui->statusBar);
     batteryIconLabel->setPixmap(AppIcons::battery(16));
     auto *batteryTextLabel = new QLabel(QStringLiteral("86%"), ui->statusBar);
     batteryTextLabel->setObjectName(QStringLiteral("statusGlyph"));
 
+	// 水平布局：时间在左，信号/电量在右
     auto *layout = new QHBoxLayout(ui->statusBar);
     layout->setContentsMargins(16, 4, 16, 4);
     layout->addWidget(m_timeLabel);
     layout->addStretch();
-    layout->addWidget(signalLabel);
+	layout->addWidget(signalLabel);
     layout->addSpacing(8);
     layout->addWidget(batteryIconLabel);
     layout->addSpacing(2);
@@ -184,7 +196,7 @@ void MainWindow::buildStatusBar()
 void MainWindow::buildTabBar()
 {
     ui->tabBar->setMaximumHeight(84);
-    auto *pill = new QFrame(ui->tabBar);
+	auto *pill = new QFrame(ui->tabBar); // 胶囊：tabBar 里再放一个 QFrame
     pill->setObjectName(QStringLiteral("tabPill"));
     auto *shadow = new QGraphicsDropShadowEffect(pill);
     shadow->setBlurRadius(30);
@@ -202,7 +214,7 @@ void MainWindow::buildTabBar()
     };
 
     auto *group = new QButtonGroup(this);
-    group->setExclusive(true);
+	group->setExclusive(true); // 同一时刻只能有一个按钮处于"选中"态
     auto *pillLayout = new QHBoxLayout(pill);
     pillLayout->setContentsMargins(14, 2, 14, 26);
     pillLayout->setSpacing(0);
@@ -228,7 +240,7 @@ void MainWindow::buildTabBar()
         connect(button, &QToolButton::clicked, this, [this, i] {
             showTab(i);
             if (i == 1) {
-                m_chargingTab->checkActiveOrder();
+				m_chargingTab->checkActiveOrder(); // 每次进"充电"Tab 都查一次
             }
         });
     }

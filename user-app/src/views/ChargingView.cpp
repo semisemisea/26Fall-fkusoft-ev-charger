@@ -17,45 +17,13 @@
 #include <QVBoxLayout>
 
 namespace {
-// 创建白色圆角信息卡片
+// 创建白色圆角信息卡片（样式见 style.qss #chargingMetricCard）
 QFrame *makeCard(QWidget *parent, int height)
 {
     auto *card = new QFrame(parent);
+    card->setObjectName(QStringLiteral("chargingMetricCard"));
     card->setFixedHeight(height);
-    card->setStyleSheet(QStringLiteral(
-        "QFrame { background: #ffffff; border-radius: 14px; border: 1px solid rgba(0,0,0,0.06); }"));
     return card;
-}
-
-// 深灰小字标题
-QLabel *makeCaption(const QString &text, QWidget *parent)
-{
-    auto *label = new QLabel(text, parent);
-    label->setStyleSheet(QStringLiteral(
-        "color:#6b7280; font-size:13px; background:transparent; border:none;"));
-    label->setAlignment(Qt::AlignTop);
-    label->setFixedHeight(13);
-    return label;
-}
-
-// 大字号黑色数值
-QLabel *makeBigValue(QWidget *parent, int px = 24)
-{
-    auto *label = new QLabel(parent);
-    label->setStyleSheet(QStringLiteral(
-        "color:#000000; font-size:%1px; background:transparent; border:none;").arg(px));
-    label->setAlignment(Qt::AlignTop);
-    label->setFixedHeight(px);
-    return label;
-}
-
-// 小字号深灰单位
-QLabel *makeUnit(const QString &text, QWidget *parent)
-{
-    auto *label = new QLabel(text, parent);
-    label->setStyleSheet(QStringLiteral(
-        "color:#6b7280; font-size:13px; background:transparent; border:none;"));
-    return label;
 }
 } // namespace
 
@@ -85,7 +53,6 @@ ChargingView::ChargingView(ApiClient &api, QWidget *parent)
     rangeLayout->setSpacing(0);
     m_rangeValueLabel = new QLabel(rangeCard);
     m_rangeValueLabel->setTextFormat(Qt::RichText);
-    m_rangeValueLabel->setStyleSheet(QStringLiteral("background:transparent; border:none;"));
     rangeLayout->addWidget(m_rangeValueLabel);
     row1->addWidget(rangeCard, 1);
 
@@ -95,7 +62,6 @@ ChargingView::ChargingView(ApiClient &api, QWidget *parent)
     energyLayout->setSpacing(0);
     m_energyValueLabel = new QLabel(energyCard);
     m_energyValueLabel->setTextFormat(Qt::RichText);
-    m_energyValueLabel->setStyleSheet(QStringLiteral("background:transparent; border:none;"));
     energyLayout->addWidget(m_energyValueLabel);
     row1->addWidget(energyCard, 1);
 
@@ -110,7 +76,6 @@ ChargingView::ChargingView(ApiClient &api, QWidget *parent)
     typeLayout->setSpacing(2);
     m_typeValueLabel = new QLabel(typeCard);
     m_typeValueLabel->setTextFormat(Qt::RichText);
-    m_typeValueLabel->setStyleSheet(QStringLiteral("background:transparent; border:none;"));
     typeLayout->addWidget(m_typeValueLabel);
     row2->addWidget(typeCard, 1);
 
@@ -120,27 +85,23 @@ ChargingView::ChargingView(ApiClient &api, QWidget *parent)
     remainLayout->setSpacing(2);
     m_remainValueLabel = new QLabel(remainCard);
     m_remainValueLabel->setTextFormat(Qt::RichText);
-    m_remainValueLabel->setStyleSheet(QStringLiteral("background:transparent; border:none;"));
     remainLayout->addWidget(m_remainValueLabel);
     row2->addWidget(remainCard, 1);
 
-    // ===== 预估费用 =====
+    // ===== 预估费用（样式见 style.qss #chargingFeeTitle / #chargingFeeValue）=====
     auto *feeTitleLabel = new QLabel(QStringLiteral("预估费用"), this);
     feeTitleLabel->setAlignment(Qt::AlignCenter);
-    feeTitleLabel->setStyleSheet(QStringLiteral("color:#6b7280; font-size:14px;"));
+    feeTitleLabel->setObjectName(QStringLiteral("chargingFeeTitle"));
 
     m_feeValueLabel = new QLabel(this);
     m_feeValueLabel->setAlignment(Qt::AlignCenter);
-    m_feeValueLabel->setStyleSheet(QStringLiteral("color:#000000; font-size:34px;"));
+    m_feeValueLabel->setObjectName(QStringLiteral("chargingFeeValue"));
 
-    // ===== 结束充电按钮（绿底黑字，圆角为高度一半）=====
+    // ===== 结束充电按钮（绿底黑字，圆角为高度一半；样式见 style.qss #chargingStopButton）=====
     m_stopButton = new QPushButton(QStringLiteral("结束充电"), this);
+    m_stopButton->setObjectName(QStringLiteral("chargingStopButton"));
     m_stopButton->setFixedHeight(50);
     m_stopButton->setCursor(Qt::PointingHandCursor);
-    m_stopButton->setStyleSheet(QStringLiteral(
-        "QPushButton { background: #2BFF7D; color: #000000; border: 1px solid #22C55E;"
-        " border-radius: 25px; font-size: 16px; }"
-        "QPushButton:disabled { background: #9AFFC4; color: rgba(0,0,0,0.5); border: none; }"));
 
     // ===== 主布局 =====
     auto *layout = new QVBoxLayout(this);

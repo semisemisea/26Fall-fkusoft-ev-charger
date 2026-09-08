@@ -53,16 +53,12 @@ SettleView::SettleView(Session &session, ApiClient &api, QWidget *parent)
 
     m_messageLabel = new QLabel(this);
     m_messageLabel->setAlignment(Qt::AlignCenter);
-    m_messageLabel->setStyleSheet(QStringLiteral("color: %1;").arg(theme::errorStrongName()));
+    m_messageLabel->setObjectName(QStringLiteral("settleMessage"));
     m_messageLabel->setWordWrap(true);
     m_messageLabel->hide();
 
     m_payButton = new ScaleButton(QStringLiteral("确认支付（钱包）"), this);
-    m_payButton->setStyleSheet(QStringLiteral(
-        "QPushButton { background: #1AD600; color: #000000; border: none; border-radius: 10px; font-size: 15px; font-weight: bold; padding: 10px 14px; }"
-        "QPushButton:hover { background: #1AD600; color: #000000; }"
-        "QPushButton:pressed { background: #1AD600; }"
-        "QPushButton:disabled { background: #9AFFC4; color: rgba(0,0,0,0.5); }"));
+    m_payButton->setObjectName(QStringLiteral("settlePayButton"));
 
     m_topUpButton = new ScaleButton(QStringLiteral("余额不足，去充值"), this);
     m_topUpButton->setObjectName(QStringLiteral("warnButton"));
@@ -72,10 +68,7 @@ SettleView::SettleView(Session &session, ApiClient &api, QWidget *parent)
     m_laterButton->setFlat(true);
 
     m_homeButton = new ScaleButton(QStringLiteral("返回首页"), this);
-    m_homeButton->setStyleSheet(QStringLiteral(
-        "QPushButton { background: #1AD600; color: #000000; border: none; border-radius: 10px; font-size: 15px; font-weight: bold; padding: 10px 14px; }"
-        "QPushButton:hover { background: #1AD600; color: #000000; }"
-        "QPushButton:pressed { background: #1AD600; }"));
+    m_homeButton->setObjectName(QStringLiteral("settleHomeButton"));
     m_homeButton->hide();
 
     // 结算页容器
@@ -108,26 +101,24 @@ SettleView::SettleView(Session &session, ApiClient &api, QWidget *parent)
 
     m_successAmountLabel = new QLabel(m_successContainer);
     m_successAmountLabel->setAlignment(Qt::AlignCenter);
-    m_successAmountLabel->setStyleSheet(QStringLiteral("color: #000000; font-size: 32px; font-weight: bold;"));
+    m_successAmountLabel->setObjectName(QStringLiteral("settleSuccessAmount"));
     successLayout->addWidget(m_successAmountLabel);
 
     m_successTitleLabel = new QLabel(QStringLiteral("支付成功"), m_successContainer);
     m_successTitleLabel->setAlignment(Qt::AlignCenter);
-    m_successTitleLabel->setStyleSheet(QStringLiteral("color: #000000; font-size: 18px;"));
+    m_successTitleLabel->setObjectName(QStringLiteral("settleSuccessTitle"));
     successLayout->addWidget(m_successTitleLabel);
 
     m_successSubtitleLabel = new QLabel(QStringLiteral("感谢您的使用"), m_successContainer);
     m_successSubtitleLabel->setAlignment(Qt::AlignCenter);
-    m_successSubtitleLabel->setStyleSheet(QStringLiteral("color: #6b7280; font-size: 14px;"));
+    m_successSubtitleLabel->setObjectName(QStringLiteral("settleSuccessSubtitle"));
     successLayout->addWidget(m_successSubtitleLabel);
 
     successLayout->addSpacing(12);
 
     m_successHomeButton = new QPushButton(QStringLiteral("返回首页"), m_successContainer);
+    m_successHomeButton->setObjectName(QStringLiteral("settleBackHomeButton"));
     m_successHomeButton->setFixedHeight(54);
-    m_successHomeButton->setStyleSheet(QStringLiteral(
-        "QPushButton { background: #2BFF7D; color: #000000; border: 1px solid #22C55E; border-radius: 27px; font-size: 17px; font-weight: bold; padding: 0 44px; }"
-        "QPushButton:hover { background: #22E56E; }"));
     successLayout->addWidget(m_successHomeButton, 0, Qt::AlignCenter);
 
     successLayout->addStretch();
@@ -186,7 +177,6 @@ void SettleView::settle()
                [this](const ApiError &error) {
                    m_payButton->setEnabled(true);
                    if (error.code == QLatin1String("INSUFFICIENT_BALANCE")) {
-                       m_messageLabel->setStyleSheet(QStringLiteral("color: %1;").arg(theme::errorStrongName()));
                        m_messageLabel->setText(QStringLiteral("钱包余额不足，请先充值"));
                        m_messageLabel->show();
                        m_topUpButton->show();

@@ -58,39 +58,29 @@ void ChargingTab::buildPreparePage()
     auto *titleLabel = new QLabel(QStringLiteral("准备充电"), page);
     titleLabel->setAlignment(Qt::AlignCenter);
     titleLabel->setObjectName(QStringLiteral("pageHeading"));
-    titleLabel->setStyleSheet(QStringLiteral("font-weight: bold;"));
 
     // 白色圆角卡片
     auto *card = new QFrame(page);
     card->setFixedWidth(280);
-    card->setStyleSheet(QStringLiteral(
-        "QFrame { background: #ffffff; border-radius: 16px; }"
-    ));
+    card->setObjectName(QStringLiteral("chargingPrepareCard"));
 
     // 输入充电编号标签（左对齐，不加粗）
     auto *inputHintLabel = new QLabel(QStringLiteral("输入充电编号（如S01-001）"), card);
     inputHintLabel->setAlignment(Qt::AlignLeft);
-    inputHintLabel->setStyleSheet(QStringLiteral("font-size: 15px; color: #000000; font-weight: normal;"));
+    inputHintLabel->setObjectName(QStringLiteral("chargingPrepareHint"));
 
     // 圆角输入框
     m_codeEdit = new QLineEdit(card);
+    m_codeEdit->setObjectName(QStringLiteral("chargingCodeInput"));
     m_codeEdit->setAlignment(Qt::AlignCenter);
     m_codeEdit->setClearButtonEnabled(true);
     m_codeEdit->setFixedHeight(44);
     m_codeEdit->setFocusPolicy(Qt::StrongFocus);
-    m_codeEdit->setStyleSheet(QStringLiteral(
-        "QLineEdit { background: #f3f4f6; border: 1px solid #e5e7eb; "
-        "border-radius: 22px; font-size: 15px; padding: 0 16px; }"
-    ));
 
     // 第二行：开始充电按钮（尺寸同输入框，样式同 StationDetailView 充电按钮激活态）
     m_startButton = new ScaleButton(QStringLiteral("开始充电"), card);
+    m_startButton->setObjectName(QStringLiteral("chargingStartButton"));
     m_startButton->setFixedHeight(44);
-    m_startButton->setStyleSheet(QStringLiteral(
-        "QPushButton { background: #2BFF7D; border: 1px solid #22C55E; "
-        "border-radius: 22px; color: #000000; font-size: 15px; font-weight: bold; }"
-        "QPushButton:pressed { background: #22e56e; }"
-    ));
 
     auto *cardLayout = new QVBoxLayout(card);
     cardLayout->setContentsMargins(20, 20, 20, 20);
@@ -130,7 +120,6 @@ void ChargingTab::buildReservationPage()
     titleLabel->setObjectName(QStringLiteral("pageHeading"));
     
     auto *card = new QFrame(page);
-    card->setObjectName(QStringLiteral("reservationCard"));
     card->setObjectName(QStringLiteral("infoCard"));
 
     m_reservationStationLabel = new QLabel(card);

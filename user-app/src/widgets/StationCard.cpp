@@ -30,17 +30,12 @@ StationCard::StationCard(const Station &station, QWidget *parent)
 
     m_distanceLabel = new QLabel(QStringLiteral("%1 km").arg(station.distanceKm, 0, 'f', 2), this);
     m_distanceLabel->setObjectName(QStringLiteral("linkBlue"));
-    m_distanceLabel->setStyleSheet(QStringLiteral("color: %1;").arg(theme::secondaryName()));
     m_distanceLabel->setCursor(Qt::PointingHandCursor);
     m_distanceLabel->setToolTip(QStringLiteral("点击导航"));
     m_distanceLabel->installEventFilter(this);
 
     auto *navButton = new QPushButton(QStringLiteral("↱"), this);
     navButton->setObjectName(QStringLiteral("navMini"));
-    navButton->setStyleSheet(QStringLiteral(
-        "QPushButton { color: %1; background: #EAF8F0; border: none; border-radius: 6px; padding: 3px 9px; font-weight: bold; }"
-        "QPushButton:hover { background: #D5F5E3; }")
-        .arg(theme::secondaryName()));
     navButton->setCursor(Qt::PointingHandCursor);
     navButton->setToolTip(QStringLiteral("一键导航"));
     connect(navButton, &QPushButton::clicked, this, [this] { emit navigateRequested(m_station); });
@@ -66,9 +61,8 @@ StationCard::StationCard(const Station &station, QWidget *parent)
                                      .arg(station.availableChargerCount)
                                      .arg(station.chargerCount),
                                  this);
-    idleLabel->setObjectName(QStringLiteral("strong"));
-    idleLabel->setStyleSheet(QStringLiteral("color: %1;")
-                                 .arg(station.availableChargerCount > 0 ? theme::successInkName() : theme::errorStrongName()));
+    idleLabel->setObjectName(station.availableChargerCount > 0 ? QStringLiteral("stationIdleOk")
+                                                                : QStringLiteral("stationIdleAlert"));
 
     auto *grid = new QGridLayout(this);
     grid->setContentsMargins(14, 12, 14, 12);
