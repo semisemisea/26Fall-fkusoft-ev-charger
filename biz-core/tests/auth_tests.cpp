@@ -1,3 +1,8 @@
+/**
+ * @file auth_tests.cpp
+ * @brief 自动化测试：登录、身份认证与单令牌撤销。 使用 Qt Test 验证正常流程、校验失败与业务边界。
+ */
+
 #include "backend/api.h"
 #include "backend/database.h"
 #include "backend/http.h"
@@ -13,24 +18,41 @@
 #include <memory>
 #include <vector>
 
+/** @brief 认证接口与会话生命周期的 Qt Test 测试集合。 */
 class AuthTests : public QObject {
 	Q_OBJECT
 
 private slots:
+	/**
+	 * @brief 验证首次手机号登录创建用户并可用令牌查询身份。
+	 */
 	void userLoginCreatesAndAuthenticatesUser();
+	/**
+	 * @brief 验证同一手机号并发首次登录只创建一条用户记录。
+	 */
 	void concurrentFirstLoginCreatesOneUser();
+	/**
+	 * @brief 验证管理员密码、停用状态及服务令牌身份边界。
+	 */
 	void administratorCredentialsAndServiceIdentity();
+	/**
+	 * @brief 验证注销仅撤销当前令牌而保留其他会话。
+	 */
 	void logoutRevokesOnlyCurrentToken();
 };
 
 namespace {
 
+	/** @brief 认证 API 测试夹具，装配临时数据库、固定时钟和路由。 */
 	struct ApiFixture {
-		QTemporaryDir directory;
-		std::shared_ptr<Backend::Database> database;
-		std::shared_ptr<EvCharger::FixedClock> clock;
-		Backend::Router router;
+		QTemporaryDir directory;					  ///< 用例独立临时目录，夹具销毁时清理数据库文件。
+		std::shared_ptr<Backend::Database> database;  ///< 共享数据库入口；每次操作在调用线程创建连接。
+		std::shared_ptr<EvCharger::FixedClock> clock; ///< 可注入时钟，统一提供过期判断和充电计量时间。
+		Backend::Router router;						  ///< 测试请求分派器或共享路由。
 
+		/**
+		 * @brief 初始化隔离认证测试数据库及路由依赖。
+		 */
 		ApiFixture()
 			: database(std::make_shared<Backend::Database>(directory.filePath(QStringLiteral("test.sqlite3")), 5000)), clock(std::make_shared<EvCharger::FixedClock>(QDateTime(QDate(2026, 9, 1), QTime(8, 0), Qt::UTC))) {
 			QString error;
@@ -41,6 +63,14 @@ namespace {
 			Backend::registerApiRoutes(router, Backend::ApiDependencies{database, config, clock});
 		}
 
+		/**
+		 * @brief 构造带 JSON 正文的测试请求并交给路由器分派。
+		 * @param method HTTP 请求方法。
+		 * @param[in] path HTTP 资源路径，不含服务器地址。
+		 * @param body 待解析或序列化的 JSON 请求对象。
+		 * @param token 明文访问令牌，仅用于生成摘要或返回客户端。
+		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
+		 */
 		Backend::HttpResponse json(const QString &method, const QString &path, const QJsonObject &body, const QString &token = {}) const {
 			Backend::HttpRequest request;
 			request.method = method;
@@ -54,6 +84,12 @@ namespace {
 			return router.dispatch(request);
 		}
 
+		/**
+		 * @brief 发送测试 GET 请求并返回响应。
+		 * @param[in] path HTTP 资源路径，不含服务器地址。
+		 * @param token 明文访问令牌，仅用于生成摘要或返回客户端。
+		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
+		 */
 		Backend::HttpResponse get(const QString &path, const QString &token) const {
 			Backend::HttpRequest request;
 			request.method = QStringLiteral("GET");
@@ -64,10 +100,21 @@ namespace {
 		}
 	};
 
+	/**
+	 * @brief 解析认证测试响应为 JSON 对象。
+	 * @param response 待发送或解码的 HTTP 响应。
+	 * @return 符合本接口字段约定的 JSON 数据。
+	 */
 	QJsonObject responseObject(const Backend::HttpResponse &response) {
 		return QJsonDocument::fromJson(response.body).object();
 	}
 
+	/**
+	 * @brief 执行手机号测试登录并返回访问令牌。
+	 * @param fixture 已初始化的认证测试夹具。
+	 * @param phone 由 11 个 ASCII 数字组成的手机号文本。
+	 * @return 按上述规则生成的文本或字节结果。
+	 */
 	QString userLogin(ApiFixture &fixture, const QString &phone = QStringLiteral("13800138000")) {
 		const Backend::HttpResponse response = fixture.json(QStringLiteral("POST"), QStringLiteral("/api/v1/auth/user/login"), QJsonObject{{QStringLiteral("phone"), phone}});
 		if (response.status != 200) {
@@ -78,6 +125,9 @@ namespace {
 
 } // namespace
 
+/**
+ * @brief 验证首次手机号登录创建用户并可用令牌查询身份。
+ */
 void AuthTests::userLoginCreatesAndAuthenticatesUser() {
 	ApiFixture fixture;
 	const Backend::HttpResponse invalid = fixture.json(QStringLiteral("POST"), QStringLiteral("/api/v1/auth/user/login"), QJsonObject{{QStringLiteral("phone"), QStringLiteral("１３８００１３８０００")}});
@@ -107,6 +157,9 @@ void AuthTests::userLoginCreatesAndAuthenticatesUser() {
 	QVERIFY(storedHash != token.toUtf8());
 }
 
+/**
+ * @brief 验证同一手机号并发首次登录只创建一条用户记录。
+ */
 void AuthTests::concurrentFirstLoginCreatesOneUser() {
 	ApiFixture fixture;
 	std::vector<std::future<QString>> attempts;
@@ -141,6 +194,9 @@ void AuthTests::concurrentFirstLoginCreatesOneUser() {
 	QCOMPARE(tokenCount, 8);
 }
 
+/**
+ * @brief 验证管理员密码、停用状态及服务令牌身份边界。
+ */
 void AuthTests::administratorCredentialsAndServiceIdentity() {
 	ApiFixture fixture;
 	const Backend::HttpResponse invalid = fixture.json(QStringLiteral("POST"), QStringLiteral("/api/v1/auth/admin/login"), QJsonObject{
@@ -167,6 +223,9 @@ void AuthTests::administratorCredentialsAndServiceIdentity() {
 	QCOMPARE(serviceLogout.status, 403);
 }
 
+/**
+ * @brief 验证注销仅撤销当前令牌而保留其他会话。
+ */
 void AuthTests::logoutRevokesOnlyCurrentToken() {
 	ApiFixture fixture;
 	const QString firstToken = userLogin(fixture);

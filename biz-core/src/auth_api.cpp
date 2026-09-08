@@ -1,3 +1,8 @@
+/**
+ * @file auth_api.cpp
+ * @brief 用户与管理员登录、当前身份查询及单令牌注销接口。
+ */
+
 #include "api_support.h"
 
 #include "backend/database.h"
@@ -12,12 +17,30 @@
 namespace Backend {
 	namespace {
 
+		/// @brief 普通访问令牌有效期为七天，单位秒。
 		constexpr qint64 tokenLifetimeSeconds = 7 * 24 * 60 * 60;
 
+		/**
+		 * @brief 创建单字段参数校验错误，保留请求 ID 用于关联响应。
+		 * @param request 当前 HTTP 请求，包含查询、请求体、头和路径参数。
+		 * @param field 发生校验错误的字段名。
+		 * @param reason 字段校验失败原因。
+		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
+		 */
 		HttpResponse validationError(const HttpRequest &request, const QString &field, const QString &reason) {
 			return jsonError(QStringLiteral("VALIDATION_ERROR"), QStringLiteral("请求参数无效"), QJsonObject{{field, reason}}, request.requestId, 400);
 		}
 
+		/**
+		 * @brief 保存访问令牌摘要、主体与角色，并设置七天有效期。
+		 * @param database 当前调用线程的数据库连接；不得跨线程保存。
+		 * @param token 明文访问令牌，仅用于生成摘要或返回客户端。
+		 * @param principalType 令牌所属主体类型。
+		 * @param principalId 令牌所属主体标识。
+		 * @param role 身份对应的授权角色。
+		 * @param nowUtc 用于过期判断、时间记录或即时计量的 UTC 时刻。
+		 * @return 带七天有效期的令牌记录插入成功返回 true，SQL 插入失败返回 false。
+		 */
 		bool insertAccessToken(QSqlDatabase &database,
 							   const QString &token,
 							   const QString &principalType,
@@ -35,6 +58,12 @@ namespace Backend {
 			return query.exec();
 		}
 
+		/**
+		 * @brief 以手机号创建或查找用户并签发令牌；冻结用户仅在仍有未完成订单时允许登录。
+		 * @param request 当前 HTTP 请求，包含查询、请求体、头和路径参数。
+		 * @param dependencies 数据库、配置、时钟与地图客户端依赖。
+		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
+		 */
 		HttpResponse userLogin(const HttpRequest &request, const ApiDependencies &dependencies) {
 			HttpResponse failure;
 			const auto body = parseJsonObject(request, &failure);
@@ -123,6 +152,12 @@ namespace Backend {
 							request.requestId);
 		}
 
+		/**
+		 * @brief 校验管理员用户名、加盐密码摘要和账号状态后签发访问令牌。
+		 * @param request 当前 HTTP 请求，包含查询、请求体、头和路径参数。
+		 * @param dependencies 数据库、配置、时钟与地图客户端依赖。
+		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
+		 */
 		HttpResponse adminLogin(const HttpRequest &request, const ApiDependencies &dependencies) {
 			HttpResponse failure;
 			const auto body = parseJsonObject(request, &failure);
@@ -193,6 +228,12 @@ namespace Backend {
 							request.requestId);
 		}
 
+		/**
+		 * @brief 返回认证主体类型与角色；用户和管理员附带标识状态，服务身份附带服务名。
+		 * @param request 当前 HTTP 请求，包含查询、请求体、头和路径参数。
+		 * @param dependencies 数据库、配置、时钟与地图客户端依赖。
+		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
+		 */
 		HttpResponse currentIdentity(const HttpRequest &request, const ApiDependencies &dependencies) {
 			HttpResponse failure;
 			const auto principal = authenticate(request, dependencies, &failure);
@@ -212,6 +253,12 @@ namespace Backend {
 			return jsonData(identity, request.requestId);
 		}
 
+		/**
+		 * @brief 撤销当前访问令牌而不影响其他登录会话；拒绝服务身份注销。
+		 * @param request 当前 HTTP 请求，包含查询、请求体、头和路径参数。
+		 * @param dependencies 数据库、配置、时钟与地图客户端依赖。
+		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
+		 */
 		HttpResponse logout(const HttpRequest &request, const ApiDependencies &dependencies) {
 			HttpResponse failure;
 			const auto principal = authenticate(request, dependencies, &failure);
@@ -242,6 +289,11 @@ namespace Backend {
 
 	} // namespace
 
+	/**
+	 * @brief 注册认证路由；处理器按值捕获依赖，供服务运行期间使用。
+	 * @param router 接收路由注册或用于分派请求的路由器。
+	 * @param dependencies 数据库、配置、时钟与地图客户端依赖。
+	 */
 	void registerAuthRoutes(Router &router, const ApiDependencies &dependencies) {
 		router.add(QStringLiteral("POST"), QStringLiteral("/api/v1/auth/user/login"), [dependencies](const HttpRequest &request) {
 			return userLogin(request, dependencies);

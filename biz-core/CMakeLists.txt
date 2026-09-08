@@ -1,3 +1,8 @@
+## @file CMakeLists.txt
+## @brief 构建领域库、后端运行库、服务进程与各业务 Qt Test 目标。
+## @details Qt 版本由顶层和测试依赖严格限制为 6.2.4；应用只通过核心库复用业务规则。
+
+## @brief 纯领域工具仅依赖 Qt Core，可由前端和后端复用。
 add_library(biz-core-domain STATIC
 	src/charging.cpp
 	src/clock.cpp
@@ -8,6 +13,7 @@ add_library(biz-core-domain STATIC
 target_include_directories(biz-core-domain PUBLIC include)
 target_link_libraries(biz-core-domain PUBLIC Qt6::Core)
 
+## @brief 后端运行库封装 HTTP、SQLite、认证及业务路由，不依赖前端界面。
 add_library(biz-core-runtime STATIC
 	src/admin_api.cpp
 	src/admin_user_api.cpp
@@ -32,13 +38,16 @@ add_library(biz-core-runtime STATIC
 target_include_directories(biz-core-runtime PUBLIC include)
 target_link_libraries(biz-core-runtime PUBLIC biz-core-domain Qt6::Core Qt6::Network Qt6::Sql)
 
+## @brief 可执行入口只负责装配依赖和管理服务生命周期。
 add_executable(biz-core src/main.cpp)
 target_link_libraries(biz-core PRIVATE biz-core-runtime)
 
+## @brief 安装后端服务到平台约定的可执行目录。
 install(TARGETS biz-core
 	RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 
+## @brief 按业务分组注册测试，便于单独验证领域规则和 API 集成行为。
 if(BUILD_TESTING)
 	find_package(Qt6 6.2.4 EXACT REQUIRED COMPONENTS Test)
 	add_executable(biz-core-tests tests/core_tests.cpp)
