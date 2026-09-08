@@ -64,12 +64,12 @@ namespace {
 
 /// @brief 校验初始坐标并建立地图选点器；无密钥或 WebEngine 时显示提示。
 MapPickerDialog::MapPickerDialog(const QString &mapKey, double initialLatitude,
-								 double initialLongitude, QWidget *parent)
+								 double initialLongitude, QWidget *parent, QSize windowSize)
 	: QDialog(parent) {
 	setObjectName(QStringLiteral("mapPickerDialog"));
 	EV_LOG_DEBUG(mapPickerLog, this) << "MapPickerDialog initialized";
 	setWindowTitle(tr("地图选点"));
-	resize(760, 560);
+	resize(windowSize);
 	m_coordinate = validCoordinate(initialLatitude, initialLongitude)
 					   ? Coordinate{initialLatitude, initialLongitude}
 					   : Coordinate{kDefaultLatitude, kDefaultLongitude};

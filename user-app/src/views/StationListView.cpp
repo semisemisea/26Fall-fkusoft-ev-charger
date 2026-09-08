@@ -260,7 +260,7 @@ void StationListView::pickLocation() {
 	const double longitude = m_longitudeEdit->text().trimmed().toDouble(&longitudeOk);
 	const bool valid = latitudeOk && longitudeOk && std::isfinite(latitude) && std::isfinite(longitude) && std::abs(latitude) <= 90 && std::abs(longitude) <= 180;
 	MapPickerDialog picker(qEnvironmentVariable("TENCENT_MAP_KEY"),
-						   valid ? latitude : m_session.latitude(), valid ? longitude : m_session.longitude(), this);
+						   valid ? latitude : m_session.latitude(), valid ? longitude : m_session.longitude(), this, window()->size());
 	if (picker.exec() != QDialog::Accepted)
 		return;
 	m_latitudeEdit->setText(QString::number(picker.latitude(), 'f', 6));

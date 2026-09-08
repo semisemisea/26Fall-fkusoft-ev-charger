@@ -4,6 +4,7 @@
 #pragma once
 
 #include <QDialog>
+#include <QSize>
 
 #include <optional>
 
@@ -21,9 +22,10 @@ public:
 	 * @param initialLatitude 初始纬度；与经度一起校验，不合法时使用默认中心。
 	 * @param initialLongitude 初始经度。
 	 * @param parent Qt 父对象；负责子对象生命周期。
+	 * @param windowSize 初始窗口尺寸，默认使用管理端的横向布局。
 	 */
 	MapPickerDialog(const QString &mapKey, double initialLatitude, double initialLongitude,
-					QWidget *parent = nullptr);
+					QWidget *parent = nullptr, QSize windowSize = QSize(760, 560));
 
 	/** @brief 返回当前保存的纬度。
 	 * @return 当前坐标的纬度，单位度。
