@@ -18,7 +18,7 @@
 
 namespace {
 
-	// 在 anchor 所在窗口顶部居中弹出提示：替换旧提示，淡入下滑入场，2.4s 后淡出销毁
+	// 在 anchor 所在窗口顶部居中弹出提示：替换旧提示，淡入下滑入场，3s 后淡出销毁
 	/**
 	 * @brief 在锚点所属窗口顶部显示一条可自动销毁的轻提示。
 	 * @param anchor 用于定位顶层窗口的控件，为空时直接返回。
@@ -89,7 +89,7 @@ namespace {
 		slide->setEasingCurve(QEasingCurve::OutCubic);
 		slide->start(QAbstractAnimation::DeleteWhenStopped);
 
-		QTimer::singleShot(demo::ms(2400), wrapper, [wrapper, opacity] {
+		QTimer::singleShot(demo::ms(3000), wrapper, [wrapper, opacity] {
 			auto *out = new QPropertyAnimation(opacity, QByteArrayLiteral("opacity"), wrapper);
 			out->setDuration(demo::ms(220));
 			out->setStartValue(1.0);
