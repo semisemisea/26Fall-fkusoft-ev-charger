@@ -1,7 +1,7 @@
 /** @file
  * @brief 管理员登录表单，协调输入校验、异步认证结果和模态对话框接受状态。
  */
-#include "login_dialog.h"
+#include "login-dialog/login_dialog.h"
 #include "ui_login_dialog.h"
 #include <evcharger/logging.h>
 

@@ -2,7 +2,7 @@
  * @brief 配置管理员应用的资源和依赖，运行 Qt 主事件循环。
  */
 #include "api/api_client.h"
-#include "application_controller.h"
+#include "app/application_controller.h"
 #include <evcharger/logging.h>
 
 #include <QApplication>

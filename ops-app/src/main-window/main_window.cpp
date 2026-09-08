@@ -1,7 +1,7 @@
 /** @file
  * @brief 主窗口的左侧品牌导航与右侧页面栈，创建并管理四个运营页面。
  */
-#include "main_window.h"
+#include "main-window/main_window.h"
 #include <evcharger/logging.h>
 
 #include "pages/charger_status_page.h"

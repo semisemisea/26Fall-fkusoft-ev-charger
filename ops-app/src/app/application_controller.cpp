@@ -1,7 +1,7 @@
-#include "application_controller.h"
+#include "app/application_controller.h"
 #include "api/api_client.h"
-#include "login_dialog.h"
-#include "main_window.h"
+#include "login-dialog/login_dialog.h"
+#include "main-window/main_window.h"
 
 #include <QApplication>
 

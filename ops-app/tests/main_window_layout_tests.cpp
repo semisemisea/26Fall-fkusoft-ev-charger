@@ -2,7 +2,7 @@
  * @brief 管理员前端回归测试；用本地响应或直接发送信号隔离真实服务。
  */
 #include "api/api_client.h"
-#include "main_window.h"
+#include "main-window/main_window.h"
 
 #include <QHBoxLayout>
 #include <QStackedWidget>
