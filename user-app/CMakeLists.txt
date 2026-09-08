@@ -27,6 +27,10 @@ set(PROJECT_SOURCES
     src/widgets/ComboBox.cpp
     src/widgets/AppIcons.h
     src/widgets/AppIcons.cpp
+    src/widgets/BatteryWaveWidget.h
+    src/widgets/BatteryWaveWidget.cpp
+    src/widgets/ChargingSpinnerWidget.h
+    src/widgets/ChargingSpinnerWidget.cpp
     src/widgets/ScaleButton.h
     src/widgets/ScaleButton.cpp
     src/widgets/Spinner.h
@@ -93,3 +97,26 @@ install(TARGETS user-app
 )
 
 qt_finalize_executable(user-app)
+
+if(BUILD_TESTING)
+    find_package(Qt6 6.2.4 EXACT REQUIRED COMPONENTS Test)
+    add_executable(user-app-contract-tests
+        tests/contract_tests.cpp
+        src/api/ApiClient.cpp
+        src/app/ChargePollThread.cpp
+        src/models/Charger.cpp
+        src/models/Order.cpp
+        src/models/Reservation.cpp
+        src/models/Station.cpp
+        src/models/User.cpp
+        src/views/ChargingView.cpp
+        src/widgets/ChargingSpinnerWidget.cpp
+        src/widgets/AppIcons.cpp
+        src/widgets/Toast.cpp
+        resources/resources.qrc
+    )
+    target_include_directories(user-app-contract-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+    target_link_libraries(user-app-contract-tests PRIVATE Qt6::Test Qt6::Network Qt6::Widgets Qt6::Svg)
+    add_test(NAME user-app-contract-tests COMMAND user-app-contract-tests)
+    set_tests_properties(user-app-contract-tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+endif()

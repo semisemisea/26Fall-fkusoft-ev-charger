@@ -20,8 +20,7 @@
 #include <QVBoxLayout>
 
 namespace {
-	struct LocationPreset
-	{
+	struct LocationPreset {
 		const char *name;
 		double latitude;
 		double longitude;
@@ -33,15 +32,12 @@ namespace {
 		{"星海广场", 38.881, 121.584},
 		{"东港商务区", 38.928, 121.663},
 		{"大连北站", 39.056, 121.585},
-		};
-}
+	};
+} // namespace
 
 // 构造函数：搭建定位切换、搜索框、AI 推荐横幅与电站卡片滚动列表
 StationListView::StationListView(Session &session, ApiClient &api, QWidget *parent)
-	: QWidget(parent)
-	  , m_session(session)
-	  , m_api(api)
-{
+	: QWidget(parent), m_session(session), m_api(api) {
 	// ===== 定位行：图标 + 文字 =====
 	auto *locationWidget = new QWidget(this);
 	auto *locationLayout = new QHBoxLayout(locationWidget);
@@ -60,6 +56,7 @@ StationListView::StationListView(Session &session, ApiClient &api, QWidget *pare
 	locationLayout->addStretch();
 
 	m_locationCombo = new ComboBox(this);
+	m_locationCombo->setObjectName(QStringLiteral("locationCombo"));
 	for (const LocationPreset &preset : kLocationPresets) {
 		m_locationCombo->addItem(preset.name);
 	}
@@ -72,13 +69,13 @@ StationListView::StationListView(Session &session, ApiClient &api, QWidget *pare
 	auto *sectionTitle = new QLabel(QStringLiteral("附近充电站（按距离排序）"), this);
 	sectionTitle->setObjectName(QStringLiteral("meta"));
 
-		   // ===== 搜索框：图标在输入框内部左侧 =====
+	// ===== 搜索框：图标在输入框内部左侧 =====
 	m_searchEdit = new QLineEdit(this);
 	m_searchEdit->setPlaceholderText(QStringLiteral("搜索电站 / 地址"));
 	m_searchEdit->setClearButtonEnabled(true);
 	connect(m_searchEdit, &QLineEdit::textChanged, this, [this] { applyFilter(); });
 
-		   // 添加搜索图标到输入框内部左侧
+	// 添加搜索图标到输入框内部左侧
 	QPixmap searchPixmap = AppIcons::search(theme::textSecondary(), 18, false);
 	QIcon searchIcon(searchPixmap);
 	m_searchEdit->addAction(searchIcon, QLineEdit::LeadingPosition);
@@ -133,15 +130,13 @@ StationListView::StationListView(Session &session, ApiClient &api, QWidget *pare
 }
 
 // 页面显示时自动刷新列表
-void StationListView::showEvent(QShowEvent *event)
-{
+void StationListView::showEvent(QShowEvent *event) {
 	QWidget::showEvent(event);
 	reload();
 }
 
 // 按当前定位请求附近电站并重建卡片；首屏成功后播放一次淡入动画
-void StationListView::reload()
-{
+void StationListView::reload() {
 	const LocationPreset &preset = kLocationPresets[m_locationCombo->currentIndex()];
 
 	QUrlQuery query;
@@ -154,8 +149,7 @@ void StationListView::reload()
 	m_bannerButton->hide();
 	m_hasRecommendation = false;
 
-	m_api.get(QStringLiteral("/stations/nearby?%1").arg(query.toString(QUrl::FullyEncoded)),
-			  [this](const QJsonValue &data, const QJsonObject &) {
+	m_api.get(QStringLiteral("/stations/nearby?%1").arg(query.toString(QUrl::FullyEncoded)), [this](const QJsonValue &data, const QJsonObject &) {
 				  m_spinner->hide();
 				  qDeleteAll(m_cards);
 				  m_cards.clear();
@@ -188,18 +182,14 @@ void StationListView::reload()
 						  m_scrollArea->setGraphicsEffect(nullptr);
 					  });
 					  anim->start(QAbstractAnimation::DeleteWhenStopped);
-				  }
-			  },
-			  [this](const ApiError &error) {
+				  } }, [this](const ApiError &error) {
 				  m_spinner->hide();
 				  m_statusLabel->setText(error.message.isEmpty() ? error.code : error.message);
-				  m_statusLabel->show();
-			  });
+				  m_statusLabel->show(); });
 }
 
 // 按搜索关键字逐卡片匹配（名称/地址），仅切换可见性
-void StationListView::applyFilter()
-{
+void StationListView::applyFilter() {
 	const QString filter = m_searchEdit->text().trimmed();
 	for (StationCard *card : m_cards) {
 		card->setVisible(card->matches(filter));
@@ -207,8 +197,7 @@ void StationListView::applyFilter()
 }
 
 // 根据当前空闲率推荐可用电站，不依赖本期范围之外的预测接口
-void StationListView::loadRecommendation()
-{
+void StationListView::loadRecommendation() {
 	const Station *best = nullptr;
 	double bestRatio = -1;
 	for (const StationCard *card : m_cards) {
