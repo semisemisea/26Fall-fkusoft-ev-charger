@@ -32,7 +32,7 @@ public:
 	 */
 	~MainWindow();
 
-	// 401 失去认证后由 main 驱动重新登录,成功后调用此方法恢复界面
+	// 更新已登录状态的展示
 	/** @brief 更新状态栏为已登录提示。
 	 */
 	void resumeAfterLogin();
