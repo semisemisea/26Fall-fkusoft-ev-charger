@@ -3,6 +3,7 @@
  * @brief 统一封装用户前端的异步 HTTP 请求、认证头、JSON 信封与网络错误。
  */
 #include "ApiClient.h"
+#include <evcharger/logging.h>
 
 #include <QHttpMultiPart>
 #include <QJsonDocument>
@@ -12,6 +13,8 @@
 #include <QNetworkRequest>
 #include <QUrl>
 #include <QUuid>
+
+Q_LOGGING_CATEGORY(userNetwork, "evcharger.user.network", QtInfoMsg)
 
 namespace {
 	/// @brief 统一网络请求的传输超时，单位毫秒。
@@ -23,6 +26,9 @@ namespace {
  */
 ApiClient::ApiClient(QString baseUrl, QObject *parent)
 	: QObject(parent), m_baseUrl(std::move(baseUrl)), m_manager(new QNetworkAccessManager(this)) {
+	setObjectName(QStringLiteral("userApiClient"));
+	m_manager->setObjectName(QStringLiteral("userNetworkManager"));
+	EV_LOG_INFO(userNetwork, this) << "API client initialized; timeout_ms=" << kRequestTimeoutMs;
 }
 
 /**
@@ -30,6 +36,7 @@ ApiClient::ApiClient(QString baseUrl, QObject *parent)
  */
 void ApiClient::setAccessToken(const QString &token) {
 	m_accessToken = token;
+	EV_LOG_DEBUG(userNetwork, this) << "Authentication state updated; authenticated=" << !token.isEmpty();
 }
 
 /**
@@ -75,6 +82,11 @@ void ApiClient::send(const QString &path, Verb verb, const QJsonObject *body, Su
 		payload = QJsonDocument(*body).toJson(QJsonDocument::Compact);
 	}
 
+	const QByteArray requestId = request.rawHeader("X-Request-Id");
+	const QString endpoint = request.url().path();
+	EV_LOG_DEBUG(userNetwork, this) << "Sending request; request_id=" << requestId << "method=" << (verb == Verb::Get ? "GET" : verb == Verb::Post ? "POST"
+																																				   : "PATCH")
+									<< "endpoint=" << endpoint;
 	QNetworkReply *reply = nullptr;
 	switch (verb) {
 	case Verb::Get:
@@ -89,26 +101,34 @@ void ApiClient::send(const QString &path, Verb verb, const QJsonObject *body, Su
 	}
 
 	connect(reply, &QNetworkReply::finished, this,
-			[this, reply, onSuccess = std::move(onSuccess), onFailure = std::move(onFailure)] {
+			[this, reply, requestId, endpoint, onSuccess = std::move(onSuccess), onFailure = std::move(onFailure)] {
 				// 延迟释放保证本轮 finished 回调仍可安全读取响应属性和字节。
 				reply->deleteLater();
 
 				const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
-				const QJsonObject root = QJsonDocument::fromJson(reply->readAll()).object();
+				QJsonParseError parseError;
+				const QJsonDocument document = QJsonDocument::fromJson(reply->readAll(), &parseError);
+				const QJsonObject root = document.object();
+				if (status != 0 && (parseError.error != QJsonParseError::NoError || !document.isObject())) {
+					EV_LOG_WARNING(userNetwork, this) << "Invalid JSON response envelope; request_id=" << requestId << "endpoint=" << endpoint << "http_status=" << status << "parse_error=" << int(parseError.error);
+				}
 
 				if (status == 0) {
+					EV_LOG_WARNING(userNetwork, this) << "Transport failure; request_id=" << requestId << "endpoint=" << endpoint << "network_error=" << int(reply->error());
 					ApiError error;
 					error.message = reply->errorString();
 					onFailure(error);
 					return;
 				}
 				if (reply->error() == QNetworkReply::NoError) {
+					EV_LOG_DEBUG(userNetwork, this) << "Request completed; request_id=" << requestId << "endpoint=" << endpoint << "http_status=" << status;
 					onSuccess(root.value(QLatin1String("data")), root.value(QLatin1String("meta")).toObject());
 					return;
 				}
 
 				ApiError error;
 				error.httpStatus = status;
+				EV_LOG_WARNING(userNetwork, this) << "HTTP request failed; request_id=" << requestId << "endpoint=" << endpoint << "http_status=" << status << "network_error=" << int(reply->error());
 				const QJsonObject err = root.value(QLatin1String("error")).toObject();
 				error.code = err.value(QLatin1String("code")).toString(QStringLiteral("HTTP_%1").arg(status));
 				error.message = err.value(QLatin1String("message")).toString(reply->errorString());
@@ -129,30 +149,41 @@ void ApiClient::upload(const QString &path, QHttpMultiPart *multiPart, Success o
 		request.setRawHeader("Authorization", "Bearer " + m_accessToken.toUtf8());
 	}
 
+	const QByteArray requestId = request.rawHeader("X-Request-Id");
+	const QString endpoint = request.url().path();
+	EV_LOG_INFO(userNetwork, this) << "Uploading multipart content; request_id=" << requestId << "endpoint=" << endpoint;
 	QNetworkReply *reply = m_manager->post(request, multiPart);
 	multiPart->setParent(reply);
 
 	connect(reply, &QNetworkReply::finished, this,
-			[reply, onSuccess = std::move(onSuccess), onFailure = std::move(onFailure)] {
+			[this, reply, requestId, endpoint, onSuccess = std::move(onSuccess), onFailure = std::move(onFailure)] {
 				// 延迟释放保证本轮 finished 回调仍可安全读取响应属性和字节。
 				reply->deleteLater();
 
 				const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
-				const QJsonObject root = QJsonDocument::fromJson(reply->readAll()).object();
+				QJsonParseError parseError;
+				const QJsonDocument document = QJsonDocument::fromJson(reply->readAll(), &parseError);
+				const QJsonObject root = document.object();
+				if (status != 0 && (parseError.error != QJsonParseError::NoError || !document.isObject())) {
+					EV_LOG_WARNING(userNetwork, this) << "Invalid JSON response envelope; request_id=" << requestId << "endpoint=" << endpoint << "http_status=" << status << "parse_error=" << int(parseError.error);
+				}
 
 				if (status == 0) {
+					EV_LOG_WARNING(userNetwork, this) << "Transport failure; request_id=" << requestId << "endpoint=" << endpoint << "network_error=" << int(reply->error());
 					ApiError error;
 					error.message = reply->errorString();
 					onFailure(error);
 					return;
 				}
 				if (reply->error() == QNetworkReply::NoError) {
+					EV_LOG_DEBUG(userNetwork, this) << "Request completed; request_id=" << requestId << "endpoint=" << endpoint << "http_status=" << status;
 					onSuccess(root.value(QLatin1String("data")), root.value(QLatin1String("meta")).toObject());
 					return;
 				}
 
 				ApiError error;
 				error.httpStatus = status;
+				EV_LOG_WARNING(userNetwork, this) << "HTTP request failed; request_id=" << requestId << "endpoint=" << endpoint << "http_status=" << status << "network_error=" << int(reply->error());
 				const QJsonObject err = root.value(QLatin1String("error")).toObject();
 				error.code = err.value(QLatin1String("code")).toString(QStringLiteral("HTTP_%1").arg(status));
 				error.message = err.value(QLatin1String("message")).toString(reply->errorString());
@@ -170,14 +201,18 @@ void ApiClient::download(const QUrl &url, DownloadSuccess onSuccess, Failure onF
 		request.setRawHeader("Authorization", "Bearer " + m_accessToken.toUtf8());
 	}
 
+	const QByteArray requestId = QUuid::createUuid().toString(QUuid::WithoutBraces).toUtf8();
+	const QString endpoint = request.url().path();
+	EV_LOG_DEBUG(userNetwork, this) << "Downloading content; request_id=" << requestId << "endpoint=" << endpoint;
 	QNetworkReply *reply = m_manager->get(request);
 	connect(reply, &QNetworkReply::finished, this,
-			[reply, onSuccess = std::move(onSuccess), onFailure = std::move(onFailure)] {
+			[this, reply, requestId, endpoint, onSuccess = std::move(onSuccess), onFailure = std::move(onFailure)] {
 				// 延迟释放保证本轮 finished 回调仍可安全读取响应属性和字节。
 				reply->deleteLater();
 
 				const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
 				if (status == 0) {
+					EV_LOG_WARNING(userNetwork, this) << "Transport failure; request_id=" << requestId << "endpoint=" << endpoint << "network_error=" << int(reply->error());
 					ApiError error;
 					error.message = reply->errorString();
 					onFailure(error);
@@ -186,12 +221,14 @@ void ApiClient::download(const QUrl &url, DownloadSuccess onSuccess, Failure onF
 
 				const QByteArray payload = reply->readAll();
 				if (reply->error() == QNetworkReply::NoError) {
+					EV_LOG_DEBUG(userNetwork, this) << "Request completed; request_id=" << requestId << "endpoint=" << endpoint << "http_status=" << status;
 					onSuccess(payload);
 					return;
 				}
 
 				ApiError error;
 				error.httpStatus = status;
+				EV_LOG_WARNING(userNetwork, this) << "HTTP request failed; request_id=" << requestId << "endpoint=" << endpoint << "http_status=" << status << "network_error=" << int(reply->error());
 				error.message = reply->errorString();
 				onFailure(error);
 			});

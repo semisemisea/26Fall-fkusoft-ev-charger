@@ -3,15 +3,20 @@
  */
 #include "logindialog.h"
 #include "ui_logindialog.h"
+#include <evcharger/logging.h>
 
 #include <QLabel>
 #include <QPixmap>
 #include <QPushButton>
 #include <QVBoxLayout>
 
+Q_LOGGING_CATEGORY(opsLogindialogLog, "evcharger.ops.auth", QtInfoMsg)
+
 /// @brief 安装登录表单和品牌图标，将异步成功、失败信号连接到对话框状态。
 LoginDialog::LoginDialog(ops::ApiClient *api, QWidget *parent)
 	: QDialog(parent), ui(new Ui::LoginDialog), m_api(api) {
+	setObjectName(QStringLiteral("opsLoginDialog"));
+	EV_LOG_DEBUG(opsLogindialogLog, this) << "LoginDialog initialized";
 	ui->setupUi(this);
 	// 品牌图标:插在标题上方;资源由 resources.qrc 打包,缺失时静默跳过
 	auto *logoLabel = new QLabel(this);
@@ -51,6 +56,7 @@ void LoginDialog::accept() {
 	const QString username = ui->usernameEdit->text().trimmed();
 	const QString password = ui->passwordEdit->text();
 	if (username.isEmpty() || password.isEmpty()) {
+		EV_LOG_DEBUG(opsLogindialogLog, this) << "Login validation failed; required credentials are missing";
 		ui->messageLabel->setText(tr("请输入账号和密码"));
 		return;
 	}

@@ -2,6 +2,7 @@
  * @brief 用户手机号查询、分页列表及权限控制下的冻结和解冻操作。
  */
 #include "userpage.h"
+#include <evcharger/logging.h>
 
 #include <QHBoxLayout>
 #include <QHeaderView>
@@ -11,6 +12,8 @@
 #include <QPushButton>
 #include <QTableWidget>
 #include <QVBoxLayout>
+
+Q_LOGGING_CATEGORY(opsUserpageLog, "evcharger.ops.users", QtInfoMsg)
 
 namespace {
 
@@ -27,6 +30,8 @@ namespace {
 /// @brief 建立手机号查询、用户列表和分页控件，连接冻结操作及结果回调。
 UserPage::UserPage(ops::ApiClient *api, QWidget *parent)
 	: QWidget(parent), m_api(api) {
+	setObjectName(QStringLiteral("opsUserPage"));
+	EV_LOG_DEBUG(opsUserpageLog, this) << "UserPage initialized";
 	auto *root = new QVBoxLayout(this);
 	root->setContentsMargins(24, 24, 24, 24);
 	root->setSpacing(16);
@@ -101,6 +106,7 @@ UserPage::UserPage(ops::ApiClient *api, QWidget *parent)
 			[this](const QList<ops::AdminUserRow> &users, const ops::PageMeta &meta,
 				   const QString &errorCode) {
 				if (!errorCode.isEmpty()) {
+					EV_LOG_WARNING(opsUserpageLog, this) << "User list loading failed";
 					QMessageBox::warning(this, tr("加载失败"),
 										 tr("用户列表加载失败(%1),请稍后重试").arg(errorCode));
 					return;
@@ -136,6 +142,7 @@ UserPage::UserPage(ops::ApiClient *api, QWidget *parent)
 		const ops::AdminUserRow &u = m_rows.at(row);
 		const bool toFrozen = u.status != QLatin1String("frozen");
 		if (!m_api->canWrite()) {
+			EV_LOG_WARNING(opsUserpageLog, this) << "User status update blocked for read-only administrator";
 			QMessageBox::warning(this, tr("无权限"), tr("只读管理员无法变更用户状态"));
 			return;
 		}
@@ -157,6 +164,7 @@ UserPage::UserPage(ops::ApiClient *api, QWidget *parent)
 											 tr("用户状态已更新"));
 					m_api->fetchUsers(m_searchEdit->text().trimmed(), m_page); // 留在当前页刷新列表
 				} else {
+					EV_LOG_WARNING(opsUserpageLog, this) << "User status update failed";
 					QMessageBox::warning(this, tr("操作失败"),
 										 tr("错误码: %1").arg(errorCode));
 				}
@@ -204,6 +212,7 @@ void UserPage::showEvent(QShowEvent *event) {
 
 /// @brief 按页面加载策略发起数据请求，结果由已连接的信号更新控件。
 void UserPage::refresh() {
+	EV_LOG_DEBUG(opsUserpageLog, this) << "Page refresh requested";
 	if (m_loaded)
 		return;
 	m_loaded = true;

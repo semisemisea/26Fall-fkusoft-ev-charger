@@ -2,6 +2,7 @@
  * @file admin_api.cpp
  * @brief 管理员营收、充电桩状态统计及订单查询接口。
  */
+#include "evcharger/logging.h"
 
 #include "api_support.h"
 
@@ -20,6 +21,8 @@
 
 #include <limits>
 #include <optional>
+
+Q_LOGGING_CATEGORY(backendAdmin, "evcharger.backend.admin", QtInfoMsg)
 
 namespace Backend {
 	namespace {
@@ -209,6 +212,7 @@ namespace Backend {
 		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
 		 */
 		HttpResponse revenue(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendAdmin, nullptr) << "Handling revenue" << "requestId=" << request.requestId;
 			HttpResponse failure;
 			if (!requireAdmin(request, dependencies, true, &failure).has_value()) {
 				return failure;
@@ -267,6 +271,7 @@ namespace Backend {
 		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
 		 */
 		HttpResponse revenueSeries(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendAdmin, nullptr) << "Handling revenueSeries" << "requestId=" << request.requestId;
 			HttpResponse failure;
 			if (!requireAdmin(request, dependencies, true, &failure).has_value()) {
 				return failure;
@@ -342,6 +347,7 @@ namespace Backend {
 		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
 		 */
 		HttpResponse chargerStatus(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendAdmin, nullptr) << "Handling chargerStatus" << "requestId=" << request.requestId;
 			HttpResponse failure;
 			if (!requireAdmin(request, dependencies, true, &failure).has_value()) {
 				return failure;
@@ -391,6 +397,7 @@ namespace Backend {
 		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
 		 */
 		HttpResponse listAdminOrders(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendAdmin, nullptr) << "Handling listAdminOrders" << "requestId=" << request.requestId;
 			HttpResponse failure;
 			if (!requireAdmin(request, dependencies, false, &failure).has_value()) {
 				return failure;

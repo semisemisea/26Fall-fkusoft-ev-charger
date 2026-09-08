@@ -2,6 +2,7 @@
  * @file database.cpp
  * @brief SQLite 连接作用域、模式初始化与启动时业务状态恢复。
  */
+#include "evcharger/logging.h"
 
 #include "backend/database.h"
 
@@ -15,6 +16,8 @@
 #include <QUuid>
 
 #include <utility>
+
+Q_LOGGING_CATEGORY(backendDatabase, "evcharger.backend.database", QtInfoMsg)
 
 namespace Backend {
 	namespace {
@@ -161,6 +164,9 @@ namespace Backend {
 		}
 		// 所有 QSqlQuery 和 QSqlDatabase 局部句柄已销毁，才可安全移除 Qt 连接注册项。
 		QSqlDatabase::removeDatabase(connectionName);
+		if (!result) {
+			EV_LOG_CRITICAL(backendDatabase, nullptr) << "Database operation failed" << "reason=" << *errorMessage;
+		}
 		return result;
 	}
 
@@ -172,8 +178,10 @@ namespace Backend {
 	 * @return 目录、迁移、一致性、恢复及服务配置全部成功返回 true；任一步失败返回 false。
 	 */
 	bool Database::initialize(const QDateTime &nowUtc, const QString &serviceToken, QString *errorMessage) const {
+		EV_LOG_INFO(backendDatabase, nullptr) << "Initializing database" << "busyTimeoutMs=" << m_busyTimeoutMs;
 		const QFileInfo databaseFile(m_path);
 		if (!QDir().mkpath(databaseFile.absolutePath())) {
+			EV_LOG_CRITICAL(backendDatabase, nullptr) << "Unable to create database directory";
 			if (errorMessage != nullptr) {
 				*errorMessage = QStringLiteral("Unable to create database directory");
 			}
@@ -193,6 +201,7 @@ namespace Backend {
 	 * @return 模式版本有效且建表/默认管理员事务提交成功返回 true；SQL 失败或不支持的版本返回 false。
 	 */
 	bool Database::migrate(QSqlDatabase &database, const QDateTime &nowUtc, QString *errorMessage) const {
+		EV_LOG_INFO(backendDatabase, nullptr) << "Applying schema migration";
 		if (!begin(database, errorMessage)) {
 			return false;
 		}
@@ -244,6 +253,7 @@ namespace Backend {
 	 * @return 所有占用一致性查询均成功且未发现冲突返回 true；SQL 失败或发现业务冲突返回 false。
 	 */
 	bool Database::validateConsistency(QSqlDatabase &database, QString *errorMessage) const {
+		EV_LOG_INFO(backendDatabase, nullptr) << "Checking database consistency";
 		const QStringList checks = {
 			QStringLiteral("SELECT user_id FROM orders WHERE status IN ('charging','awaiting_payment') GROUP BY user_id HAVING COUNT(*) > 1 LIMIT 1"),
 			QStringLiteral("SELECT charger_id FROM orders WHERE status = 'charging' GROUP BY charger_id HAVING COUNT(*) > 1 LIMIT 1"),
@@ -275,6 +285,7 @@ namespace Backend {
 	 * @return 预约释放、预约终止和充电占用恢复全部提交成功返回 true；失败回滚并返回 false。
 	 */
 	bool Database::recoverState(QSqlDatabase &database, const QDateTime &nowUtc, QString *errorMessage) const {
+		EV_LOG_INFO(backendDatabase, nullptr) << "Recovering charger and reservation state";
 		if (!begin(database, errorMessage)) {
 			return false;
 		}
@@ -301,7 +312,11 @@ namespace Backend {
 			*errorMessage = restore.lastError().text();
 			return failTransaction(database);
 		}
-		return commit(database, errorMessage);
+		const bool committed = commit(database, errorMessage);
+		if (committed) {
+			EV_LOG_INFO(backendDatabase, nullptr) << "Startup state recovery committed" << "releasedChargers=" << release.numRowsAffected() << "closedReservations=" << expire.numRowsAffected() << "chargingChargers=" << restore.numRowsAffected();
+		}
+		return committed;
 	}
 
 	/**
@@ -313,6 +328,7 @@ namespace Backend {
 	 * @return 旧凭据清理和可选新凭据保存提交成功返回 true；失败回滚并返回 false。
 	 */
 	bool Database::configureService(QSqlDatabase &database, const QString &serviceToken, const QDateTime &nowUtc, QString *errorMessage) const {
+		EV_LOG_INFO(backendDatabase, nullptr) << "Refreshing service credentials";
 		if (!begin(database, errorMessage)) {
 			return false;
 		}

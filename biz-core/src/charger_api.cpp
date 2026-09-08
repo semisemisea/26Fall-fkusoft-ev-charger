@@ -2,6 +2,7 @@
  * @file charger_api.cpp
  * @brief 充电桩公开查询及管理员创建、维护、重启和软删除接口。
  */
+#include "evcharger/logging.h"
 
 #include "api_support.h"
 
@@ -17,6 +18,8 @@
 
 #include <limits>
 #include <optional>
+
+Q_LOGGING_CATEGORY(backendChargers, "evcharger.backend.chargers", QtInfoMsg)
 
 namespace Backend {
 	namespace {
@@ -293,6 +296,7 @@ namespace Backend {
 		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
 		 */
 		HttpResponse createCharger(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendChargers, nullptr) << "Handling createCharger" << "requestId=" << request.requestId;
 			HttpResponse failure;
 			if (!requireAdmin(request, dependencies, true, &failure).has_value()) {
 				return failure;
@@ -372,6 +376,7 @@ namespace Backend {
 		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
 		 */
 		HttpResponse updateCharger(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendChargers, nullptr) << "Handling updateCharger" << "requestId=" << request.requestId;
 			HttpResponse failure;
 			if (!requireAdmin(request, dependencies, true, &failure).has_value()) {
 				return failure;
@@ -482,6 +487,7 @@ namespace Backend {
 		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
 		 */
 		HttpResponse restartCharger(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendChargers, nullptr) << "Handling restartCharger" << "requestId=" << request.requestId;
 			HttpResponse failure;
 			if (!requireAdmin(request, dependencies, true, &failure).has_value()) {
 				return failure;
@@ -548,6 +554,7 @@ namespace Backend {
 		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
 		 */
 		HttpResponse deleteCharger(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendChargers, nullptr) << "Handling deleteCharger" << "requestId=" << request.requestId;
 			HttpResponse failure;
 			if (!requireAdmin(request, dependencies, true, &failure).has_value()) {
 				return failure;

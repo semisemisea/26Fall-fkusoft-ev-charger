@@ -2,6 +2,7 @@
  * @brief 主窗口的左侧品牌导航与右侧页面栈，创建并管理四个运营页面。
  */
 #include "mainwindow.h"
+#include <evcharger/logging.h>
 
 #include "pages/chargerstatuspage.h"
 #include "pages/salespage.h"
@@ -15,6 +16,8 @@
 #include <QStatusBar>
 #include <QVBoxLayout>
 #include <QWidget>
+
+Q_LOGGING_CATEGORY(opsMainwindowLog, "evcharger.ops.ui", QtInfoMsg)
 
 namespace {
 
@@ -33,6 +36,8 @@ namespace {
 /// @brief 建立中央水平布局、导航与四个页面，并连接导航索引切换。
 MainWindow::MainWindow(ops::ApiClient *api, QWidget *parent)
 	: QMainWindow(parent), m_api(api) {
+	setObjectName(QStringLiteral("opsMainWindow"));
+	EV_LOG_DEBUG(opsMainwindowLog, this) << "MainWindow initialized";
 	setWindowTitle(tr("充电桩运营管理平台 - 管理后台"));
 	resize(1180, 760);
 
@@ -50,6 +55,7 @@ MainWindow::MainWindow(ops::ApiClient *api, QWidget *parent)
 		m_stack->addWidget(createPage(i));
 
 	connect(m_navList, &QListWidget::currentRowChanged, m_stack, &QStackedWidget::setCurrentIndex);
+	connect(m_navList, &QListWidget::currentRowChanged, this, [this](int index) { EV_LOG_DEBUG(opsMainwindowLog, this) << "Navigation changed; page_index=" << index; });
 	m_navList->setCurrentRow(PageSales);
 
 	statusBar()->showMessage(tr("就绪"));

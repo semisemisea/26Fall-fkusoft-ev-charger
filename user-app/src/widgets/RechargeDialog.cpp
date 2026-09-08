@@ -2,6 +2,8 @@
  * @file RechargeDialog.cpp
  * @brief 校验充值金额并提交模拟钱包充值，成功后广播最新余额。
  */
+#include <evcharger/logging.h>
+
 #include "RechargeDialog.h"
 
 #include "Toast.h"
@@ -21,6 +23,8 @@
 #include <QRegularExpressionValidator>
 #include <QVBoxLayout>
 
+Q_LOGGING_CATEGORY(userRechargeDialogLog, "evcharger.user.ui", QtInfoMsg)
+
 namespace {
 	// 金额输入限制：最多 5 位整数 + 2 位小数
 	/// @brief 金额编辑框允许最多五位整数及两位小数，提交时再校验金额为正。
@@ -32,6 +36,9 @@ namespace {
  */
 RechargeDialog::RechargeDialog(ApiClient &api, QWidget *parent)
 	: QDialog(parent), m_api(api) {
+	if (objectName().isEmpty())
+		setObjectName(QStringLiteral("RechargeDialog"));
+	EV_LOG_DEBUG(userRechargeDialogLog, this) << "View initialized";
 	setWindowTitle(QStringLiteral("账户充值"));
 	setFixedWidth(300);
 
@@ -72,9 +79,11 @@ RechargeDialog::RechargeDialog(ApiClient &api, QWidget *parent)
  * @details 元转分提交；成功发 succeeded 并关闭，失败 Toast 提示；请求期间禁用按钮防重复提交
  */
 void RechargeDialog::pay() {
+	EV_LOG_INFO(userRechargeDialogLog, this) << "Recharge payment requested";
 	bool ok = false;
 	const double yuan = m_amountEdit->text().toDouble(&ok);
 	if (!ok || yuan < 0.01) {
+		EV_LOG_WARNING(userRechargeDialogLog, this) << "Recharge rejected: invalid amount";
 		Toast::error(this, QStringLiteral("请输入有效金额"));
 		return;
 	}
@@ -88,8 +97,10 @@ void RechargeDialog::pay() {
                    m_payButton->setEnabled(true);
                    const qlonglong balance = data.toObject().value(QLatin1String("balanceAfterFen")).toInteger();
                    Toast::success(parentWidget() ? parentWidget() : this, QStringLiteral("支付成功"));
-                   emit succeeded(balance);
+                   EV_LOG_INFO(userRechargeDialogLog, this) << "Recharge completed";
+ emit succeeded(balance);
                    accept(); }, [this](const ApiError &error) {
+ EV_LOG_WARNING(userRechargeDialogLog, this) << "API operation failed in view";
                    m_payButton->setEnabled(true);
                    Toast::error(this, error.message.isEmpty() ? error.code : error.message); });
 }

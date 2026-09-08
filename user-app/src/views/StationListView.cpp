@@ -2,6 +2,8 @@
  * @file StationListView.cpp
  * @brief 查询附近电站，支持位置预设、文本过滤和基于空闲率的本地推荐。
  */
+#include <evcharger/logging.h>
+
 #include "StationListView.h"
 
 #include "common/Demo.h"
@@ -22,6 +24,8 @@
 #include <QScrollArea>
 #include <QUrlQuery>
 #include <QVBoxLayout>
+
+Q_LOGGING_CATEGORY(userStationListViewLog, "evcharger.user.ui", QtInfoMsg)
 
 namespace {
 	/**
@@ -48,6 +52,9 @@ namespace {
  */
 StationListView::StationListView(Session &session, ApiClient &api, QWidget *parent)
 	: QWidget(parent), m_session(session), m_api(api) {
+	if (objectName().isEmpty())
+		setObjectName(QStringLiteral("StationListView"));
+	EV_LOG_DEBUG(userStationListViewLog, this) << "View initialized";
 	// ===== 定位行：图标 + 文字 =====
 	auto *locationWidget = new QWidget(this);
 	auto *locationLayout = new QHBoxLayout(locationWidget);
@@ -151,6 +158,7 @@ void StationListView::showEvent(QShowEvent *event) {
  * @details 按当前定位请求附近电站并重建卡片；首屏成功后播放一次淡入动画
  */
 void StationListView::reload() {
+	EV_LOG_INFO(userStationListViewLog, this) << "Loading stations";
 	const LocationPreset &preset = kLocationPresets[m_locationCombo->currentIndex()];
 
 	QUrlQuery query;
@@ -197,6 +205,7 @@ void StationListView::reload() {
 					  });
 					  anim->start(QAbstractAnimation::DeleteWhenStopped);
 				  } }, [this](const ApiError &error) {
+ EV_LOG_WARNING(userStationListViewLog, this) << "API operation failed in view";
 				  m_spinner->hide();
 				  m_statusLabel->setText(error.message.isEmpty() ? error.code : error.message);
 				  m_statusLabel->show(); });
@@ -206,6 +215,7 @@ void StationListView::reload() {
  * @details 按搜索关键字逐卡片匹配（名称/地址），仅切换可见性
  */
 void StationListView::applyFilter() {
+	EV_LOG_INFO(userStationListViewLog, this) << "Applying station filter";
 	const QString filter = m_searchEdit->text().trimmed();
 	for (StationCard *card : m_cards) {
 		card->setVisible(card->matches(filter));
@@ -216,6 +226,7 @@ void StationListView::applyFilter() {
  * @details 根据当前空闲率推荐可用电站，不依赖本期范围之外的预测接口
  */
 void StationListView::loadRecommendation() {
+	EV_LOG_INFO(userStationListViewLog, this) << "Loading station recommendation";
 	const Station *best = nullptr;
 	double bestRatio = -1;
 	for (const StationCard *card : m_cards) {

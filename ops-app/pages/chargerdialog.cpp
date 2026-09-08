@@ -2,6 +2,7 @@
  * @brief 电桩新增与编辑表单，管理电站归属锁定、类型、功率及运维状态输入。
  */
 #include "chargerdialog.h"
+#include <evcharger/logging.h>
 
 #include <QComboBox>
 #include <QDialogButtonBox>
@@ -12,9 +13,13 @@
 #include <QRegularExpression>
 #include <QRegularExpressionValidator>
 
+Q_LOGGING_CATEGORY(opsChargerdialogLog, "evcharger.ops.chargerDialog", QtInfoMsg)
+
 /// @brief 建立电桩表单；有初始电桩时回填字段并锁定电站，控件由对话框拥有。
 ChargerDialog::ChargerDialog(const ops::Charger *charger, QWidget *parent)
 	: QDialog(parent) {
+	setObjectName(QStringLiteral("opsChargerDialog"));
+	EV_LOG_DEBUG(opsChargerdialogLog, this) << "ChargerDialog initialized";
 	const bool editing = charger != nullptr;
 	setWindowTitle(editing ? tr("编辑电桩") : tr("新增电桩"));
 	setMinimumWidth(360);
@@ -63,6 +68,7 @@ ChargerDialog::ChargerDialog(const ops::Charger *charger, QWidget *parent)
 		bool validId = false;
 		const qint64 id = m_stationIdEdit->text().toLongLong(&validId);
 		if (!validId || id <= 0) {
+			EV_LOG_WARNING(opsChargerdialogLog, this) << "Charger validation failed; station ID is invalid";
 			QMessageBox::warning(this, tr("电站无效"), tr("请输入有效的正整数电站 ID"));
 			return;
 		}

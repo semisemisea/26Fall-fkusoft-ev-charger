@@ -2,6 +2,7 @@
  * @file order_api.cpp
  * @brief 启动、停止与结算充电订单，协调占用、计量和幂等写入。
  */
+#include "evcharger/logging.h"
 
 #include "api_support.h"
 
@@ -19,6 +20,8 @@
 
 #include <limits>
 #include <optional>
+
+Q_LOGGING_CATEGORY(backendOrders, "evcharger.backend.orders", QtInfoMsg)
 
 namespace Backend {
 	namespace {
@@ -121,6 +124,7 @@ namespace Backend {
 		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
 		 */
 		HttpResponse startOrder(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendOrders, nullptr) << "Handling startOrder" << "requestId=" << request.requestId;
 			HttpResponse failure;
 			const auto principal = requireUser(request, dependencies, true, &failure);
 			if (!principal.has_value()) {
@@ -273,6 +277,7 @@ namespace Backend {
 																								: QStringLiteral("预约与启动请求不匹配");
 				return jsonError(businessCode, message, {}, request.requestId, 409);
 			}
+			EV_LOG_INFO(backendOrders, nullptr) << "Resource created" << "requestId=" << request.requestId << "resourceId=" << result.value(QStringLiteral("id")).toInteger();
 			return jsonData(result, request.requestId, 201);
 		}
 
@@ -283,6 +288,7 @@ namespace Backend {
 		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
 		 */
 		HttpResponse activeOrder(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendOrders, nullptr) << "Handling activeOrder" << "requestId=" << request.requestId;
 			HttpResponse failure;
 			const auto principal = requireUser(request, dependencies, false, &failure);
 			if (!principal.has_value()) {
@@ -318,6 +324,7 @@ namespace Backend {
 		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
 		 */
 		HttpResponse orderDetail(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendOrders, nullptr) << "Handling orderDetail" << "requestId=" << request.requestId;
 			HttpResponse failure;
 			const auto principal = authenticate(request, dependencies, &failure);
 			if (!principal.has_value()) {
@@ -351,6 +358,7 @@ namespace Backend {
 		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
 		 */
 		HttpResponse stopOrder(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendOrders, nullptr) << "Handling stopOrder" << "requestId=" << request.requestId;
 			HttpResponse failure;
 			const auto principal = requireUser(request, dependencies, false, &failure);
 			if (!principal.has_value()) {
@@ -456,6 +464,9 @@ namespace Backend {
 			if (idempotency.state == IdempotencyState::Replay) {
 				return replayIdempotency(idempotency, request.requestId);
 			}
+			if (found) {
+				EV_LOG_INFO(backendOrders, nullptr) << "Order stop completed" << "requestId=" << request.requestId << "orderId=" << *orderId << "status=" << result.value(QStringLiteral("status")).toString();
+			}
 			return found ? jsonData(result, request.requestId) : jsonError(QStringLiteral("NOT_FOUND"), QStringLiteral("订单不存在"), {}, request.requestId, 404);
 		}
 
@@ -466,6 +477,7 @@ namespace Backend {
 		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
 		 */
 		HttpResponse settleOrder(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendOrders, nullptr) << "Handling settleOrder" << "requestId=" << request.requestId;
 			HttpResponse failure;
 			const auto principal = requireUser(request, dependencies, false, &failure);
 			if (!principal.has_value()) {
@@ -605,6 +617,7 @@ namespace Backend {
 			if (insufficient) {
 				return jsonError(QStringLiteral("INSUFFICIENT_BALANCE"), QStringLiteral("钱包余额不足"), {}, request.requestId, 422);
 			}
+			EV_LOG_INFO(backendOrders, nullptr) << "Order settlement completed" << "requestId=" << request.requestId << "orderId=" << *orderId;
 			return jsonData(result, request.requestId);
 		}
 
@@ -645,6 +658,7 @@ namespace Backend {
 		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
 		 */
 		HttpResponse listOrders(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendOrders, nullptr) << "Handling listOrders" << "requestId=" << request.requestId;
 			HttpResponse failure;
 			const auto principal = requireUser(request, dependencies, false, &failure);
 			if (!principal.has_value()) {

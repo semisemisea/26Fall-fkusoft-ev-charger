@@ -2,6 +2,8 @@
  * @file LoginView.cpp
  * @brief 校验手机号并通过登录接口建立用户会话。
  */
+#include <evcharger/logging.h>
+
 #include "LoginView.h"
 
 #include "models/User.h"
@@ -18,6 +20,8 @@
 #include <QRegularExpressionValidator>
 #include <QVBoxLayout>
 
+Q_LOGGING_CATEGORY(userLoginViewLog, "evcharger.user.ui", QtInfoMsg)
+
 namespace {
 	/// @brief 登录输入校验：仅接受恰好十一位数字。
 	const QRegularExpression kPhonePattern{QLatin1String("\\d{11}")};
@@ -28,6 +32,9 @@ namespace {
  */
 LoginView::LoginView(Session &session, ApiClient &api, QWidget *parent)
 	: QWidget(parent), m_session(session), m_api(api) {
+	if (objectName().isEmpty())
+		setObjectName(QStringLiteral("LoginView"));
+	EV_LOG_DEBUG(userLoginViewLog, this) << "View initialized";
 	auto *logoLabel = new QLabel(this);
 	logoLabel->setAlignment(Qt::AlignCenter);
 	logoLabel->setObjectName(QStringLiteral("prepareIcon"));
@@ -96,8 +103,10 @@ LoginView::LoginView(Session &session, ApiClient &api, QWidget *parent)
  * @details 提交登录：本地校验 11 位手机号，成功后写入 Session 并发 loginSucceeded；新用户提示自动注册
  */
 void LoginView::submit() {
+	EV_LOG_INFO(userLoginViewLog, this) << "Login submitted";
 	const QString phone = m_phoneEdit->text().trimmed();
 	if (!kPhonePattern.match(phone).hasMatch()) {
+		EV_LOG_WARNING(userLoginViewLog, this) << "Login rejected: invalid phone format";
 		m_messageLabel->setText(QStringLiteral("请输入 11 位数字手机号"));
 		m_messageLabel->show();
 		return;
@@ -117,6 +126,7 @@ void LoginView::submit() {
 				   }
 				   m_session.signIn(user, object.value(QLatin1String("accessToken")).toString());
 				   emit loginSucceeded(); }, [this](const ApiError &error) {
+ EV_LOG_WARNING(userLoginViewLog, this) << "API operation failed in view";
 				   m_loginButton->setEnabled(true);
 				   m_messageLabel->setText(error.message.isEmpty() ? error.code : error.message);
 				   m_messageLabel->show(); });

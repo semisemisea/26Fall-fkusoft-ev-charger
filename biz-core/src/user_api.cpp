@@ -2,6 +2,7 @@
  * @file user_api.cpp
  * @brief 个人资料、头像、钱包余额及幂等充值接口。
  */
+#include "evcharger/logging.h"
 
 #include "api_support.h"
 
@@ -17,6 +18,8 @@
 #include <QSqlQuery>
 
 #include <limits>
+
+Q_LOGGING_CATEGORY(backendUsers, "evcharger.backend.users", QtInfoMsg)
 
 namespace Backend {
 	namespace {
@@ -88,6 +91,7 @@ namespace Backend {
 		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
 		 */
 		HttpResponse getProfile(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendUsers, nullptr) << "Handling getProfile" << "requestId=" << request.requestId;
 			HttpResponse failure;
 			const auto principal = requireUser(request, dependencies, false, &failure);
 			if (!principal.has_value()) {
@@ -124,6 +128,7 @@ namespace Backend {
 		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
 		 */
 		HttpResponse updateProfile(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendUsers, nullptr) << "Handling updateProfile" << "requestId=" << request.requestId;
 			HttpResponse failure;
 			const auto principal = requireUser(request, dependencies, true, &failure);
 			if (!principal.has_value()) {
@@ -219,6 +224,7 @@ namespace Backend {
 		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
 		 */
 		HttpResponse uploadAvatar(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendUsers, nullptr) << "Handling uploadAvatar" << "requestId=" << request.requestId;
 			HttpResponse failure;
 			const auto principal = requireUser(request, dependencies, true, &failure);
 			if (!principal.has_value()) {
@@ -257,6 +263,7 @@ namespace Backend {
 		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
 		 */
 		HttpResponse getAvatar(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendUsers, nullptr) << "Handling getAvatar" << "requestId=" << request.requestId;
 			HttpResponse failure;
 			const auto principal = requireUser(request, dependencies, false, &failure);
 			if (!principal.has_value()) {
@@ -293,6 +300,7 @@ namespace Backend {
 		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
 		 */
 		HttpResponse deleteAvatar(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendUsers, nullptr) << "Handling deleteAvatar" << "requestId=" << request.requestId;
 			HttpResponse failure;
 			const auto principal = requireUser(request, dependencies, true, &failure);
 			if (!principal.has_value()) {
@@ -321,6 +329,7 @@ namespace Backend {
 		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
 		 */
 		HttpResponse getWallet(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendUsers, nullptr) << "Handling getWallet" << "requestId=" << request.requestId;
 			HttpResponse failure;
 			const auto principal = requireUser(request, dependencies, false, &failure);
 			if (!principal.has_value()) {
@@ -365,6 +374,7 @@ namespace Backend {
 		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
 		 */
 		HttpResponse listWalletTransactions(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendUsers, nullptr) << "Handling listWalletTransactions" << "requestId=" << request.requestId;
 			HttpResponse failure;
 			const auto principal = requireUser(request, dependencies, false, &failure);
 			if (!principal.has_value()) {
@@ -419,6 +429,7 @@ namespace Backend {
 		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
 		 */
 		HttpResponse topUp(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendUsers, nullptr) << "Handling topUp" << "requestId=" << request.requestId;
 			HttpResponse failure;
 			const auto principal = requireUser(request, dependencies, false, &failure);
 			if (!principal.has_value()) {

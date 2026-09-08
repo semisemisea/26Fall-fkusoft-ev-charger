@@ -2,6 +2,12 @@
  * @brief 管理员接口请求、响应信封解析与多请求汇总实现。
  */
 #include "apiclient.h"
+#include <QElapsedTimer>
+#include <evcharger/logging.h>
+
+Q_LOGGING_CATEGORY(opsNetwork, "evcharger.ops.network", QtInfoMsg)
+Q_LOGGING_CATEGORY(opsAuth, "evcharger.ops.auth", QtInfoMsg)
+Q_LOGGING_CATEGORY(opsOperations, "evcharger.ops.operations", QtInfoMsg)
 
 #include <QDateTime>
 #include <QJsonArray>
@@ -57,10 +63,17 @@ namespace ops {
 		return list;
 	}
 
-	ApiClient::ApiClient(QObject *parent) : QObject(parent), m_nam(new QNetworkAccessManager(this)) {}
+	ApiClient::ApiClient(QObject *parent) : QObject(parent), m_nam(new QNetworkAccessManager(this)) {
+		setObjectName(QStringLiteral("opsApiClient"));
+		m_nam->setObjectName(QStringLiteral("opsNetworkManager"));
+		EV_LOG_INFO(opsNetwork, this) << "API client initialized; request timeout_ms=15000";
+	}
 
 	/// @brief 设置后续请求使用的基础 URL，不自动补充分隔符。
-	void ApiClient::setBaseUrl(const QString &url) { m_baseUrl = url; }
+	void ApiClient::setBaseUrl(const QString &url) {
+		m_baseUrl = url;
+		EV_LOG_INFO(opsNetwork, this) << "API base URL changed";
+	}
 
 	/// @brief 拼接基础地址和接口路径，再附加查询参数。
 	QUrl ApiClient::buildUrl(const QString &path, const QUrlQuery &query) const {
@@ -75,9 +88,11 @@ namespace ops {
 						 const QJsonObject &body,
 						 const std::function<void(const ApiResult &)> &handler) {
 		QNetworkRequest request(buildUrl(path, query));
+		const QByteArray requestId = QUuid::createUuid().toString(QUuid::WithoutBraces).toUtf8();
+		EV_LOG_DEBUG(opsNetwork, this) << "Sending request; id=" << requestId << "method=" << method << "path=" << path;
 		request.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
 		request.setRawHeader(QByteArrayLiteral("X-Request-Id"),
-							 QUuid::createUuid().toString(QUuid::WithoutBraces).toUtf8());
+							 requestId);
 		if (!m_token.isEmpty())
 			request.setRawHeader(QByteArrayLiteral("Authorization"), "Bearer " + m_token.toUtf8());
 		// 读操作失败可见化的前提:请求不能无限挂起(契约要求超时与 503 处理)
@@ -94,6 +109,7 @@ namespace ops {
 		else
 			reply = m_nam->sendCustomRequest(request, method.toUtf8());
 		reply->setParent(this);
+		reply->setObjectName(QStringLiteral("opsRequest-%1").arg(QString::fromUtf8(requestId)));
 
 		handleEnvelope(reply, handler);
 	}
@@ -101,8 +117,10 @@ namespace ops {
 	/// @brief 在响应完成时解包数据和错误；401 发出认证失效信号，回调后延迟销毁响应。
 	void ApiClient::handleEnvelope(QNetworkReply *reply,
 								   const std::function<void(const ApiResult &)> &handler) {
+		QElapsedTimer elapsed;
+		elapsed.start();
 		connect(reply, &QNetworkReply::finished, this,
-				[this, reply, handler] {
+				[this, reply, handler, elapsed] {
 					reply->deleteLater();
 					ApiResult result;
 					result.httpStatus =
@@ -149,8 +167,18 @@ namespace ops {
 					result.ok = result.httpStatus >= 200 && result.httpStatus < 300 &&
 								result.errorCode.isEmpty();
 
-					if (result.httpStatus == 401)
+					if (result.ok) {
+						EV_LOG_DEBUG(opsNetwork, reply) << "Request completed; status=" << result.httpStatus << "elapsed_ms=" << elapsed.elapsed();
+					} else {
+						EV_LOG_WARNING(opsNetwork, reply) << "Request failed; status=" << result.httpStatus << "network_error=" << static_cast<int>(reply->error()) << "elapsed_ms=" << elapsed.elapsed();
+					}
+					if (!doc.isObject() && result.httpStatus != 0) {
+						EV_LOG_WARNING(opsNetwork, reply) << "Response is not a JSON object";
+					}
+					if (result.httpStatus == 401) {
+						EV_LOG_WARNING(opsAuth, this) << "Authentication rejected; returning to login";
 						emit authenticationChanged(false);
+					}
 					handler(result);
 				});
 	}
@@ -159,12 +187,14 @@ namespace ops {
 
 	/// @brief 异步提交管理员凭据；成功保存令牌和角色并发送 loginSucceeded。
 	void ApiClient::login(const QString &username, const QString &password) {
+		EV_LOG_INFO(opsAuth, this) << "Administrator login requested";
 		QJsonObject body;
 		body.insert(QStringLiteral("username"), username);
 		body.insert(QStringLiteral("password"), password);
 		send(QStringLiteral("POST"), QStringLiteral("/auth/admin/login"), {}, body,
 			 [this](const ApiResult &r) {
 				 if (!r.ok) {
+					 EV_LOG_WARNING(opsAuth, this) << "Administrator login failed; status=" << r.httpStatus;
 					 emit loginFailed(r.errorCode, r.errorMessage);
 					 return;
 				 }
@@ -177,12 +207,14 @@ namespace ops {
 				 admin.displayName = jsonStr(user, "displayName");
 				 admin.role = m_role;
 				 admin.status = jsonStr(user, "status");
+				 EV_LOG_INFO(opsAuth, this) << "Administrator login succeeded; administrator_id=" << admin.id << "writable=" << canWrite();
 				 emit loginSucceeded(admin);
 			 });
 	}
 
 	/// @brief 有令牌时发送注销请求，立即清空本地认证信息并发出失去认证信号。
 	void ApiClient::logout() {
+		EV_LOG_INFO(opsAuth, this) << "Administrator logout requested; clearing local session";
 		if (!m_token.isEmpty())
 			send(QStringLiteral("POST"), QStringLiteral("/auth/logout"), {}, {}, [](const ApiResult &) {});
 		m_token.clear();
@@ -216,6 +248,7 @@ namespace ops {
 				state->errorCode = result.errorCode;
 			}
 			if (--state->pending == 0) {
+				EV_LOG_DEBUG(opsNetwork, this) << "Dashboard aggregation completed; success=" << state->errorCode.isEmpty();
 				emit dashboardSummaryFetched(state->summary, state->errorCode);
 			}
 		};
@@ -308,6 +341,7 @@ namespace ops {
 				 const QJsonValue operationalValue = r.data.value(QLatin1String("operational"));
 				 if (!totalValue.isDouble() || !occupancyValue.isObject() ||
 					 !operationalValue.isObject()) {
+					 EV_LOG_WARNING(opsNetwork, this) << "Charger status response has invalid fields";
 					 emit chargerStatusFetched({}, QStringLiteral("INVALID_RESPONSE"));
 					 return;
 				 }
@@ -357,12 +391,14 @@ namespace ops {
 					 const QJsonObject o = e.toObject();
 					 chargers.append(chargerFromJson(o));
 				 }
+				 EV_LOG_DEBUG(opsNetwork, this) << "List response ready; resource=chargers count=" << chargers.size() << "page=" << r.meta.page;
 				 emit chargersFetched(chargers, r.meta, {});
 			 });
 	}
 
 	/// @brief 向指定电站创建电桩，完成后发送 chargerMutationFinished。
 	void ApiClient::createCharger(qint64 stationId, const ChargerForm &form) {
+		EV_LOG_INFO(opsOperations, this) << "Charger creation requested; resource_id=" << stationId;
 		QJsonObject body;
 		body.insert(QStringLiteral("type"), form.type);
 		body.insert(QStringLiteral("powerKw"), form.powerKw);
@@ -370,6 +406,7 @@ namespace ops {
 			 QStringLiteral("/admin/stations/%1/chargers").arg(stationId), {}, body,
 			 [this](const ApiResult &r) {
 				 const qint64 chargerId = r.ok ? jsonI64(r.data, "id") : 0;
+				 EV_LOG_INFO(opsOperations, this) << "Charger mutation completed; success=" << r.ok << "charger_id=" << chargerId;
 				 emit chargerMutationFinished(
 					 QStringLiteral("create"), chargerId, r.ok,
 					 r.errorMessage.isEmpty() ? r.errorCode : r.errorMessage);
@@ -378,12 +415,14 @@ namespace ops {
 
 	/// @brief 修改电桩类型、功率和运维状态，不修改归属和占用状态。
 	void ApiClient::updateCharger(qint64 chargerId, const ChargerForm &form) {
+		EV_LOG_INFO(opsOperations, this) << "Charger update requested; resource_id=" << chargerId;
 		QJsonObject body;
 		body.insert(QStringLiteral("type"), form.type);
 		body.insert(QStringLiteral("powerKw"), form.powerKw);
 		body.insert(QStringLiteral("operationalStatus"), form.operationalStatus);
 		send(QStringLiteral("PATCH"), QStringLiteral("/admin/chargers/%1").arg(chargerId), {},
 			 body, [this, chargerId](const ApiResult &r) {
+				 EV_LOG_INFO(opsOperations, this) << "Charger mutation completed; success=" << r.ok << "charger_id=" << chargerId;
 				 emit chargerMutationFinished(
 					 QStringLiteral("update"), chargerId, r.ok,
 					 r.errorMessage.isEmpty() ? r.errorCode : r.errorMessage);
@@ -392,8 +431,10 @@ namespace ops {
 
 	/// @brief 删除指定电桩，结果通过 chargerMutationFinished 返回。
 	void ApiClient::deleteCharger(qint64 chargerId) {
+		EV_LOG_INFO(opsOperations, this) << "Charger deletion requested; resource_id=" << chargerId;
 		send(QStringLiteral("DELETE"), QStringLiteral("/admin/chargers/%1").arg(chargerId), {},
 			 {}, [this, chargerId](const ApiResult &r) {
+				 EV_LOG_INFO(opsOperations, this) << "Charger mutation completed; success=" << r.ok << "charger_id=" << chargerId;
 				 emit chargerMutationFinished(
 					 QStringLiteral("delete"), chargerId, r.ok,
 					 r.errorMessage.isEmpty() ? r.errorCode : r.errorMessage);
@@ -402,9 +443,11 @@ namespace ops {
 
 	/// @brief 发送远程重启请求，结果通过 commandFinished 返回。
 	void ApiClient::restartCharger(qint64 chargerId, const QString &reason) {
+		EV_LOG_INFO(opsOperations, this) << "Charger restart requested; resource_id=" << chargerId;
 		Q_UNUSED(reason)
 		send(QStringLiteral("POST"), QStringLiteral("/admin/chargers/%1/restart").arg(chargerId),
 			 {}, {}, [this, chargerId](const ApiResult &r) {
+				 EV_LOG_INFO(opsOperations, this) << "Charger restart completed; charger_id=" << chargerId << "success=" << r.ok;
 				 emit commandFinished(chargerId, r.ok,
 									  r.ok ? QStringLiteral("重启指令已下发") : r.errorMessage);
 			 });
@@ -439,6 +482,7 @@ namespace ops {
 					 stations.append(s);
 				 }
 				 if (stations.isEmpty()) {
+					 EV_LOG_DEBUG(opsNetwork, this) << "List response ready; resource=stations count=" << stations.size() << "page=" << r.meta.page;
 					 emit stationsFetched(stations, r.meta, {});
 					 return;
 				 }
@@ -465,6 +509,7 @@ namespace ops {
 									  static_cast<double>(onlineResult.meta.total) / state->stations[index].chargerCount;
 							  }
 							  if (--state->pending == 0) {
+								  EV_LOG_DEBUG(opsNetwork, this) << "Station list enrichment completed; count=" << state->stations.size();
 								  emit stationsFetched(state->stations, state->meta, {});
 							  }
 						  });
@@ -492,6 +537,7 @@ namespace ops {
 
 	/// @brief 仅发送站名、坐标和分计价单价，完成后发送 stationCreated。
 	void ApiClient::createStation(const StationForm &form) {
+		EV_LOG_INFO(opsOperations, this) << "Station creation requested";
 		QJsonObject body;
 		body.insert(QStringLiteral("name"), form.name);
 		body.insert(QStringLiteral("latitude"), form.latitude);
@@ -500,6 +546,7 @@ namespace ops {
 
 		send(QStringLiteral("POST"), QStringLiteral("/admin/stations"), {}, body,
 			 [this](const ApiResult &r) {
+				 EV_LOG_INFO(opsOperations, this) << "Station creation completed; success=" << r.ok;
 				 emit stationCreated(r.ok, r.ok ? QString() : r.errorCode);
 			 });
 	}
@@ -530,17 +577,19 @@ namespace ops {
 					 u.createdAt = jsonStr(o, "createdAt");
 					 users.append(u);
 				 }
+				 EV_LOG_DEBUG(opsNetwork, this) << "List response ready; resource=users count=" << users.size() << "page=" << r.meta.page;
 				 emit usersFetched(users, r.meta, {});
 			 });
 	}
 
 	/// @brief 将用户状态提交为 frozen 或 active。
 	void ApiClient::setUserStatus(qint64 userId, bool frozen) {
+		EV_LOG_INFO(opsOperations, this) << "User status update requested; resource_id=" << userId;
 		QJsonObject body;
 		body.insert(QStringLiteral("status"), frozen ? QStringLiteral("frozen")
 													 : QStringLiteral("active"));
 		send(QStringLiteral("PATCH"), QStringLiteral("/admin/users/%1").arg(userId), {}, body,
-			 [this](const ApiResult &r) { emit userStatusChanged(r.ok, r.errorCode); });
+			 [this](const ApiResult &r) { EV_LOG_INFO(opsOperations, this) << "User status update completed; success=" << r.ok; emit userStatusChanged(r.ok, r.errorCode); });
 	}
 
 } // namespace ops

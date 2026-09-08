@@ -3,12 +3,16 @@
  */
 #include "logindialog.h"
 #include "mainwindow.h"
+#include <QThread>
+#include <evcharger/logging.h>
 
 #include <QApplication>
 #include <QEventLoop>
 #include <QIcon>
 #include <QStyleFactory>
 #include <QTimer>
+
+Q_LOGGING_CATEGORY(opsLifecycle, "evcharger.ops.lifecycle", QtInfoMsg)
 
 namespace {
 
@@ -121,7 +125,12 @@ QMessageBox { background-color: #22262c; }
  * @return 退出码；当前正常退出路径返回零。
  */
 int main(int argc, char *argv[]) {
+	evcharger::logging::installMessageHandler();
 	QApplication a(argc, argv);
+	a.setObjectName(QStringLiteral("opsApplication"));
+	QThread::currentThread()->setObjectName(QStringLiteral("opsMainThread"));
+	EV_LOG_INFO(opsLifecycle, &a) << "Operations application starting; Qt=" << qVersion();
+	QObject::connect(&a, &QCoreApplication::aboutToQuit, &a, [&a] { EV_LOG_INFO(opsLifecycle, &a) << "Application event loop stopping"; });
 	a.setStyle(QStyleFactory::create(QStringLiteral("Fusion")));
 	a.setStyleSheet(QString::fromUtf8(kAppStyleSheet));
 	// 应用图标(窗口/任务栏);资源由 resources/resources.qrc 打包
@@ -132,11 +141,14 @@ int main(int argc, char *argv[]) {
 	// 登录成功前不进入主界面;401 掉线时回到登录页
 	for (;;) {
 		LoginDialog login(&api);
-		if (login.exec() != QDialog::Accepted)
+		if (login.exec() != QDialog::Accepted) {
+			EV_LOG_INFO(opsLifecycle, &a) << "Login cancelled; application exiting";
 			return 0;
+		}
 
 		MainWindow w(&api);
 		w.show();
+		EV_LOG_INFO(opsLifecycle, &w) << "Operations main window shown";
 		// 主界面存续期间失去认证(401)则回到登录页
 		bool sessionValid = true;
 		QObject::connect(&api, &ops::ApiClient::authenticationChanged, &w,
@@ -145,7 +157,9 @@ int main(int argc, char *argv[]) {
 								 sessionValid = false;
 						 });
 		QEventLoop loop;
+		loop.setObjectName(QStringLiteral("opsSessionEventLoop"));
 		QTimer timer;
+		timer.setObjectName(QStringLiteral("opsSessionMonitor"));
 		timer.setInterval(200);
 		QObject::connect(&timer, &QTimer::timeout, &loop, [&] {
 			if (!sessionValid)
@@ -154,6 +168,7 @@ int main(int argc, char *argv[]) {
 		timer.start();
 		QObject::connect(&w, &QObject::destroyed, &loop, &QEventLoop::quit);
 		loop.exec();
+		EV_LOG_INFO(opsLifecycle, &a) << "Session event loop stopped; authenticated=" << sessionValid;
 		if (sessionValid)
 			break; // 用户主动关闭主窗口,正常退出
 	}

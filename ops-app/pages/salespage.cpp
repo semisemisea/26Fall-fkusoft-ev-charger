@@ -2,6 +2,7 @@
  * @brief 营收指标卡片与 7/30 日趋势，包含 Qt Charts 绘图和无图表组件时的文本汇总。
  */
 #include "salespage.h"
+#include <evcharger/logging.h>
 
 #include <QComboBox>
 #include <QHBoxLayout>
@@ -19,6 +20,8 @@
 #include <QDateTime>
 #include <QPainter>
 #include <numeric>
+
+Q_LOGGING_CATEGORY(opsSalespageLog, "evcharger.ops.sales", QtInfoMsg)
 
 namespace {
 
@@ -43,6 +46,8 @@ namespace {
 /// @brief 建立营收卡片和可选图表，并连接范围切换和异步指标结果。
 SalesPage::SalesPage(ops::ApiClient *api, QWidget *parent)
 	: QWidget(parent), m_api(api) {
+	setObjectName(QStringLiteral("opsSalesPage"));
+	EV_LOG_DEBUG(opsSalespageLog, this) << "SalesPage initialized";
 	auto *root = new QVBoxLayout(this);
 	root->setContentsMargins(24, 24, 24, 24);
 	root->setSpacing(16);
@@ -120,6 +125,7 @@ SalesPage::SalesPage(ops::ApiClient *api, QWidget *parent)
 	connect(m_api, &ops::ApiClient::dashboardSummaryFetched, this,
 			[this](const ops::DashboardSummary &s, const QString &errorCode) {
 				if (!errorCode.isEmpty()) {
+					EV_LOG_WARNING(opsSalespageLog, this) << "Dashboard or revenue data loading failed";
 					m_extraLabel->setText(tr("指标加载失败(%1),请切换时间范围重试").arg(errorCode));
 					return;
 				}
@@ -140,6 +146,7 @@ SalesPage::SalesPage(ops::ApiClient *api, QWidget *parent)
 				if (range != m_range)
 					return; // 过期响应丢弃
 				if (!errorCode.isEmpty()) {
+					EV_LOG_WARNING(opsSalespageLog, this) << "Dashboard or revenue data loading failed";
 #ifdef OPS_APP_HAS_CHARTS
 					m_chart->setTitle(tr("营收趋势(加载失败: %1)").arg(errorCode));
 #else
@@ -212,6 +219,7 @@ void SalesPage::showEvent(QShowEvent *event) {
 
 /// @brief 按页面加载策略发起数据请求，结果由已连接的信号更新控件。
 void SalesPage::refresh() {
+	EV_LOG_DEBUG(opsSalespageLog, this) << "Page refresh requested";
 	if (m_loaded)
 		return;
 	m_loaded = true;

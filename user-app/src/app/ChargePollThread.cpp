@@ -3,6 +3,7 @@
  * @brief 在独立线程中轮询充电订单，并通过队列信号向界面交付计量快照。
  */
 #include "ChargePollThread.h"
+#include <evcharger/logging.h>
 
 #include <QEventLoop>
 #include <QJsonDocument>
@@ -12,6 +13,8 @@
 #include <QNetworkRequest>
 #include <QTimer>
 #include <QUuid>
+
+Q_LOGGING_CATEGORY(userPoll, "evcharger.user.charging.poll", QtInfoMsg)
 
 namespace {
 	/// @brief 每次请求完成后的轮询休眠间隔，单位毫秒。
@@ -25,6 +28,7 @@ namespace {
  */
 ChargePollThread::ChargePollThread(QObject *parent)
 	: QThread(parent) {
+	setObjectName(QStringLiteral("chargePollThread"));
 	qRegisterMetaType<QJsonObject>();
 }
 
@@ -32,6 +36,7 @@ ChargePollThread::ChargePollThread(QObject *parent)
  * @details 保存轮询参数并复位停止标志（线程可重复配置使用）
  */
 void ChargePollThread::configure(int orderId, const QString &baseUrl, const QString &token) {
+	EV_LOG_INFO(userPoll, this) << "Configuring charge polling; order_id=" << orderId;
 	m_orderId = orderId;
 	m_baseUrl = baseUrl;
 	m_token = token;
@@ -42,6 +47,7 @@ void ChargePollThread::configure(int orderId, const QString &baseUrl, const QStr
  * @details 置位停止标志并等待线程结束，保证析构前线程已退出
  */
 void ChargePollThread::requestStop() {
+	EV_LOG_DEBUG(userPoll, this) << "Polling stop requested";
 	m_stop.store(true);
 	// run() 使用局部网络事件循环；quit() 不会中断它，仍等待响应完成或传输超时。
 	quit();
@@ -54,6 +60,11 @@ void ChargePollThread::requestStop() {
 void ChargePollThread::run() {
 	// 网络对象在线程内部创建，避免跨线程使用主线程的 QNetworkAccessManager
 	QNetworkAccessManager manager;
+	manager.setObjectName(QStringLiteral("chargePollNetworkManager"));
+	EV_LOG_INFO(userPoll, &manager) << "Charge polling started; order_id=" << m_orderId << "interval_ms=" << kPollIntervalMs;
+	bool invalidResponse = false;
+	QString lastStatus;
+	int lastError = int(QNetworkReply::NoError);
 
 	while (!m_stop.load()) {
 		QNetworkRequest request(QUrl(QStringLiteral("%1/orders/%2").arg(m_baseUrl).arg(m_orderId)));
@@ -67,10 +78,36 @@ void ChargePollThread::run() {
 		connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
 		loop.exec();
 
+		const int currentError = int(reply->error());
+		if (!m_stop.load() && currentError != lastError) {
+			if (currentError == int(QNetworkReply::NoError)) {
+				EV_LOG_INFO(userPoll, &manager) << "Charge polling recovered; order_id=" << m_orderId;
+			} else {
+				EV_LOG_WARNING(userPoll, &manager) << "Charge polling failed; order_id=" << m_orderId << "network_error=" << currentError << "http_status=" << reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+			}
+			lastError = currentError;
+		}
 		// 仅在订单仍 charging 时刷新界面；结算后停止推送
 		if (!m_stop.load() && reply->error() == QNetworkReply::NoError) {
-			const QJsonObject envelope = QJsonDocument::fromJson(reply->readAll()).object();
+			QJsonParseError parseError;
+			const QJsonDocument document = QJsonDocument::fromJson(reply->readAll(), &parseError);
+			const QJsonObject envelope = document.object();
 			const QJsonObject order = envelope.value(QLatin1String("data")).toObject();
+			const QString status = order.value(QLatin1String("status")).toString();
+			const bool knownStatus = status == QLatin1String("charging") || status == QLatin1String("awaiting_payment") || status == QLatin1String("settled") || status == QLatin1String("cancelled") || status == QLatin1String("failed");
+			const bool currentInvalid = parseError.error != QJsonParseError::NoError || !document.isObject() || !envelope.value(QLatin1String("data")).isObject() || !knownStatus;
+			if (currentInvalid != invalidResponse) {
+				if (currentInvalid) {
+					EV_LOG_WARNING(userPoll, &manager) << "Invalid polling response: expected an order with a known status; order_id=" << m_orderId << "parse_error=" << int(parseError.error);
+				} else {
+					EV_LOG_INFO(userPoll, &manager) << "Polling response validity recovered; order_id=" << m_orderId;
+				}
+				invalidResponse = currentInvalid;
+			}
+			if (!currentInvalid && status != lastStatus) {
+				EV_LOG_INFO(userPoll, &manager) << "Polled order state changed; order_id=" << m_orderId << "charging=" << (status == QLatin1String("charging"));
+				lastStatus = status;
+			}
 			if (order.value(QLatin1String("status")).toString() == QLatin1String("charging")) {
 				emit meterUpdated(order);
 			}
@@ -82,4 +119,5 @@ void ChargePollThread::run() {
 			msleep(250);
 		}
 	}
+	EV_LOG_INFO(userPoll, &manager) << "Charge polling stopped; order_id=" << m_orderId;
 }

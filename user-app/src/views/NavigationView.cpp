@@ -2,6 +2,8 @@
  * @file NavigationView.cpp
  * @brief 请求站点路线并在可用的 Qt WebEngine 环境中显示地图。
  */
+#include <evcharger/logging.h>
+
 #include "NavigationView.h"
 
 #include "widgets/ComboBox.h"
@@ -20,6 +22,8 @@
 #include <QWebEngineView>
 #endif
 #include "widgets/BackButton.h"
+
+Q_LOGGING_CATEGORY(userNavigationViewLog, "evcharger.user.ui", QtInfoMsg)
 
 namespace {
 	/**
@@ -112,6 +116,9 @@ namespace {
  */
 NavigationView::NavigationView(Session &session, ApiClient &api, QWidget *parent)
 	: QWidget(parent), m_session(session), m_api(api) {
+	if (objectName().isEmpty())
+		setObjectName(QStringLiteral("NavigationView"));
+	EV_LOG_DEBUG(userNavigationViewLog, this) << "View initialized";
 	auto *backButton = new BackButton(this);
 	auto *titleLabel = new QLabel(this);
 	titleLabel->setObjectName(QStringLiteral("pageTitle"));
@@ -170,6 +177,7 @@ NavigationView::NavigationView(Session &session, ApiClient &api, QWidget *parent
  * @details 以目标站点打开本页：重置路线信息与地图，等待用户点击“开始导航”
  */
 void NavigationView::open(const Station &station) {
+	EV_LOG_INFO(userNavigationViewLog, this) << "Opening navigation";
 	m_station = station;
 	findChild<QLabel *>(QStringLiteral("stationTitle"))->setText(station.name);
 	m_summaryLabel->hide();
@@ -188,6 +196,7 @@ void NavigationView::open(const Station &station) {
  * @details 请求路线规划：显示距离 / 时长摘要，首次成功时创建 WebEngine 视图并加载地图链接
  */
 void NavigationView::requestRoute() {
+	EV_LOG_INFO(userNavigationViewLog, this) << "Requesting route";
 	m_navigateButton->setEnabled(false);
 	m_statusLabel->setText(QStringLiteral("正在规划路线..."));
 	m_statusLabel->show();
@@ -215,9 +224,11 @@ void NavigationView::requestRoute() {
 
 		const QUrl mapUrl(object.value(QLatin1String("mapUrl")).toString());
 		if (!mapUrl.isValid()) {
+			EV_LOG_WARNING(userNavigationViewLog, this) << "Route returned an invalid map URL";
 			return;
 		}
 		if (!webEngineAvailable()) {
+			EV_LOG_WARNING(userNavigationViewLog, this) << "Map unavailable: WebEngine runtime missing";
 			m_statusLabel->setText(QStringLiteral("当前环境缺少 Qt WebEngine 运行时，无法加载地图"));
 			m_statusLabel->show();
 			m_navigateButton->setEnabled(true);
@@ -231,6 +242,11 @@ void NavigationView::requestRoute() {
 			m_webView->page()->profile()->setHttpUserAgent(QStringLiteral(
 				"Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1"));
 			connect(m_webView, &QWebEngineView::loadFinished, this, [this](bool ok) {
+				if (ok) {
+					EV_LOG_INFO(userNavigationViewLog, this) << "Map loaded";
+				} else {
+					EV_LOG_WARNING(userNavigationViewLog, this) << "Map load failed";
+				}
 				if (ok && m_webView) {
 					m_webView->page()->runJavaScript(QString::fromUtf8(kTouchBridgeScript));
 				}
@@ -245,6 +261,7 @@ void NavigationView::requestRoute() {
 #endif
 	},
 			  [this](const ApiError &error) {
+ EV_LOG_WARNING(userNavigationViewLog, this) << "API operation failed in view";
                   m_navigateButton->setEnabled(true);
                   m_statusLabel->setText(error.message.isEmpty() ? error.code : error.message);
                   m_statusLabel->show(); });

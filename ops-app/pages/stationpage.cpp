@@ -2,6 +2,7 @@
  * @brief 电站分页查询、选中站点的电桩管理，以及电站新增和地图选点表单。
  */
 #include "stationpage.h"
+#include <evcharger/logging.h>
 
 #include "chargerdialog.h"
 #include "mappickerdialog.h"
@@ -16,6 +17,8 @@
 #include <QPushButton>
 #include <QTableWidget>
 #include <QVBoxLayout>
+
+Q_LOGGING_CATEGORY(opsStationpageLog, "evcharger.ops.stations", QtInfoMsg)
 
 namespace {
 
@@ -47,6 +50,8 @@ namespace {
 /// @brief 建立电站与电桩两级表格，连接分页、选择、写操作和结果回调。
 StationPage::StationPage(ops::ApiClient *api, QWidget *parent)
 	: QWidget(parent), m_api(api) {
+	setObjectName(QStringLiteral("opsStationPage"));
+	EV_LOG_DEBUG(opsStationpageLog, this) << "StationPage initialized";
 	auto *root = new QVBoxLayout(this);
 	root->setContentsMargins(24, 24, 24, 24);
 	root->setSpacing(16);
@@ -163,6 +168,7 @@ StationPage::StationPage(ops::ApiClient *api, QWidget *parent)
 			[this](const QList<ops::StationSummary> &stations, const ops::PageMeta &meta,
 				   const QString &errorCode) {
 				if (!errorCode.isEmpty()) {
+					EV_LOG_WARNING(opsStationpageLog, this) << "Station list loading failed";
 					QMessageBox::warning(this, tr("加载失败"),
 										 tr("电站列表加载失败(%1),请稍后重试").arg(errorCode));
 					return;
@@ -228,6 +234,7 @@ StationPage::StationPage(ops::ApiClient *api, QWidget *parent)
 				if (stationId != m_currentStationId)
 					return; // 响应已过期
 				if (!errorCode.isEmpty()) {
+					EV_LOG_WARNING(opsStationpageLog, this) << "Station charger loading failed; station_id=" << stationId;
 					m_chargerHintLabel->setText(
 						tr("站内电桩加载失败(%1)，请稍后重试。").arg(errorCode));
 					return;
@@ -300,6 +307,7 @@ StationPage::StationPage(ops::ApiClient *api, QWidget *parent)
 					return;
 				m_chargerMutationPending = false;
 				if (!ok) {
+					EV_LOG_WARNING(opsStationpageLog, this) << "Charger mutation failed";
 					QMessageBox::warning(this, tr("操作失败"), message);
 					updateChargerActions();
 					return;
@@ -319,6 +327,7 @@ StationPage::StationPage(ops::ApiClient *api, QWidget *parent)
 					return;
 				m_chargerMutationPending = false;
 				if (!ok) {
+					EV_LOG_WARNING(opsStationpageLog, this) << "Charger restart failed";
 					QMessageBox::warning(this, tr("远程重启失败"), message);
 					updateChargerActions();
 					return;
@@ -331,6 +340,7 @@ StationPage::StationPage(ops::ApiClient *api, QWidget *parent)
 
 	connect(m_addButton, &QPushButton::clicked, this, [this] {
 		if (!m_api->canWrite()) {
+			EV_LOG_WARNING(opsStationpageLog, this) << "Station creation blocked for read-only administrator";
 			QMessageBox::warning(this, tr("无权限"), tr("只读管理员无法新增电站"));
 			return;
 		}
@@ -360,6 +370,7 @@ StationPage::StationPage(ops::ApiClient *api, QWidget *parent)
 
 /// @brief 切换当前电站，清空旧明细并异步请求新站电桩。
 void StationPage::showStationChargers(qint64 stationId, const QString &stationName) {
+	EV_LOG_DEBUG(opsStationpageLog, this) << "Station selected; station_id=" << stationId;
 	m_currentStationId = stationId;
 	m_currentStationName = stationName;
 	m_chargerRows.clear();
@@ -437,6 +448,7 @@ void StationPage::showEvent(QShowEvent *event) {
 
 /// @brief 按页面加载策略发起数据请求，结果由已连接的信号更新控件。
 void StationPage::refresh() {
+	EV_LOG_DEBUG(opsStationpageLog, this) << "Page refresh requested";
 	if (m_loaded)
 		return;
 	m_loaded = true;
@@ -447,6 +459,8 @@ void StationPage::refresh() {
 
 /// @brief 建立电站表单，连接地图选点及接受前的名称、坐标和价格校验。
 AddStationDialog::AddStationDialog(QWidget *parent) : QDialog(parent) {
+	setObjectName(QStringLiteral("opsAddStationDialog"));
+	EV_LOG_DEBUG(opsStationpageLog, this) << "Station creation dialog initialized";
 	setWindowTitle(tr("新增电站"));
 	setMinimumWidth(380);
 
@@ -494,6 +508,7 @@ AddStationDialog::AddStationDialog(QWidget *parent) : QDialog(parent) {
 	form->addRow(buttons);
 	connect(buttons, &QDialogButtonBox::accepted, this, [this] {
 		if (m_nameEdit->text().trimmed().isEmpty()) {
+			EV_LOG_WARNING(opsStationpageLog, this) << "Station validation failed; name is missing";
 			QMessageBox::warning(this, tr("信息不完整"), tr("请填写站名"));
 			return;
 		}
@@ -505,11 +520,13 @@ AddStationDialog::AddStationDialog(QWidget *parent) : QDialog(parent) {
 		const double priceYuan = m_priceEdit->text().toDouble(&priceOk);
 		if (!latitudeOk || !longitudeOk || !qIsFinite(lat) || !qIsFinite(lon) || lat < -90 ||
 			lat > 90 || lon < -180 || lon > 180) {
+			EV_LOG_WARNING(opsStationpageLog, this) << "Station validation failed; coordinates are invalid";
 			QMessageBox::warning(this, tr("坐标无效"),
 								 tr("纬度范围 -90..90, 经度范围 -180..180"));
 			return;
 		}
 		if (!priceOk || !qIsFinite(priceYuan) || qRound64(priceYuan * 100) <= 0) {
+			EV_LOG_WARNING(opsStationpageLog, this) << "Station validation failed; price is invalid";
 			QMessageBox::warning(this, tr("价格无效"), tr("请输入大于 0 的充电价格"));
 			return;
 		}

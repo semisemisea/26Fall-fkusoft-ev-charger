@@ -2,9 +2,11 @@
  * @file http.cpp
  * @brief 轻量 HTTP/1.1 请求解析、路由分派及线程池 TCP 服务。
  */
+#include "evcharger/logging.h"
 
 #include "backend/http.h"
 
+#include <QElapsedTimer>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QRegularExpression>
@@ -15,6 +17,8 @@
 #include <QUuid>
 
 #include <limits>
+
+Q_LOGGING_CATEGORY(backendHttp, "evcharger.backend.http", QtInfoMsg)
 
 namespace Backend {
 	namespace {
@@ -188,8 +192,11 @@ namespace Backend {
 				wire += iterator.key() + QByteArrayLiteral(": ") + iterator.value() + QByteArrayLiteral("\r\n");
 			}
 			wire += QByteArrayLiteral("\r\n") + response.body;
-			socket.write(wire);
-			socket.waitForBytesWritten(socketReadTimeoutMs);
+			const qint64 written = socket.write(wire);
+			const bool flushed = socket.waitForBytesWritten(socketReadTimeoutMs);
+			if (written < 0 || !flushed) {
+				EV_LOG_WARNING(backendHttp, &socket) << "Response write failed" << "requestId=" << requestId << "socketError=" << socket.error();
+			}
 			socket.disconnectFromHost();
 		}
 
@@ -201,14 +208,18 @@ namespace Backend {
 		 * @param avatarBodyLimit 头像请求正文大小上限，单位字节。
 		 */
 		void processConnection(qintptr socketDescriptor, const Router &router, qint64 jsonBodyLimit, qint64 avatarBodyLimit) {
+			QThread::currentThread()->setObjectName(QStringLiteral("backend-http-worker"));
 			QTcpSocket socket;
+			socket.setObjectName(QStringLiteral("http-connection-%1").arg(socketDescriptor));
 			if (!socket.setSocketDescriptor(socketDescriptor)) {
+				EV_LOG_WARNING(backendHttp, &socket) << "Socket descriptor setup failed" << "socketError=" << socket.error();
 				return;
 			}
 			QByteArray bytes;
 			qsizetype headEnd = -1;
 			while ((headEnd = bytes.indexOf(QByteArrayLiteral("\r\n\r\n"))) < 0) {
 				if (bytes.size() > maximumHeaderBytes || (!socket.bytesAvailable() && !socket.waitForReadyRead(socketReadTimeoutMs))) {
+					EV_LOG_WARNING(backendHttp, &socket) << "Request header read failed or exceeded size limit" << "bytes=" << bytes.size() << "socketError=" << socket.error();
 					return;
 				}
 				bytes += socket.readAll();
@@ -236,6 +247,7 @@ namespace Backend {
 			request.body = bytes.mid(headEnd + 4);
 			while (request.body.size() < contentLength) {
 				if (!socket.bytesAvailable() && !socket.waitForReadyRead(socketReadTimeoutMs)) {
+					EV_LOG_WARNING(backendHttp, &socket) << "Request body read failed" << "requestId=" << request.requestId << "receivedBytes=" << request.body.size() << "expectedBytes=" << contentLength;
 					writeResponse(socket, badRequest(request.requestId), request.requestId);
 					return;
 				}
@@ -248,6 +260,7 @@ namespace Backend {
 			try {
 				writeResponse(socket, router.dispatch(std::move(request)), requestId);
 			} catch (...) {
+				EV_LOG_CRITICAL(backendHttp, &socket) << "Unhandled request exception" << "requestId=" << requestId;
 				writeResponse(socket, jsonError(QStringLiteral("INTERNAL_ERROR"), QStringLiteral("服务内部错误"), {}, requestId, 500), requestId);
 			}
 		}
@@ -282,6 +295,11 @@ namespace Backend {
 	 * @return 采用 status 状态码的 error/meta JSON 响应。
 	 */
 	HttpResponse jsonError(const QString &code, const QString &message, const QJsonObject &details, const QString &requestId, int status) {
+		if (status >= 500) {
+			EV_LOG_CRITICAL(backendHttp, nullptr) << "Request failed" << "requestId=" << requestId << "status=" << status << "code=" << code;
+		} else {
+			EV_LOG_WARNING(backendHttp, nullptr) << "Request rejected" << "requestId=" << requestId << "status=" << status << "code=" << code;
+		}
 		const QJsonObject envelope{
 			{QStringLiteral("error"), QJsonObject{
 										  {QStringLiteral("code"), code},
@@ -300,6 +318,7 @@ namespace Backend {
 	 * @param handler 匹配成功后执行的请求处理回调。
 	 */
 	void Router::add(const QString &method, const QString &pathPattern, Handler handler) {
+		EV_LOG_DEBUG(backendHttp, nullptr) << "Registering route" << method << pathPattern;
 		m_routes.append(Route{method, pathPattern, std::move(handler)});
 	}
 
@@ -318,7 +337,16 @@ namespace Backend {
 			pathExists = true;
 			if (route.method == request.method) {
 				request.pathParameters = parameters;
-				return route.handler(request);
+				QElapsedTimer elapsed;
+				elapsed.start();
+				EV_LOG_DEBUG(backendHttp, nullptr) << "Dispatching request" << "requestId=" << request.requestId << "method=" << route.method << "route=" << route.pathPattern;
+				const HttpResponse response = route.handler(request);
+				if (route.method == QStringLiteral("GET")) {
+					EV_LOG_DEBUG(backendHttp, nullptr) << "Read request completed" << "requestId=" << request.requestId << "route=" << route.pathPattern << "status=" << response.status << "elapsedMs=" << elapsed.elapsed();
+				} else {
+					EV_LOG_INFO(backendHttp, nullptr) << "Mutation request completed" << "requestId=" << request.requestId << "method=" << route.method << "route=" << route.pathPattern << "status=" << response.status << "elapsedMs=" << elapsed.elapsed();
+				}
+				return response;
 			}
 		}
 		return pathExists
@@ -335,6 +363,7 @@ namespace Backend {
 	 */
 	HttpServer::HttpServer(std::shared_ptr<const Router> router, qint64 jsonBodyLimit, qint64 avatarBodyLimit, QObject *parent)
 		: QTcpServer(parent), m_router(std::move(router)), m_jsonBodyLimit(jsonBodyLimit), m_avatarBodyLimit(avatarBodyLimit) {
+		setObjectName(QStringLiteral("backend-http-server"));
 		m_workers.setMaxThreadCount(qMax(2, QThread::idealThreadCount()));
 	}
 
@@ -347,8 +376,10 @@ namespace Backend {
 	 */
 	bool HttpServer::start(const QHostAddress &address, quint16 port, QString *errorMessage) {
 		if (listen(address, port)) {
+			EV_LOG_INFO(backendHttp, this) << "HTTP server listening" << "address=" << address.toString() << "port=" << serverPort() << "workerCount=" << m_workers.maxThreadCount();
 			return true;
 		}
+		EV_LOG_CRITICAL(backendHttp, this) << "HTTP listener startup failed" << "socketError=" << serverError();
 		if (errorMessage != nullptr) {
 			*errorMessage = errorString();
 		}
@@ -362,7 +393,11 @@ namespace Backend {
 	void HttpServer::stop(int timeoutMs) {
 		close();
 		m_workers.clear();
-		m_workers.waitForDone(timeoutMs);
+		if (!m_workers.waitForDone(timeoutMs)) {
+			EV_LOG_WARNING(backendHttp, this) << "Worker shutdown deadline exceeded" << "timeoutMs=" << timeoutMs;
+		} else {
+			EV_LOG_INFO(backendHttp, this) << "HTTP server workers stopped";
+		}
 	}
 
 	/**

@@ -2,6 +2,7 @@
  * @file admin_user_api.cpp
  * @brief 管理员用户查询、冻结解冻及钱包流水接口。
  */
+#include "evcharger/logging.h"
 
 #include "api_support.h"
 
@@ -16,6 +17,8 @@
 
 #include <limits>
 #include <optional>
+
+Q_LOGGING_CATEGORY(backendAdminUsers, "evcharger.backend.adminusers", QtInfoMsg)
 
 namespace Backend {
 	namespace {
@@ -135,6 +138,7 @@ namespace Backend {
 		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
 		 */
 		HttpResponse listUsers(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendAdminUsers, nullptr) << "Handling listUsers" << "requestId=" << request.requestId;
 			HttpResponse failure;
 			if (!requireAdmin(request, dependencies, &failure).has_value()) {
 				return failure;
@@ -206,6 +210,7 @@ namespace Backend {
 		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
 		 */
 		HttpResponse userDetail(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendAdminUsers, nullptr) << "Handling userDetail" << "requestId=" << request.requestId;
 			HttpResponse failure;
 			if (!requireAdmin(request, dependencies, &failure).has_value()) {
 				return failure;
@@ -257,6 +262,7 @@ namespace Backend {
 		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
 		 */
 		HttpResponse updateUser(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendAdminUsers, nullptr) << "Handling updateUser" << "requestId=" << request.requestId;
 			HttpResponse failure;
 			if (!requireAdmin(request, dependencies, &failure).has_value()) {
 				return failure;
@@ -354,6 +360,7 @@ namespace Backend {
 		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
 		 */
 		HttpResponse userWalletTransactions(const HttpRequest &request, const ApiDependencies &dependencies) {
+			EV_LOG_DEBUG(backendAdminUsers, nullptr) << "Handling userWalletTransactions" << "requestId=" << request.requestId;
 			HttpResponse failure;
 			if (!requireAdmin(request, dependencies, &failure).has_value()) {
 				return failure;

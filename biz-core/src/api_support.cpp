@@ -2,6 +2,7 @@
  * @file api_support.cpp
  * @brief 身份验证、JSON 响应、事务与幂等记录的共享 API 支持。
  */
+#include "evcharger/logging.h"
 
 #include "api_support.h"
 
@@ -13,6 +14,8 @@
 #include <QJsonDocument>
 #include <QSqlError>
 #include <QSqlQuery>
+
+Q_LOGGING_CATEGORY(backendAuth, "evcharger.backend.auth", QtInfoMsg)
 
 namespace Backend {
 
@@ -114,6 +117,7 @@ namespace Backend {
 			*failure = jsonError(QStringLiteral("UNAUTHORIZED"), QStringLiteral("需要有效的访问令牌"), {}, request.requestId, 401);
 			return std::nullopt;
 		}
+		EV_LOG_DEBUG(backendAuth, nullptr) << "Authentication succeeded" << "requestId=" << request.requestId << "principalType=" << principal.type << "principalId=" << principal.id << "role=" << principal.role;
 		return principal;
 	}
 
@@ -224,9 +228,11 @@ namespace Backend {
 			return true;
 		}
 		if (existing.value(0).toByteArray() != normalizedHash(normalizedBody)) {
+			EV_LOG_WARNING(backendAuth, nullptr) << "Idempotency key reused with different input" << "requestId=" << request.requestId;
 			result->state = IdempotencyState::Reused;
 			return true;
 		}
+		EV_LOG_INFO(backendAuth, nullptr) << "Replaying idempotent operation" << "requestId=" << request.requestId;
 		result->state = IdempotencyState::Replay;
 		result->status = existing.value(1).toInt();
 		result->data = QJsonDocument::fromJson(existing.value(2).toByteArray()).object();

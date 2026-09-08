@@ -2,7 +2,8 @@
  * @file mainwindow.cpp
  * @brief 装配用户前端依赖并统一协调登录、主标签页和覆盖页导航。
  */
-#include "mainwindow.h"
+#include <evcharger/logging.h>
+
 #include "ChargingTab.h"
 #include "InfoPages.h"
 #include "LoginView.h"
@@ -12,6 +13,7 @@
 #include "StationListView.h"
 #include "common/Demo.h"
 #include "common/Theme.h"
+#include "mainwindow.h"
 #include "models/Order.h"
 #include "models/Reservation.h"
 #include "ui_mainwindow.h"
@@ -34,6 +36,8 @@
 #include <QToolButton>
 #include <QVBoxLayout>
 
+Q_LOGGING_CATEGORY(userWindowLog, "evcharger.user.ui", QtInfoMsg)
+
 // 手机隐喻视口：固定 390x780
 namespace {
 	/// @brief 手机式演示视口宽度，单位像素。
@@ -50,6 +54,9 @@ namespace {
  */
 MainWindow::MainWindow(QWidget *parent)
 	: QMainWindow(parent), ui(new Ui::MainWindow), m_session(new Session(this)), m_api(new ApiClient(kDefaultBaseUrl, this)) {
+	if (objectName().isEmpty())
+		setObjectName(QStringLiteral("MainWindow"));
+	EV_LOG_DEBUG(userWindowLog, this) << "View initialized";
 	ui->setupUi(this);
 	setFixedSize(kPhoneWidth, kPhoneHeight);
 
@@ -305,6 +312,7 @@ void MainWindow::updateTabIcons() {
  * @details 切换主 Tab 并确保显示主内容区与底部 Tab 栏
  */
 void MainWindow::showTab(int index) {
+	EV_LOG_INFO(userWindowLog, this) << "Switching primary tab" << "tab_index=" << index;
 	m_tabStack->setCurrentIndex(index);
 	for (int i = 0; i < m_tabButtons.size(); ++i) {
 		m_tabButtons.at(i)->setChecked(i == index);
@@ -318,6 +326,7 @@ void MainWindow::showTab(int index) {
  * @details 进入覆盖页：隐藏 Tab 栏；导航页跳过淡入，其余页面播放淡入动画后移除效果
  */
 void MainWindow::enterOverlay(QWidget *page) {
+	EV_LOG_INFO(userWindowLog, this) << "Opening overlay page" << "page_class=" << page->metaObject()->className();
 	ui->pages->setCurrentWidget(page);
 	ui->tabBar->hide();
 
@@ -341,6 +350,7 @@ void MainWindow::enterOverlay(QWidget *page) {
  * @details 打开导航页并记录返回目标（详情页或主页），供返回按钮使用
  */
 void MainWindow::navigateTo(const Station &station, QWidget *returnPage) {
+	EV_LOG_INFO(userWindowLog, this) << "Opening station navigation";
 	m_navigationReturnPage = returnPage;
 	m_navigationView->open(station);
 	enterOverlay(m_navigationView);
@@ -350,6 +360,7 @@ void MainWindow::navigateTo(const Station &station, QWidget *returnPage) {
  * @details 从详情页立即充电：确认后 POST /orders；已有进行中订单时直接切到充电页
  */
 void MainWindow::startChargingFromDetail(const Charger &charger) {
+	EV_LOG_INFO(userWindowLog, this) << "Charge selection requested";
 	const auto choice = QMessageBox::question(this, QStringLiteral("选择电桩"),
 											  QStringLiteral("是否选择电桩 %1 立即充电？").arg(charger.code));
 	if (choice != QMessageBox::Yes) {
@@ -361,6 +372,7 @@ void MainWindow::startChargingFromDetail(const Charger &charger) {
 	m_api->post(QStringLiteral("/orders"), orderBody, [this](const QJsonValue &orderData, const QJsonObject &) {
                     m_chargingTab->showCharging(Order::fromJson(orderData.toObject()));
                     showTab(1); }, [this](const ApiError &error) {
+ EV_LOG_WARNING(userWindowLog, this) << "API operation failed in view";
                     if (error.code == QLatin1String("ACTIVE_ORDER_EXISTS")) {
                         showTab(1);
                         m_chargingTab->checkActiveOrder();
@@ -373,6 +385,7 @@ void MainWindow::startChargingFromDetail(const Charger &charger) {
  * @details 从详情页预约电桩：确认后 POST /reservations（保留 15 分钟），处理已有订单冲突
  */
 void MainWindow::handleReservationFromDetail(const Charger &charger) {
+	EV_LOG_INFO(userWindowLog, this) << "Reservation selection requested";
 	const auto choice = QMessageBox::question(this, QStringLiteral("预约电桩"),
 											  QStringLiteral("是否预约电桩 %1？保留 15 分钟。").arg(charger.code));
 	if (choice != QMessageBox::Yes) {
@@ -385,6 +398,7 @@ void MainWindow::handleReservationFromDetail(const Charger &charger) {
 	m_api->post(QStringLiteral("/reservations"), reservationBody, [this](const QJsonValue &data, const QJsonObject &) {
                     m_chargingTab->showReservation(Reservation::fromJson(data.toObject()));
                     showTab(1); }, [this](const ApiError &error) {
+ EV_LOG_WARNING(userWindowLog, this) << "API operation failed in view";
                     if (error.code == QLatin1String("ACTIVE_ORDER_EXISTS")) {
                         showTab(1);
                         m_chargingTab->checkActiveOrder();
@@ -397,5 +411,6 @@ void MainWindow::handleReservationFromDetail(const Charger &charger) {
  * @details 结算完成后拉取 GET /me 刷新 Session 中的余额（失败静默忽略）
  */
 void MainWindow::refreshBalance() {
-	m_api->get(QStringLiteral("/me"), [this](const QJsonValue &data, const QJsonObject &) { m_session->updateBalance(data.toObject().value(QLatin1String("walletBalanceFen")).toInteger()); }, [](const ApiError &) {});
+	EV_LOG_INFO(userWindowLog, this) << "Refreshing wallet balance";
+	m_api->get(QStringLiteral("/me"), [this](const QJsonValue &data, const QJsonObject &) { m_session->updateBalance(data.toObject().value(QLatin1String("walletBalanceFen")).toInteger()); }, [](const ApiError &) { EV_LOG_WARNING(userWindowLog, nullptr) << "Background view refresh failed"; });
 }

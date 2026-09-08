@@ -2,6 +2,7 @@
  * @file map_client.cpp
  * @brief 地图提供方接口及腾讯地图超时、重试和响应转换。
  */
+#include "evcharger/logging.h"
 
 #include "backend/map_client.h"
 
@@ -18,6 +19,8 @@
 #include <cmath>
 #include <optional>
 #include <utility>
+
+Q_LOGGING_CATEGORY(backendMap, "evcharger.backend.map", QtInfoMsg)
 
 namespace Backend {
 	namespace {
@@ -37,8 +40,11 @@ namespace Backend {
 		 */
 		NetworkResult getWithRetry(const QUrl &url, int timeoutMs, int retryCount) {
 			QNetworkAccessManager manager;
+			manager.setObjectName(QStringLiteral("tencent-map-network"));
 			for (int attempt = 0; attempt <= retryCount; ++attempt) {
+				EV_LOG_DEBUG(backendMap, &manager) << "Requesting map provider" << "attempt=" << attempt + 1;
 				QNetworkReply *reply = manager.get(QNetworkRequest(url));
+				reply->setObjectName(QStringLiteral("tencent-map-reply"));
 				QEventLoop loop;
 				QTimer timer;
 				timer.setSingleShot(true);
@@ -57,14 +63,17 @@ namespace Backend {
 				const QByteArray body = reply->readAll();
 				reply->deleteLater();
 				if (httpStatus >= 500 || timedOut || (networkError != QNetworkReply::NoError && httpStatus == 0)) {
+					EV_LOG_WARNING(backendMap, &manager) << "Map request failed" << "attempt=" << attempt + 1 << "status=" << httpStatus << "networkError=" << networkError << "timedOut=" << timedOut << "willRetry=" << (attempt < retryCount);
 					if (attempt < retryCount) {
 						continue;
 					}
 					return {MapStatus::Unavailable, {}};
 				}
 				if (httpStatus >= 400 || networkError != QNetworkReply::NoError) {
+					EV_LOG_WARNING(backendMap, &manager) << "Map provider rejected request" << "status=" << httpStatus << "networkError=" << networkError;
 					return {MapStatus::ProviderError, {}};
 				}
+				EV_LOG_DEBUG(backendMap, &manager) << "Map request completed" << "status=" << httpStatus;
 				return {MapStatus::Success, body};
 			}
 			return {};
@@ -77,15 +86,18 @@ namespace Backend {
 		 */
 		std::optional<QJsonObject> successfulPayload(const NetworkResult &network) {
 			if (network.status != MapStatus::Success) {
+				EV_LOG_WARNING(backendMap, nullptr) << "Map provider returned invalid or unsuccessful data";
 				return std::nullopt;
 			}
 			QJsonParseError error;
 			const QJsonDocument document = QJsonDocument::fromJson(network.body, &error);
 			if (error.error != QJsonParseError::NoError || !document.isObject()) {
+				EV_LOG_WARNING(backendMap, nullptr) << "Map provider returned invalid or unsuccessful data";
 				return std::nullopt;
 			}
 			const QJsonObject root = document.object();
 			if (!root.value(QStringLiteral("status")).isDouble() || root.value(QStringLiteral("status")).toInt(-1) != 0 || !root.value(QStringLiteral("result")).isObject()) {
+				EV_LOG_WARNING(backendMap, nullptr) << "Map provider returned invalid or unsuccessful data";
 				return std::nullopt;
 			}
 			return root.value(QStringLiteral("result")).toObject();
@@ -129,10 +141,12 @@ namespace Backend {
 		 */
 		std::optional<QJsonArray> decodePolyline(const QJsonArray &encoded) {
 			if (encoded.size() < 2 || encoded.size() % 2 != 0) {
+				EV_LOG_WARNING(backendMap, nullptr) << "Map provider returned invalid or unsuccessful data";
 				return std::nullopt;
 			}
 			for (const QJsonValue &value : encoded) {
 				if (!value.isDouble() || !std::isfinite(value.toDouble())) {
+					EV_LOG_WARNING(backendMap, nullptr) << "Map provider returned invalid or unsuccessful data";
 					return std::nullopt;
 				}
 			}
@@ -168,6 +182,7 @@ namespace Backend {
 	 */
 	GeocodeResult TencentMapClient::geocode(const QString &address, const QString &region) {
 		if (m_key.isEmpty()) {
+			EV_LOG_WARNING(backendMap, nullptr) << "Map operation unavailable: provider key not configured";
 			return {};
 		}
 		QUrl url(QStringLiteral("https://apis.map.qq.com/ws/geocoder/v1/"));
@@ -184,6 +199,7 @@ namespace Backend {
 		}
 		const auto payload = successfulPayload(network);
 		if (!payload.has_value()) {
+			EV_LOG_WARNING(backendMap, nullptr) << "Geocoding response failed validation";
 			return GeocodeResult{MapStatus::ProviderError};
 		}
 		const QJsonObject location = payload->value(QStringLiteral("location")).toObject();
@@ -193,6 +209,7 @@ namespace Backend {
 		const double latitude = location.value(QStringLiteral("lat")).toDouble();
 		const double longitude = location.value(QStringLiteral("lng")).toDouble();
 		if (!std::isfinite(latitude) || !std::isfinite(longitude) || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+			EV_LOG_WARNING(backendMap, nullptr) << "Geocoding response failed validation";
 			return GeocodeResult{MapStatus::ProviderError};
 		}
 		const QString formattedAddress = payload->value(QStringLiteral("title")).toString(address);
@@ -210,6 +227,7 @@ namespace Backend {
 	 */
 	RouteResult TencentMapClient::route(double fromLatitude, double fromLongitude, double toLatitude, double toLongitude, const QString &mode) {
 		if (m_key.isEmpty()) {
+			EV_LOG_WARNING(backendMap, nullptr) << "Map operation unavailable: provider key not configured";
 			return {};
 		}
 		QUrl url(QStringLiteral("https://apis.map.qq.com/ws/direction/v1/%1/").arg(mode));
@@ -224,6 +242,7 @@ namespace Backend {
 		}
 		const auto payload = successfulPayload(network);
 		if (!payload.has_value()) {
+			EV_LOG_WARNING(backendMap, nullptr) << "Route response failed validation";
 			return RouteResult{MapStatus::ProviderError};
 		}
 		const QJsonArray routes = payload->value(QStringLiteral("routes")).toArray();
@@ -235,6 +254,7 @@ namespace Backend {
 		const qint64 duration = route.value(QStringLiteral("duration")).toInteger(-1);
 		const auto polyline = decodePolyline(route.value(QStringLiteral("polyline")).toArray());
 		if (distance < 0 || duration < 0 || !polyline.has_value()) {
+			EV_LOG_WARNING(backendMap, nullptr) << "Route response failed validation";
 			return RouteResult{MapStatus::ProviderError};
 		}
 		return RouteResult{MapStatus::Success, distance, duration, *polyline, routeMapUrl(fromLatitude, fromLongitude, toLatitude, toLongitude, mode)};
