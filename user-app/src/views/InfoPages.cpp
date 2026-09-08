@@ -389,9 +389,12 @@ AboutView::AboutView(QWidget *parent)
     headerRow->addWidget(backButton);
     headerRow->addStretch();
 
-    auto *iconLabel = new QLabel(QStringLiteral("⚡"), this);
+    auto *iconLabel = new QLabel(this);
     iconLabel->setAlignment(Qt::AlignCenter);
     iconLabel->setObjectName(QStringLiteral("heroIconSmall"));
+    iconLabel->setPixmap(QPixmap(QStringLiteral(":/backgrounds/logo.png"))
+                             .scaled(160, 160, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    iconLabel->setFixedSize(160, 160);
 
     auto *nameLabel = new QLabel(QStringLiteral("智能充电系统"), this);
     nameLabel->setAlignment(Qt::AlignCenter);
@@ -409,7 +412,7 @@ AboutView::AboutView(QWidget *parent)
     layout->setContentsMargins(12, 12, 12, 12);
     layout->addLayout(headerRow);
     layout->addStretch(2);
-    layout->addWidget(iconLabel);
+    layout->addWidget(iconLabel, 0, Qt::AlignHCenter);
     layout->addWidget(nameLabel);
     layout->addWidget(versionLabel);
     layout->addSpacing(12);
