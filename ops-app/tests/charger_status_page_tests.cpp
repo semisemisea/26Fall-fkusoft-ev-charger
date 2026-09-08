@@ -1,3 +1,6 @@
+/** @file
+ * @brief 管理员前端回归测试；用本地响应或直接发送信号隔离真实服务。
+ */
 #include "api/apiclient.h"
 #include "pages/chargerstatuspage.h"
 
@@ -7,13 +10,18 @@
 #include <QTcpSocket>
 #include <QTest>
 
+/// @brief 电桩统计页渲染与显示刷新回归测试。
 class ChargerStatusPageTests : public QObject {
 	Q_OBJECT
 
 private slots:
+	/// @brief 直接注入快照信号，检查两张表分别显示占用和运维状态。
 	void rendersIndependentStatusDimensions();
+	/// @brief 本地服务计数验证状态页隐藏再显示会重新发起请求。
 	void refreshesWheneverShown();
 };
+
+/// @brief 直接注入快照信号，检查两张表分别显示占用和运维状态。
 
 void ChargerStatusPageTests::rendersIndependentStatusDimensions() {
 	ops::ApiClient client;
@@ -48,6 +56,8 @@ void ChargerStatusPageTests::rendersIndependentStatusDimensions() {
 	QCOMPARE(occupancy->item(0, 0)->text(), QStringLiteral("闲置"));
 	QCOMPARE(operational->item(0, 0)->text(), QStringLiteral("在线"));
 }
+
+/// @brief 本地服务计数验证状态页隐藏再显示会重新发起请求。
 
 void ChargerStatusPageTests::refreshesWheneverShown() {
 	QTcpServer server;

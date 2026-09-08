@@ -1,3 +1,7 @@
+/**
+ * @file BatteryWaveWidget.cpp
+ * @brief 以裁剪渐变和正弦波模拟竖电池内部液面动画。
+ */
 #include "BatteryWaveWidget.h"
 
 #include <QLinearGradient>
@@ -5,6 +9,9 @@
 #include <QPainterPath>
 #include <cmath>
 
+/**
+ * @details 创建由控件拥有的 30 ms 定时器，仅更新波浪相位并请求重绘；未按可见性停止定时器。
+ */
 BatteryWaveWidget::BatteryWaveWidget(QWidget *parent)
 	: QWidget(parent) {
 	m_timer = new QTimer(this);
@@ -17,11 +24,17 @@ BatteryWaveWidget::BatteryWaveWidget(QWidget *parent)
 	m_timer->start(30);
 }
 
+/**
+ * @details 将调用者传入比例钳制到 0..1，然后触发异步重绘。
+ */
 void BatteryWaveWidget::setPercent(double percent) {
 	m_percent = qBound(0.0, percent, 1.0);
 	update();
 }
 
+/**
+ * @details 以 17.10×34 基准坐标居中等比绘制电池；渐变液面叠加两层不同相位的正弦波。
+ */
 void BatteryWaveWidget::paintEvent(QPaintEvent *event) {
 	Q_UNUSED(event)
 	QPainter painter(this);

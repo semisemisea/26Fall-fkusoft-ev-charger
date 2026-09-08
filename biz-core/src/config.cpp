@@ -1,3 +1,8 @@
+/**
+ * @file config.cpp
+ * @brief 配置默认值、环境变量覆盖和业务上下限校验。
+ */
+
 #include "backend/config.h"
 #include "evcharger/logging.h"
 
@@ -15,6 +20,15 @@ Q_LOGGING_CATEGORY(backendConfig, "evcharger.backend.config", QtInfoMsg)
 namespace Backend {
 	namespace {
 
+		/**
+		 * @brief 按环境变量优先、INI 次之、默认值最后的顺序读取原始配置文本。
+		 * @param settings INI 设置读取器。
+		 * @param environment 配置覆盖所使用的环境变量快照。
+		 * @param iniKey INI 配置项名称。
+		 * @param environmentKey 对应的环境变量名称。
+		 * @param defaultValue 环境变量与 INI 均未设置时的回退文本。
+		 * @return 按上述规则生成的文本或字节结果。
+		 */
 		QString settingValue(const QSettings &settings,
 							 const QProcessEnvironment &environment,
 							 const QString &iniKey,
@@ -29,6 +43,14 @@ namespace Backend {
 			return defaultValue;
 		}
 
+		/**
+		 * @brief 按十进制解析整数并检查闭区间上下限。
+		 * @param raw 待解析的原始文本。
+		 * @param minimum 允许的最小值，包含边界。
+		 * @param maximum 允许的最大值，包含边界。
+		 * @param[out] value 仅在返回 true 时接收解析后的数值；指针必须有效。
+		 * @return 解析成功且位于闭区间内返回 true 并赋值；格式错误或越界返回 false。
+		 */
 		bool parseInteger(const QString &raw, qint64 minimum, qint64 maximum, qint64 *value) {
 			bool ok = false;
 			const qint64 parsed = raw.toLongLong(&ok, 10);
@@ -39,6 +61,12 @@ namespace Backend {
 			return true;
 		}
 
+		/**
+		 * @brief 按 C 区域格式解析有限正浮点数。
+		 * @param raw 待解析的原始文本。
+		 * @param[out] value 仅在返回 true 时接收解析后的数值；指针必须有效。
+		 * @return 解析出有限正数返回 true 并赋值；非法文本、非有限值或非正数返回 false。
+		 */
 		bool parsePositiveDouble(const QString &raw, double *value) {
 			bool ok = false;
 			const double parsed = QLocale::c().toDouble(raw, &ok);
@@ -49,6 +77,12 @@ namespace Backend {
 			return true;
 		}
 
+		/**
+		 * @brief 按十进制文本解析千瓦配置，最多接受三位小数并精确换算为正整数瓦。
+		 * @param raw 待解析的原始文本。
+		 * @param[out] value 仅在返回 true 时接收解析后的数值；指针必须有效。
+		 * @return 配置文本可精确转换为正整数瓦时返回 true 并赋值；格式、精度或数值范围非法返回 false。
+		 */
 		bool parsePowerWatts(const QString &raw, qint64 *value) {
 			const QString trimmed = raw.trimmed();
 			const qsizetype separator = trimmed.indexOf(QLatin1Char('.'));
@@ -80,6 +114,16 @@ namespace Backend {
 		}
 
 		template <typename T>
+		/**
+		 * @brief 解析并检查整数范围后赋给目标类型，失败时写入配置项名称。
+		 * @param raw 待解析的原始文本。
+		 * @param minimum 允许的最小值，包含边界。
+		 * @param maximum 允许的最大值，包含边界。
+		 * @param[out] target 接收已通过范围校验并转换为 T 的配置值，必须有效。
+		 * @param name 待读取或报告的参数名称。
+		 * @param[out] errorMessage 失败时接收驱动或业务一致性错误；调用方必须提供有效指针。
+		 * @return 配置整数有效并赋给 target 后返回 true；非法值返回 false 并注明配置项名称。
+		 */
 		bool assignInteger(const QString &raw, qint64 minimum, qint64 maximum, T *target, const QString &name, QString *errorMessage) {
 			qint64 value = 0;
 			if (!parseInteger(raw, minimum, maximum, &value)) {
@@ -93,6 +137,14 @@ namespace Backend {
 
 	} // namespace
 
+	/**
+	 * @brief 按环境变量、INI、默认值的优先级加载配置，并校验数值边界与钱包上下限的一致性。
+	 * @param configPath INI 配置文件路径。
+	 * @param executableDirectory 用于解析相对数据库路径的可执行文件目录。
+	 * @param environment 配置覆盖所使用的环境变量快照。
+	 * @param[out] errorMessage 失败时接收驱动或业务一致性错误；可为 nullptr。
+	 * @return 完成优先级覆盖、路径解析和边界校验的配置；INI 读取或配置校验失败返回 std::nullopt。
+	 */
 	std::optional<Config> Config::load(const QString &configPath,
 									   const QString &executableDirectory,
 									   const QProcessEnvironment &environment,

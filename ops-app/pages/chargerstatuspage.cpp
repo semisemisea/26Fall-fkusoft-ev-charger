@@ -1,3 +1,6 @@
+/** @file
+ * @brief 双维度电桩统计页面，分别绘制占用与运维分布并在每次显示时刷新。
+ */
 #include "chargerstatuspage.h"
 #include <evcharger/logging.h>
 
@@ -12,11 +15,17 @@ Q_LOGGING_CATEGORY(opsChargerstatuspageLog, "evcharger.ops.chargers", QtInfoMsg)
 
 namespace {
 
+	/// @brief 表格列索引；与表头和填充位置保持一致。
 	enum Col { ColStatus = 0,
 			   ColCount,
 			   ColPercent,
 			   ColBar };
 
+	/** @brief 创建不可编辑、不可选择的四列状态统计表。
+	 * @param objectName 用于界面对象查询与测试定位的名称。
+	 * @param parent 拥有此表的父控件。
+	 * @return 由 parent 管理的表格，包含状态、数量、占比与分布四列。
+	 */
 	QTableWidget *createStatusTable(const QString &objectName, QWidget *parent) {
 		auto *table = new QTableWidget(parent);
 		table->setObjectName(objectName);
@@ -36,6 +45,7 @@ namespace {
 
 } // namespace
 
+/// @brief 建立两个独立状态表并连接快照结果，加载由显示事件触发。
 ChargerStatusPage::ChargerStatusPage(ops::ApiClient *api, QWidget *parent)
 	: QWidget(parent), m_api(api) {
 	setObjectName(QStringLiteral("opsChargerStatusPage"));
@@ -86,6 +96,7 @@ ChargerStatusPage::ChargerStatusPage(ops::ApiClient *api, QWidget *parent)
 			});
 }
 
+/// @brief 填充状态、数量、百分比及进度条，进度条按 0..1 限幅。
 void ChargerStatusPage::populateTable(QTableWidget *table,
 									  const QList<ops::ChargerStatusCount> &rows) {
 	table->setRowCount(rows.size());
@@ -106,11 +117,14 @@ void ChargerStatusPage::populateTable(QTableWidget *table,
 	}
 }
 
+/// @brief 先交给 QWidget 处理显示事件，再触发本页刷新。
 void ChargerStatusPage::showEvent(QShowEvent *event) {
+	/// @brief 先交给 QWidget 处理显示事件，再触发本页刷新。
 	QWidget::showEvent(event);
 	refresh();
 }
 
+/// @brief 按页面加载策略发起数据请求，结果由已连接的信号更新控件。
 void ChargerStatusPage::refresh() {
 	EV_LOG_DEBUG(opsChargerstatuspageLog, this) << "Page refresh requested";
 	m_totalLabel->setText(tr("正在刷新..."));

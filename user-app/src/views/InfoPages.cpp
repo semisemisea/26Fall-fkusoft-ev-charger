@@ -1,3 +1,7 @@
+/**
+ * @file InfoPages.cpp
+ * @brief 实现历史订单、钱包流水、预约记录与关于系统页面。
+ */
 #include <evcharger/logging.h>
 
 #include "InfoPages.h"
@@ -24,6 +28,15 @@ Q_LOGGING_CATEGORY(userInfoPagesLog, "evcharger.user.ui", QtInfoMsg)
 
 namespace {
 	// 搭建通用页面骨架：返回键 + 标题 + 加载指示 + 滚动列表，返回状态标签
+	/**
+	 * @brief 搭建历史页公用骨架，并输出列表布局与加载指示器。
+	 * @param title 页头显示的标题。
+	 * @param onBack 点击返回键时执行的回调，以 parent 为连接上下文。
+	 * @param[out] listLayout 接收可插入业务卡片的布局，不可为空。
+	 * @param[out] spinnerOut 接收加载指示器，不可为空。
+	 * @param parent 页面控件，拥有创建出的布局及子控件。
+	 * @return 初始隐藏的状态标签，由 parent 的对象树管理。
+	 */
 	QLabel *makePageShell(const QString &title, const std::function<void()> &onBack,
 						  QVBoxLayout **listLayout, Spinner **spinnerOut, QWidget *parent) {
 		auto *backButton = new BackButton(parent);
@@ -75,6 +88,11 @@ namespace {
 	}
 
 	// 清空列表中的卡片（保留状态行与底部 stretch）
+	/**
+	 * @brief 删除旧业务卡片，同时保留状态行和末尾弹性项。
+	 * @param listLayout 由 makePageShell 创建的列表布局；业务卡片位于索引 1 起。
+	 * @details 控件通过 deleteLater 释放，取出的布局项立即删除；两者具有不同生命周期。
+	 */
 	void clearCards(QVBoxLayout *listLayout) {
 		while (listLayout->count() > 2) {
 			QLayoutItem *item = listLayout->takeAt(1);
@@ -84,7 +102,9 @@ namespace {
 	}
 } // namespace
 
-// 构造历史订单页骨架
+/**
+ * @details 构造历史订单页骨架
+ */
 OrderHistoryView::OrderHistoryView(ApiClient &api, QWidget *parent)
 	: QWidget(parent), m_api(api) {
 	if (objectName().isEmpty())
@@ -95,13 +115,17 @@ OrderHistoryView::OrderHistoryView(ApiClient &api, QWidget *parent)
 	m_listLayout = listLayout;
 }
 
-// 页面显示时加载订单列表
+/**
+ * @details 页面显示时加载订单列表
+ */
 void OrderHistoryView::showEvent(QShowEvent *event) {
 	QWidget::showEvent(event);
 	load();
 }
 
-// 拉取历史订单（GET /orders）并按状态着色渲染卡片
+/**
+ * @details 拉取历史订单（GET /orders）并按状态着色渲染卡片
+ */
 void OrderHistoryView::load() {
 	EV_LOG_INFO(userInfoPagesLog, this) << "Loading account history";
 	m_spinner->show();
@@ -163,7 +187,9 @@ void OrderHistoryView::load() {
                   m_statusLabel->show(); });
 }
 
-// 构造钱包流水页骨架
+/**
+ * @details 构造钱包流水页骨架
+ */
 TransactionsView::TransactionsView(ApiClient &api, QWidget *parent)
 	: QWidget(parent), m_api(api) {
 	if (objectName().isEmpty())
@@ -174,13 +200,17 @@ TransactionsView::TransactionsView(ApiClient &api, QWidget *parent)
 	m_listLayout = listLayout;
 }
 
-// 页面显示时加载流水列表
+/**
+ * @details 页面显示时加载流水列表
+ */
 void TransactionsView::showEvent(QShowEvent *event) {
 	QWidget::showEvent(event);
 	load();
 }
 
-// 拉取钱包流水并渲染卡片，金额正负用绿 / 红区分
+/**
+ * @details 拉取钱包流水并渲染卡片，金额正负用绿 / 红区分
+ */
 void TransactionsView::load() {
 	EV_LOG_INFO(userInfoPagesLog, this) << "Loading account history";
 	m_spinner->show();
@@ -250,7 +280,9 @@ void TransactionsView::load() {
                   m_statusLabel->show(); });
 }
 
-// 构造预约记录页骨架
+/**
+ * @details 构造预约记录页骨架
+ */
 ReservationHistoryView::ReservationHistoryView(ApiClient &api, QWidget *parent)
 	: QWidget(parent), m_api(api) {
 	if (objectName().isEmpty())
@@ -261,13 +293,17 @@ ReservationHistoryView::ReservationHistoryView(ApiClient &api, QWidget *parent)
 	m_listLayout = listLayout;
 }
 
-// 页面显示时加载预约记录
+/**
+ * @details 页面显示时加载预约记录
+ */
 void ReservationHistoryView::showEvent(QShowEvent *event) {
 	QWidget::showEvent(event);
 	load();
 }
 
-// 拉取预约记录（GET /reservations）并按状态着色渲染卡片
+/**
+ * @details 拉取预约记录（GET /reservations）并按状态着色渲染卡片
+ */
 void ReservationHistoryView::load() {
 	EV_LOG_INFO(userInfoPagesLog, this) << "Loading account history";
 	m_spinner->show();
@@ -329,7 +365,9 @@ void ReservationHistoryView::load() {
                   m_statusLabel->show(); });
 }
 
-// 构造“关于系统”静态展示页
+/**
+ * @details 构造“关于系统”静态展示页
+ */
 AboutView::AboutView(QWidget *parent)
 	: QWidget(parent) {
 	if (objectName().isEmpty())

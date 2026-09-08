@@ -1,8 +1,14 @@
+/**
+ * @file Order.cpp
+ * @brief 解析订单计量、时间和服务端账单金额，提供中文状态标签。
+ */
 #include "Order.h"
 
 #include <QJsonObject>
 
-// 逐字段解析 JSON；金额与单价均为整数（分/每度）
+/**
+ * @details 逐字段解析 JSON；金额与单价均为整数（分/每度）
+ */
 Order Order::fromJson(const QJsonObject &object) {
 	Order order;
 	order.id = object.value(QLatin1String("id")).toInt();
@@ -22,7 +28,9 @@ Order Order::fromJson(const QJsonObject &object) {
 	return order;
 }
 
-// 状态枚举到中文文案的映射：charging/awaiting_payment/settled/cancelled/failed
+/**
+ * @details 状态枚举到中文文案的映射：charging/awaiting_payment/settled/cancelled/failed
+ */
 QString Order::statusLabel(const QString &status) {
 	if (status == QLatin1String("charging")) {
 		return QStringLiteral("充电中");

@@ -1,3 +1,7 @@
+/**
+ * @file ChargingView.cpp
+ * @brief 展示充电订单的真实计量与费用，管理订单轮询和停止充电交互。
+ */
 #include <evcharger/logging.h>
 
 #include "ChargingView.h"
@@ -21,6 +25,12 @@ Q_LOGGING_CATEGORY(userChargingViewLog, "evcharger.user.charging", QtInfoMsg)
 
 namespace {
 	// 创建白色圆角信息卡片（样式见 style.qss #chargingMetricCard）
+	/**
+	 * @brief 创建充电指标使用的固定高度圆角卡片。
+	 * @param parent 卡片的 Qt 父控件。
+	 * @param height 卡片高度，单位像素。
+	 * @return 已设置 chargingMetricCard 对象名的卡片，由 parent 拥有。
+	 */
 	QFrame *makeCard(QWidget *parent, int height) {
 		auto *card = new QFrame(parent);
 		card->setObjectName(QStringLiteral("chargingMetricCard"));
@@ -29,7 +39,9 @@ namespace {
 	}
 } // namespace
 
-// 构造：搭建充电动效、两行信息卡片、预估费用与结束充电按钮
+/**
+ * @details 构造：搭建充电动效、两行信息卡片、预估费用与结束充电按钮
+ */
 ChargingView::ChargingView(ApiClient &api, QWidget *parent)
 	: QWidget(parent), m_api(api) {
 	if (objectName().isEmpty())
@@ -129,30 +141,37 @@ ChargingView::ChargingView(ApiClient &api, QWidget *parent)
 	connect(m_stopButton, &QPushButton::clicked, this, &ChargingView::stopCharging);
 }
 
-// 打开订单：立即刷新一次显示，并配置、启动 5 秒轮询线程
+/**
+ * @details 打开订单：立即刷新一次显示，并配置、启动 5 秒轮询线程
+ */
 void ChargingView::open(const Order &order) {
 	EV_LOG_INFO(userChargingViewLog, this) << "Opening charging monitor; order_id=" << order.id;
 	m_order = order;
 	m_chargerType.clear();
 	updateDisplay(order);
 	m_api.get(QStringLiteral("/chargers/%1").arg(order.chargerId), [this, orderId = order.id](const QJsonValue &data, const QJsonObject &) {
+                  // 旧订单的电桩详情可能晚于页面切换返回，不能覆盖当前订单的充电方式。
                   if (m_order.id != orderId) {
                       return;
                   }
                   m_chargerType = Charger::fromJson(data.toObject()).type;
-                  updateDisplay(m_order); }, [this](const ApiError &) { EV_LOG_WARNING(userChargingViewLog, this) << "Background view refresh failed"; });
+                  updateDisplay(m_order); }, [](const ApiError &) { EV_LOG_WARNING(userChargingViewLog, nullptr) << "Background view refresh failed"; });
 	m_pollThread->configure(order.id, m_api.baseUrl(), m_api.accessToken());
 	m_pollThread->start();
 }
 
-// 页面隐藏时请求停止轮询线程
+/**
+ * @details 页面隐藏时请求停止轮询线程
+ */
 void ChargingView::hideEvent(QHideEvent *event) {
 	EV_LOG_INFO(userChargingViewLog, this) << "Stopping hidden charging monitor";
 	QWidget::hideEvent(event);
 	m_pollThread->requestStop();
 }
 
-// 用服务端订单数据刷新卡片与预估费用
+/**
+ * @details 用服务端订单数据刷新卡片与预估费用
+ */
 void ChargingView::updateDisplay(const Order &order) {
 	// 单价（充电站统一价格）
 	m_rangeValueLabel->setText(QStringLiteral(
@@ -188,7 +207,9 @@ void ChargingView::updateDisplay(const Order &order) {
 	m_feeValueLabel->setText(QStringLiteral("￥%1").arg(fenToYuan(order.amountFen)));
 }
 
-// 弹确认框后请求停止充电；失败时恢复轮询并提示错误
+/**
+ * @details 弹确认框后请求停止充电；失败时恢复轮询并提示错误
+ */
 void ChargingView::stopCharging() {
 	EV_LOG_INFO(userChargingViewLog, this) << "Stop charging requested";
 	const auto choice = QMessageBox::question(this, QStringLiteral("停止充电"),

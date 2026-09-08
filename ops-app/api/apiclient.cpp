@@ -1,3 +1,6 @@
+/** @file
+ * @brief 管理员接口请求、响应信封解析与多请求汇总实现。
+ */
 #include "apiclient.h"
 #include <QElapsedTimer>
 #include <evcharger/logging.h>
@@ -20,6 +23,11 @@ Q_LOGGING_CATEGORY(opsOperations, "evcharger.ops.operations", QtInfoMsg)
 namespace ops {
 	namespace {
 
+		/** @brief 将时间区间转为 UTC ISO 文本查询参数。
+		 * @param from 统计起始时刻。
+		 * @param to 统计结束时刻。
+		 * @return 含 UTC ISO 格式 from/to 的查询参数。
+		 */
 		QUrlQuery intervalQuery(const QDateTime &from, const QDateTime &to) {
 			QUrlQuery query;
 			query.addQueryItem(QStringLiteral("from"), from.toUTC().toString(Qt::ISODate));
@@ -27,6 +35,10 @@ namespace ops {
 			return query;
 		}
 
+		/** @brief 格式化给定时刻的 UTC 偏移为带符号的 HH:mm。
+		 * @param dateTime 要格式化时区偏移的时刻。
+		 * @return 带正负号的 HH:mm 文本。
+		 */
 		QString utcOffset(const QDateTime &dateTime) {
 			const int offsetSeconds = dateTime.offsetFromUtc();
 			const int absoluteMinutes = qAbs(offsetSeconds) / 60;
@@ -38,6 +50,7 @@ namespace ops {
 
 	} // namespace
 
+	/// @brief 提取 data.items 数组为对象列表；非数组返回空列表。
 	QList<QJsonObject> ApiResult::items() const {
 		QList<QJsonObject> list;
 		const auto v = data.value(QLatin1String("items"));
@@ -56,11 +69,13 @@ namespace ops {
 		EV_LOG_INFO(opsNetwork, this) << "API client initialized; request timeout_ms=15000";
 	}
 
+	/// @brief 设置后续请求使用的基础 URL，不自动补充分隔符。
 	void ApiClient::setBaseUrl(const QString &url) {
 		m_baseUrl = url;
 		EV_LOG_INFO(opsNetwork, this) << "API base URL changed";
 	}
 
+	/// @brief 拼接基础地址和接口路径，再附加查询参数。
 	QUrl ApiClient::buildUrl(const QString &path, const QUrlQuery &query) const {
 		QUrl url(m_baseUrl + path);
 		if (!query.isEmpty())
@@ -68,6 +83,7 @@ namespace ops {
 		return url;
 	}
 
+	/// @brief 构造带请求 ID、可选令牌和 15 秒传输超时的异步 HTTP 请求。
 	void ApiClient::send(const QString &method, const QString &path, const QUrlQuery &query,
 						 const QJsonObject &body,
 						 const std::function<void(const ApiResult &)> &handler) {
@@ -98,6 +114,7 @@ namespace ops {
 		handleEnvelope(reply, handler);
 	}
 
+	/// @brief 在响应完成时解包数据和错误；401 发出认证失效信号，回调后延迟销毁响应。
 	void ApiClient::handleEnvelope(QNetworkReply *reply,
 								   const std::function<void(const ApiResult &)> &handler) {
 		QElapsedTimer elapsed;
@@ -168,6 +185,7 @@ namespace ops {
 
 	// ---- 认证 ----
 
+	/// @brief 异步提交管理员凭据；成功保存令牌和角色并发送 loginSucceeded。
 	void ApiClient::login(const QString &username, const QString &password) {
 		EV_LOG_INFO(opsAuth, this) << "Administrator login requested";
 		QJsonObject body;
@@ -194,6 +212,7 @@ namespace ops {
 			 });
 	}
 
+	/// @brief 有令牌时发送注销请求，立即清空本地认证信息并发出失去认证信号。
 	void ApiClient::logout() {
 		EV_LOG_INFO(opsAuth, this) << "Administrator logout requested; clearing local session";
 		if (!m_token.isEmpty())
@@ -205,11 +224,13 @@ namespace ops {
 
 	// ---- 看板 ----
 
+	/// @brief 并发获取累计、今日、本月营收和资源统计，全部完成后发出汇总信号。
 	void ApiClient::fetchDashboardSummary() {
+		/// @brief 一轮汇总请求的共享状态；由各回调共同持有直到全部结束。
 		struct SummaryState {
-			DashboardSummary summary;
-			QString errorCode;
-			int pending = 0;
+			DashboardSummary summary; ///< 已完成子请求写入的指标。
+			QString errorCode;		  ///< 第一个非空错误码。
+			int pending = 0;		  ///< 尚未完成的子请求数量。
 		};
 
 		const QDateTime now = QDateTime::currentDateTime();
@@ -219,6 +240,7 @@ namespace ops {
 		auto state = QSharedPointer<SummaryState>::create();
 		state->summary.asOf = now.toUTC().toString(Qt::ISODate);
 		state->pending = canWrite() ? 6 : 5;
+		// 每个子请求无论成功失败都递减 pending；只读角色不请求管理员用户列表。
 		const auto complete = [this, state](const ApiResult &result, const auto &apply) {
 			if (result.ok) {
 				apply(result);
@@ -279,6 +301,7 @@ namespace ops {
 		}
 	}
 
+	/// @brief 请求近 7 或 30 日营收；按本地日界限转换 UTC 区间并传入当前时区偏移。
 	void ApiClient::fetchRevenueSeries(const QString &range) {
 		const QDateTime now = QDateTime::currentDateTime();
 		const int days = range == QLatin1String("30d") ? 30 : 7;
@@ -305,6 +328,7 @@ namespace ops {
 			 });
 	}
 
+	/// @brief 请求两个独立状态维度，校验响应结构后计算各状态占比。
 	void ApiClient::fetchChargerStatus() {
 		send(QStringLiteral("GET"), QStringLiteral("/admin/dashboard/charger-status"), {}, {},
 			 [this](const ApiResult &r) {
@@ -348,6 +372,7 @@ namespace ops {
 
 	// ---- 电桩 ----
 
+	/// @brief 分页查询电桩；fault/offline 作为运维筛选，其他非空值作为占用筛选。
 	void ApiClient::fetchChargers(const QString &statusFilter, int page) {
 		QUrlQuery query;
 		if (statusFilter == QLatin1String("fault") || statusFilter == QLatin1String("offline"))
@@ -371,6 +396,7 @@ namespace ops {
 			 });
 	}
 
+	/// @brief 向指定电站创建电桩，完成后发送 chargerMutationFinished。
 	void ApiClient::createCharger(qint64 stationId, const ChargerForm &form) {
 		EV_LOG_INFO(opsOperations, this) << "Charger creation requested; resource_id=" << stationId;
 		QJsonObject body;
@@ -387,6 +413,7 @@ namespace ops {
 			 });
 	}
 
+	/// @brief 修改电桩类型、功率和运维状态，不修改归属和占用状态。
 	void ApiClient::updateCharger(qint64 chargerId, const ChargerForm &form) {
 		EV_LOG_INFO(opsOperations, this) << "Charger update requested; resource_id=" << chargerId;
 		QJsonObject body;
@@ -402,6 +429,7 @@ namespace ops {
 			 });
 	}
 
+	/// @brief 删除指定电桩，结果通过 chargerMutationFinished 返回。
 	void ApiClient::deleteCharger(qint64 chargerId) {
 		EV_LOG_INFO(opsOperations, this) << "Charger deletion requested; resource_id=" << chargerId;
 		send(QStringLiteral("DELETE"), QStringLiteral("/admin/chargers/%1").arg(chargerId), {},
@@ -413,6 +441,7 @@ namespace ops {
 			 });
 	}
 
+	/// @brief 发送远程重启请求，结果通过 commandFinished 返回。
 	void ApiClient::restartCharger(qint64 chargerId, const QString &reason) {
 		EV_LOG_INFO(opsOperations, this) << "Charger restart requested; resource_id=" << chargerId;
 		Q_UNUSED(reason)
@@ -426,6 +455,7 @@ namespace ops {
 
 	// ---- 电站 ----
 
+	/// @brief 查询电站并为各站请求在线数量；全部补充请求完成后发送列表。
 	void ApiClient::fetchStations(const QString &search, int page) {
 		QUrlQuery query;
 		if (!search.isEmpty())
@@ -465,6 +495,7 @@ namespace ops {
 				 state->stations = stations;
 				 state->meta = r.meta;
 				 state->pending = stations.size();
+				 // 在线数量补充失败时该站保持默认零在线率，不丢弃已成功取得的主列表。
 				 for (qsizetype index = 0; index < stations.size(); ++index) {
 					 QUrlQuery onlineQuery;
 					 onlineQuery.addQueryItem(QStringLiteral("operationalStatus"),
@@ -486,6 +517,7 @@ namespace ops {
 			 });
 	}
 
+	/// @brief 请求指定电站的第一页电桩，pageSize 固定为 100，不继续翻页。
 	void ApiClient::fetchStationChargers(qint64 stationId) {
 		QUrlQuery query;
 		query.addQueryItem(QStringLiteral("pageSize"), QStringLiteral("100"));
@@ -503,6 +535,7 @@ namespace ops {
 			 });
 	}
 
+	/// @brief 仅发送站名、坐标和分计价单价，完成后发送 stationCreated。
 	void ApiClient::createStation(const StationForm &form) {
 		EV_LOG_INFO(opsOperations, this) << "Station creation requested";
 		QJsonObject body;
@@ -520,6 +553,7 @@ namespace ops {
 
 	// ---- 用户 ----
 
+	/// @brief 按手机号查询用户列表并返回分页信息。
 	void ApiClient::fetchUsers(const QString &phoneSearch, int page) {
 		QUrlQuery query;
 		if (!phoneSearch.isEmpty())
@@ -548,6 +582,7 @@ namespace ops {
 			 });
 	}
 
+	/// @brief 将用户状态提交为 frozen 或 active。
 	void ApiClient::setUserStatus(qint64 userId, bool frozen) {
 		EV_LOG_INFO(opsOperations, this) << "User status update requested; resource_id=" << userId;
 		QJsonObject body;

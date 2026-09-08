@@ -1,3 +1,8 @@
+/**
+ * @file user_tests.cpp
+ * @brief 自动化测试：用户资料、头像与钱包原子写入。 使用 Qt Test 验证正常流程、校验失败与业务边界。
+ */
+
 #include "backend/api.h"
 #include "backend/database.h"
 #include "backend/http.h"
@@ -12,29 +17,52 @@
 
 #include <memory>
 
+/** @brief 用户资料及钱包事务的 Qt Test 测试集合。 */
 class UserTests : public QObject {
 	Q_OBJECT
 
 private slots:
+	/**
+	 * @brief 验证昵称和头像上传、读取、删除及相关输入限制。
+	 */
 	void managesProfileAndAvatar();
+	/**
+	 * @brief 验证充值余额与流水同步变化，相同幂等请求不会重复入账。
+	 */
 	void topUpIsAtomicAndIdempotent();
+	/**
+	 * @brief 持有数据库写锁，验证锁超时被转换为 HTTP 503。
+	 */
 	void databaseWriteTimeoutIsServiceUnavailable();
+	/**
+	 * @brief 注入复合写入失败，验证余额、流水和幂等记录共同回滚。
+	 */
 	void failedCompositeWriteRollsBack();
 };
 
 namespace {
 
+	/**
+	 * @brief 解析测试 HTTP 响应正文为 JSON 对象，便于断言信封字段。
+	 * @param response 待发送或解码的 HTTP 响应。
+	 * @return 符合本接口字段约定的 JSON 数据。
+	 */
 	QJsonObject object(const Backend::HttpResponse &response) {
 		return QJsonDocument::fromJson(response.body).object();
 	}
 
+	/** @brief 隔离的测试依赖夹具；临时数据库与固定时钟避免用例间状态污染。 */
 	struct Fixture {
-		QTemporaryDir directory;
-		std::shared_ptr<Backend::Database> database;
-		std::shared_ptr<EvCharger::FixedClock> clock;
-		Backend::Router router;
-		QString token;
+		QTemporaryDir directory;					  ///< 用例独立临时目录，夹具销毁时清理数据库文件。
+		std::shared_ptr<Backend::Database> database;  ///< 共享数据库入口；每次操作在调用线程创建连接。
+		std::shared_ptr<EvCharger::FixedClock> clock; ///< 可注入时钟，统一提供过期判断和充电计量时间。
+		Backend::Router router;						  ///< 测试请求分派器或共享路由。
+		QString token;								  ///< 当前测试用户的访问令牌。
 
+		/**
+		 * @brief 创建临时数据库和固定时钟，注册路由并准备本组测试数据。
+		 * @param busyTimeoutMs SQLite 锁争用等待上限，单位毫秒。
+		 */
 		explicit Fixture(int busyTimeoutMs = 5000)
 			: database(std::make_shared<Backend::Database>(directory.filePath(QStringLiteral("test.sqlite3")), busyTimeoutMs)), clock(std::make_shared<EvCharger::FixedClock>(QDateTime(QDate(2026, 9, 1), QTime(8, 0), Qt::UTC))) {
 			QString error;
@@ -51,6 +79,15 @@ namespace {
 			token = object(login).value(QStringLiteral("data")).toObject().value(QStringLiteral("accessToken")).toString();
 		}
 
+		/**
+		 * @brief 构造带 JSON 正文的测试请求并交给路由器分派。
+		 * @param method HTTP 请求方法。
+		 * @param[in] path HTTP 资源路径，不含服务器地址。
+		 * @param body 待解析或序列化的 JSON 请求对象。
+		 * @param accessToken 用于测试请求认证的访问令牌。
+		 * @param idempotencyKey 测试请求的幂等键。
+		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
+		 */
 		Backend::HttpResponse json(const QString &method, const QString &path, const QJsonObject &body, const QString &accessToken = {}, const QByteArray &idempotencyKey = {}) const {
 			Backend::HttpRequest request;
 			request.method = method;
@@ -67,6 +104,12 @@ namespace {
 			return router.dispatch(request);
 		}
 
+		/**
+		 * @brief 构造当前测试用户的认证请求。
+		 * @param method HTTP 请求方法。
+		 * @param[in] path HTTP 资源路径，不含服务器地址。
+		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
+		 */
 		Backend::HttpResponse request(const QString &method, const QString &path) const {
 			Backend::HttpRequest request;
 			request.method = method;
@@ -76,6 +119,9 @@ namespace {
 			return router.dispatch(request);
 		}
 
+		/**
+		 * @brief 直接冻结测试用户，用于验证状态权限边界。
+		 */
 		void freezeUser() {
 			QString error;
 			if (!database->withConnection([](QSqlDatabase &connection, QString *operationError) {
@@ -94,6 +140,9 @@ namespace {
 
 } // namespace
 
+/**
+ * @brief 验证昵称和头像上传、读取、删除及相关输入限制。
+ */
 void UserTests::managesProfileAndAvatar() {
 	Fixture fixture;
 	const Backend::HttpResponse profile = fixture.request(QStringLiteral("GET"), QStringLiteral("/api/v1/me"));
@@ -129,6 +178,9 @@ void UserTests::managesProfileAndAvatar() {
 	QCOMPARE(fixture.request(QStringLiteral("GET"), QStringLiteral("/api/v1/me")).status, 200);
 }
 
+/**
+ * @brief 验证充值余额与流水同步变化，相同幂等请求不会重复入账。
+ */
 void UserTests::topUpIsAtomicAndIdempotent() {
 	Fixture fixture;
 	const QJsonObject amount{{QStringLiteral("amountFen"), 500}};
@@ -168,6 +220,9 @@ void UserTests::topUpIsAtomicAndIdempotent() {
 	QCOMPARE(frozenTopUp.status, 201);
 }
 
+/**
+ * @brief 持有数据库写锁，验证锁超时被转换为 HTTP 503。
+ */
 void UserTests::databaseWriteTimeoutIsServiceUnavailable() {
 	Fixture fixture(10);
 	const QString connectionName = QStringLiteral("user-test-write-lock");
@@ -191,6 +246,9 @@ void UserTests::databaseWriteTimeoutIsServiceUnavailable() {
 	QCOMPARE(object(fixture.request(QStringLiteral("GET"), QStringLiteral("/api/v1/me/wallet/transactions"))).value(QStringLiteral("data")).toArray().size(), 0);
 }
 
+/**
+ * @brief 注入复合写入失败，验证余额、流水和幂等记录共同回滚。
+ */
 void UserTests::failedCompositeWriteRollsBack() {
 	Fixture fixture;
 	QString error;

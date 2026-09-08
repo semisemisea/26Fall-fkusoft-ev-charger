@@ -1,3 +1,7 @@
+/**
+ * @file AppIcons.cpp
+ * @brief 使用 QPainter 生成不依赖外部字体的矢量风格位图图标。
+ */
 #include "AppIcons.h"
 
 #include "common/Theme.h"
@@ -9,6 +13,11 @@
 
 namespace {
 	// 创建透明底色的正方形画布
+	/**
+	 * @brief 创建供自绘图标使用的透明方形画布。
+	 * @param size 画布边长，单位像素。
+	 * @return 已填充透明色的 QPixmap 值。
+	 */
 	QPixmap makePixmap(int size) {
 		QPixmap pixmap(size, size);
 		pixmap.fill(Qt::transparent);
@@ -16,6 +25,10 @@ namespace {
 	}
 
 	// 右上角红点角标：白底外圈 + 错误色实心圆
+	/**
+	 * @brief 在 24×24 基准坐标系中叠加红点角标。
+	 * @param painter 调用方提供的画笔；本函数按固定基准坐标画红点，不自行适配输出尺寸。
+	 */
 	void drawBadge(QPainter &painter) {
 		painter.setPen(Qt::NoPen);
 		painter.setBrush(Qt::white);
@@ -25,7 +38,9 @@ namespace {
 	}
 } // namespace
 
-// 定位图钉：QPainterPath 拼出圆形头部 + 三角尾部，中心镂空
+/**
+ * @details 定位图钉：QPainterPath 拼出圆形头部 + 三角尾部，中心镂空
+ */
 QPixmap AppIcons::pin(const QColor &color, int size, bool badge) {
 	QPixmap pixmap = makePixmap(size);
 	QPainter painter(&pixmap);
@@ -53,7 +68,9 @@ QPixmap AppIcons::pin(const QColor &color, int size, bool badge) {
 	return pixmap;
 }
 
-// 闪电：SVG 路径渲染（填充与描边同色）
+/**
+ * @details 闪电：SVG 路径渲染（填充与描边同色）
+ */
 QPixmap AppIcons::bolt(const QColor &color, int size, bool badge) {
 	const QString hex = color.name();
 	const QString svg = QStringLiteral(
@@ -72,7 +89,9 @@ QPixmap AppIcons::bolt(const QColor &color, int size, bool badge) {
 	return pixmap;
 }
 
-// 人形：圆头 + 贝塞尔曲线肩部
+/**
+ * @details 人形：圆头 + 贝塞尔曲线肩部
+ */
 QPixmap AppIcons::person(const QColor &color, int size, bool badge) {
 	QPixmap pixmap = makePixmap(size);
 	QPainter painter(&pixmap);
@@ -96,7 +115,9 @@ QPixmap AppIcons::person(const QColor &color, int size, bool badge) {
 	return pixmap;
 }
 
-// 放大镜：描边圆圈 + 斜线手柄
+/**
+ * @details 放大镜：描边圆圈 + 斜线手柄
+ */
 QPixmap AppIcons::search(const QColor &color, int size, bool badge) {
 	QPixmap pixmap = makePixmap(size);
 	QPainter painter(&pixmap);
@@ -118,7 +139,9 @@ QPixmap AppIcons::search(const QColor &color, int size, bool badge) {
 	return pixmap;
 }
 
-// 信号强度：四根递增竖条
+/**
+ * @details 信号强度：四根递增竖条
+ */
 QPixmap AppIcons::signal(const QColor &color, int size, bool badge) {
 	QString svgTemplate = R"SVG(
 		<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none">
@@ -144,7 +167,9 @@ QPixmap AppIcons::signal(const QColor &color, int size, bool badge) {
 	return pixmap;
 }
 
-// 时钟：内嵌 SVG 模板替换颜色后由 QSvgRenderer 渲染
+/**
+ * @details 时钟：内嵌 SVG 模板替换颜色后由 QSvgRenderer 渲染
+ */
 QPixmap AppIcons::clock(const QColor &color, int size, bool badge) {
 	// SVG 模板（用 %1 占位颜色）
 	QString svgTemplate = R"(
@@ -168,7 +193,9 @@ QPixmap AppIcons::clock(const QColor &color, int size, bool badge) {
 	return pixmap;
 }
 
-// 日历：SVG 模板渲染
+/**
+ * @details 日历：SVG 模板渲染
+ */
 QPixmap AppIcons::calendar(const QColor &color, int size, bool badge) {
 	// SVG 模板（用 %1 占位颜色）
 	QString svgTemplate = R"(
@@ -192,7 +219,9 @@ QPixmap AppIcons::calendar(const QColor &color, int size, bool badge) {
 	return pixmap;
 }
 
-// 钱袋：SVG 模板渲染
+/**
+ * @details 钱袋：SVG 模板渲染
+ */
 QPixmap AppIcons::wallet(const QColor &color, int size, bool badge) {
 	// SVG 模板（用 %1 占位颜色）
 	QString svgTemplate = R"(
@@ -224,7 +253,9 @@ QPixmap AppIcons::wallet(const QColor &color, int size, bool badge) {
 	return pixmap;
 }
 
-// 车辆：SVG 模板渲染
+/**
+ * @details 车辆：SVG 模板渲染
+ */
 QPixmap AppIcons::car(const QColor &color, int size, bool badge) {
 	QString svgTemplate = R"SVG(
 		<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -247,7 +278,9 @@ QPixmap AppIcons::car(const QColor &color, int size, bool badge) {
 	return pixmap;
 }
 
-// 信息图标：SVG 模板渲染
+/**
+ * @details 信息图标：SVG 模板渲染
+ */
 QPixmap AppIcons::info(const QColor &color, int size, bool badge) {
 	QString svgTemplate = R"SVG(
 		<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -272,7 +305,9 @@ QPixmap AppIcons::info(const QColor &color, int size, bool badge) {
 	return pixmap;
 }
 
-// 右向尖括号：SVG 模板渲染
+/**
+ * @details 右向尖括号：SVG 模板渲染
+ */
 QPixmap AppIcons::chevronRight(const QColor &color, int size, bool badge) {
 	QString svgTemplate = R"SVG(
 		<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -295,7 +330,9 @@ QPixmap AppIcons::chevronRight(const QColor &color, int size, bool badge) {
 	return pixmap;
 }
 
-// 右转箭头：SVG 模板渲染
+/**
+ * @details 右转箭头：SVG 模板渲染
+ */
 QPixmap AppIcons::turnRight(const QColor &color, int size, bool badge) {
 	QString svgTemplate = R"SVG(
 		<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none">
@@ -319,7 +356,9 @@ QPixmap AppIcons::turnRight(const QColor &color, int size, bool badge) {
 	return pixmap;
 }
 
-// 绘制电池图标（边框黑色，内部绿色填充）
+/**
+ * @details 绘制电池图标（边框黑色，内部绿色填充）
+ */
 QPixmap AppIcons::battery(int size, bool badge) {
 	QString svgTemplate = R"SVG(
 		<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -341,6 +380,9 @@ QPixmap AppIcons::battery(int size, bool badge) {
 	return pixmap;
 }
 
+/**
+ * @details 将归一化电量映射到渐变液面高度；输出为按电池纵横比生成的矩形，百分比文字保持底部对齐。
+ */
 QPixmap AppIcons::batteryVertical(int size, double percent, double wavePhase) {
 	const double pct = qBound(0.0, percent, 1.0);
 
@@ -399,7 +441,9 @@ QPixmap AppIcons::batteryVertical(int size, double percent, double wavePhase) {
 
 	return pixmap;
 }
-// 绘制用户头像图标（面部轮廓）
+/**
+ * @details 绘制用户头像图标（面部轮廓）
+ */
 QPixmap AppIcons::avatar(const QColor &color, int size, bool badge) {
 	QString svgTemplate = R"SVG(
 		<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -422,7 +466,9 @@ QPixmap AppIcons::avatar(const QColor &color, int size, bool badge) {
 	return pixmap;
 }
 
-// 支付成功图标：渐变圆圈（主色→黄绿色）+ 主色打勾，背景透明
+/**
+ * @details 支付成功图标：渐变圆圈（主色→黄绿色）+ 主色打勾，背景透明
+ */
 QPixmap AppIcons::successCheck(int width, int height) {
 	QString svgTemplate = R"SVG(
 		<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">

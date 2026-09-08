@@ -1,3 +1,7 @@
+/**
+ * @file SettleView.cpp
+ * @brief 展示服务端账单并发起钱包结算，余额不足时引导充值。
+ */
 #include <evcharger/logging.h>
 
 #include "SettleView.h"
@@ -17,7 +21,9 @@
 
 Q_LOGGING_CATEGORY(userSettleViewLog, "evcharger.user.charging", QtInfoMsg)
 
-// 构造：搭建账单卡、余额与支付 / 充值 / 稍后支付 / 返回首页按钮
+/**
+ * @details 构造：搭建账单卡、余额与支付 / 充值 / 稍后支付 / 返回首页按钮
+ */
 SettleView::SettleView(Session &session, ApiClient &api, QWidget *parent)
 	: QWidget(parent), m_session(session), m_api(api) {
 	if (objectName().isEmpty())
@@ -141,7 +147,9 @@ SettleView::SettleView(Session &session, ApiClient &api, QWidget *parent)
 	connect(&m_session, &Session::userChanged, this, &SettleView::refreshBalance);
 }
 
-// 填充账单明细，重置按钮为待支付状态并刷新余额显示
+/**
+ * @details 填充账单明细，重置按钮为待支付状态并刷新余额显示
+ */
 void SettleView::open(const Order &order) {
 	EV_LOG_INFO(userSettleViewLog, this) << "Opening settlement; order_id=" << order.id;
 	m_order = order;
@@ -165,7 +173,9 @@ void SettleView::open(const Order &order) {
 	m_settleContainer->show();
 }
 
-// 钱包支付结算；余额不足（INSUFFICIENT_BALANCE）时提示并显示“去充值”按钮
+/**
+ * @details 钱包支付结算；余额不足（INSUFFICIENT_BALANCE）时提示并显示“去充值”按钮
+ */
 void SettleView::settle() {
 	EV_LOG_INFO(userSettleViewLog, this) << "Submitting settlement";
 	m_payButton->setEnabled(false);
@@ -187,7 +197,9 @@ void SettleView::settle() {
                    Toast::error(this, error.message.isEmpty() ? error.code : error.message); });
 }
 
-// 打开充值对话框，成功后更新会话余额并恢复支付入口
+/**
+ * @details 打开充值对话框，成功后更新会话余额并恢复支付入口
+ */
 void SettleView::openRecharge() {
 	EV_LOG_INFO(userSettleViewLog, this) << "Opening recharge dialog";
 	auto *dialog = new RechargeDialog(m_api, this);
@@ -200,12 +212,16 @@ void SettleView::openRecharge() {
 	dialog->open();
 }
 
-// 显示会话中的最新钱包余额
+/**
+ * @details 显示会话中的最新钱包余额
+ */
 void SettleView::refreshBalance() {
 	m_balanceLabel->setText(QStringLiteral("当前余额：￥%1").arg(fenToYuan(m_session.user().walletBalanceFen)));
 }
 
-// ISO 时间串转 "yyyy-MM-dd hh:mm" 显示格式
+/**
+ * @details ISO 时间串转 "yyyy-MM-dd hh:mm" 显示格式
+ */
 QString SettleView::formatTime(QString isoTime) {
 	return isoTime.replace(QLatin1Char('T'), QLatin1Char(' ')).left(16);
 }

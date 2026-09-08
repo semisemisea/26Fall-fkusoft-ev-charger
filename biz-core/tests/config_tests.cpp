@@ -1,3 +1,8 @@
+/**
+ * @file config_tests.cpp
+ * @brief 自动化测试：配置默认值、环境变量覆盖和业务上下限校验。 使用 Qt Test 验证正常流程、校验失败与业务边界。
+ */
+
 #include "backend/config.h"
 
 #include <QFile>
@@ -6,16 +11,32 @@
 #include <QTest>
 #include <QTextStream>
 
+/** @brief 配置默认值、环境变量覆盖和业务上下限校验。的 Qt Test 测试集合。 */
 class ConfigTests : public QObject {
 	Q_OBJECT
 
 private slots:
+	/**
+	 * @brief 验证默认数据库相对路径以程序目录为基准。
+	 */
 	void defaultsAreResolvedFromExecutableDirectory();
+	/**
+	 * @brief 验证环境变量覆盖 INI 配置。
+	 */
 	void environmentOverridesIni();
+	/**
+	 * @brief 验证显式非法配置触发加载失败而非静默使用默认值。
+	 */
 	void configuredInvalidValueFails();
+	/**
+	 * @brief 验证不一致的钱包充值及余额上限被拒绝。
+	 */
 	void inconsistentWalletLimitsFail();
 };
 
+/**
+ * @brief 验证默认数据库相对路径以程序目录为基准。
+ */
 void ConfigTests::defaultsAreResolvedFromExecutableDirectory() {
 	QTemporaryDir directory;
 	QVERIFY(directory.isValid());
@@ -28,6 +49,9 @@ void ConfigTests::defaultsAreResolvedFromExecutableDirectory() {
 	QCOMPARE(config->maxChargerPowerW, qint64(1'000'000));
 }
 
+/**
+ * @brief 验证环境变量覆盖 INI 配置。
+ */
 void ConfigTests::environmentOverridesIni() {
 	QTemporaryDir directory;
 	QFile file(directory.filePath(QStringLiteral("config.ini")));
@@ -45,6 +69,9 @@ void ConfigTests::environmentOverridesIni() {
 	QCOMPARE(config->maxChargerPowerW, qint64(60'125));
 }
 
+/**
+ * @brief 验证显式非法配置触发加载失败而非静默使用默认值。
+ */
 void ConfigTests::configuredInvalidValueFails() {
 	QTemporaryDir directory;
 	QProcessEnvironment environment;
@@ -55,6 +82,9 @@ void ConfigTests::configuredInvalidValueFails() {
 	QCOMPARE(error, QStringLiteral("Invalid value for server/port"));
 }
 
+/**
+ * @brief 验证不一致的钱包充值及余额上限被拒绝。
+ */
 void ConfigTests::inconsistentWalletLimitsFail() {
 	QTemporaryDir directory;
 	QProcessEnvironment environment;

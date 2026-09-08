@@ -1,3 +1,7 @@
+/**
+ * @file order_api.cpp
+ * @brief 启动、停止与结算充电订单，协调占用、计量和幂等写入。
+ */
 #include "evcharger/logging.h"
 
 #include "api_support.h"
@@ -22,11 +26,20 @@ Q_LOGGING_CATEGORY(backendOrders, "evcharger.backend.orders", QtInfoMsg)
 namespace Backend {
 	namespace {
 
+		/** @brief 经参数校验的页码和页大小，用于 LIMIT/OFFSET 和响应元数据。 */
 		struct Pagination {
-			int page = 1;
-			int pageSize = 20;
+			int page = 1;	   ///< 从 1 开始的页码。
+			int pageSize = 20; ///< 每页记录数。
 		};
 
+		/**
+		 * @brief 验证调用者为普通用户，并按当前操作要求检查账号是否处于 active 状态。
+		 * @param request 当前 HTTP 请求，包含查询、请求体、头和路径参数。
+		 * @param dependencies 数据库、配置、时钟与地图客户端依赖。
+		 * @param active 是否要求用户账号处于 active 状态。
+		 * @param[out] failure 必须有效；失败时写入对应 HTTP 错误响应，成功时不应读取该输出。
+		 * @return 通过用户类型及所需账号状态检查的主体；认证失败或不满足权限条件时返回 std::nullopt，并写入 failure。
+		 */
 		std::optional<Principal> requireUser(const HttpRequest &request, const ApiDependencies &dependencies, bool active, HttpResponse *failure) {
 			const auto principal = authenticate(request, dependencies, failure);
 			if (!principal.has_value()) {
@@ -43,22 +56,43 @@ namespace Backend {
 			return principal;
 		}
 
+		/**
+		 * @brief 解析严格大于零的整数资源标识，拒绝非法格式或非正值。
+		 * @param value 待校验、舍入或转换的输入值。
+		 * @return 解析出的正整数标识；无法按相应字符串或 JSON 整数规则解析时返回 std::nullopt。
+		 */
 		std::optional<qint64> positiveId(const QJsonValue &value) {
 			const qint64 id = value.toInteger(-1);
 			return value.isDouble() && id > 0 ? std::optional<qint64>(id) : std::nullopt;
 		}
 
+		/**
+		 * @brief 解析严格大于零的整数资源标识，拒绝非法格式或非正值。
+		 * @param value 待校验、舍入或转换的输入值。
+		 * @return 解析出的正整数标识；无法按相应字符串或 JSON 整数规则解析时返回 std::nullopt。
+		 */
 		std::optional<qint64> positiveId(const QString &value) {
 			bool ok = false;
 			const qint64 id = value.toLongLong(&ok);
 			return ok && id > 0 ? std::optional<qint64>(id) : std::nullopt;
 		}
 
+		/**
+		 * @brief 检查幂等请求头存在且长度不超过接口上限。
+		 * @param request 当前 HTTP 请求，包含查询、请求体、头和路径参数。
+		 * @return 键非空且长度不超过 200 字节返回 true，否则返回 false。
+		 */
 		bool validIdempotencyKey(const HttpRequest &request) {
 			const QByteArray key = request.headers.value(QByteArrayLiteral("idempotency-key"));
 			return !key.isEmpty() && key.size() <= 200;
 		}
 
+		/**
+		 * @brief 解析并要求请求体为空 JSON 对象，拒绝额外字段。
+		 * @param request 当前 HTTP 请求，包含查询、请求体、头和路径参数。
+		 * @param[out] failure 必须有效；失败时写入对应 HTTP 错误响应，成功时不应读取该输出。
+		 * @return 空 JSON 对象；内容类型、JSON 解析或非空对象检查失败时返回 std::nullopt，并写入 failure。
+		 */
 		std::optional<QJsonObject> parseEmptyObject(const HttpRequest &request, HttpResponse *failure) {
 			if (request.body.trimmed().isEmpty()) {
 				return QJsonObject{};
@@ -74,10 +108,21 @@ namespace Backend {
 			return body;
 		}
 
+		/**
+		 * @brief 构造同一幂等键对应不同请求内容时的冲突响应。
+		 * @param request 当前 HTTP 请求，包含查询、请求体、头和路径参数。
+		 * @return HTTP 409 幂等键复用冲突响应。
+		 */
 		HttpResponse idempotencyConflict(const HttpRequest &request) {
 			return jsonError(QStringLiteral("IDEMPOTENCY_KEY_REUSED"), QStringLiteral("幂等键已用于不同请求"), {}, request.requestId, 409);
 		}
 
+		/**
+		 * @brief 在事务内检查用户未完成业务和充电桩可用性，保存功率单价快照并开始充电。
+		 * @param request 当前 HTTP 请求，包含查询、请求体、头和路径参数。
+		 * @param dependencies 数据库、配置、时钟与地图客户端依赖。
+		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
+		 */
 		HttpResponse startOrder(const HttpRequest &request, const ApiDependencies &dependencies) {
 			EV_LOG_DEBUG(backendOrders, nullptr) << "Handling startOrder" << "requestId=" << request.requestId;
 			HttpResponse failure;
@@ -236,6 +281,12 @@ namespace Backend {
 			return jsonData(result, request.requestId, 201);
 		}
 
+		/**
+		 * @brief 查找当前用户充电中或待支付的未完成订单。
+		 * @param request 当前 HTTP 请求，包含查询、请求体、头和路径参数。
+		 * @param dependencies 数据库、配置、时钟与地图客户端依赖。
+		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
+		 */
 		HttpResponse activeOrder(const HttpRequest &request, const ApiDependencies &dependencies) {
 			EV_LOG_DEBUG(backendOrders, nullptr) << "Handling activeOrder" << "requestId=" << request.requestId;
 			HttpResponse failure;
@@ -266,6 +317,12 @@ namespace Backend {
 			return jsonData(found ? QJsonValue(result) : QJsonValue(QJsonValue::Null), request.requestId);
 		}
 
+		/**
+		 * @brief 读取当前用户指定订单，充电中计量由注入时钟计算。
+		 * @param request 当前 HTTP 请求，包含查询、请求体、头和路径参数。
+		 * @param dependencies 数据库、配置、时钟与地图客户端依赖。
+		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
+		 */
 		HttpResponse orderDetail(const HttpRequest &request, const ApiDependencies &dependencies) {
 			EV_LOG_DEBUG(backendOrders, nullptr) << "Handling orderDetail" << "requestId=" << request.requestId;
 			HttpResponse failure;
@@ -294,6 +351,12 @@ namespace Backend {
 			return found ? jsonData(result, request.requestId) : jsonError(QStringLiteral("NOT_FOUND"), QStringLiteral("订单不存在"), {}, request.requestId, 404);
 		}
 
+		/**
+		 * @brief 幂等停止充电，固化计量、释放占用并累计桩使用次数及时长。
+		 * @param request 当前 HTTP 请求，包含查询、请求体、头和路径参数。
+		 * @param dependencies 数据库、配置、时钟与地图客户端依赖。
+		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
+		 */
 		HttpResponse stopOrder(const HttpRequest &request, const ApiDependencies &dependencies) {
 			EV_LOG_DEBUG(backendOrders, nullptr) << "Handling stopOrder" << "requestId=" << request.requestId;
 			HttpResponse failure;
@@ -407,6 +470,12 @@ namespace Backend {
 			return found ? jsonData(result, request.requestId) : jsonError(QStringLiteral("NOT_FOUND"), QStringLiteral("订单不存在"), {}, request.requestId, 404);
 		}
 
+		/**
+		 * @brief 在事务内校验订单和钱包，原子扣款、写入唯一订单流水并将订单结算。
+		 * @param request 当前 HTTP 请求，包含查询、请求体、头和路径参数。
+		 * @param dependencies 数据库、配置、时钟与地图客户端依赖。
+		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
+		 */
 		HttpResponse settleOrder(const HttpRequest &request, const ApiDependencies &dependencies) {
 			EV_LOG_DEBUG(backendOrders, nullptr) << "Handling settleOrder" << "requestId=" << request.requestId;
 			HttpResponse failure;
@@ -552,6 +621,12 @@ namespace Backend {
 			return jsonData(result, request.requestId);
 		}
 
+		/**
+		 * @brief 解析页码和每页数量，使用接口默认值并拒绝超出范围的输入。
+		 * @param request 当前 HTTP 请求，包含查询、请求体、头和路径参数。
+		 * @param[out] failure 必须有效；失败时写入对应 HTTP 错误响应，成功时不应读取该输出。
+		 * @return 包含默认值或已校验参数的分页值；非法页码/页大小返回 std::nullopt，并写入 failure。
+		 */
 		std::optional<Pagination> parsePagination(const HttpRequest &request, HttpResponse *failure) {
 			Pagination result;
 			auto parse = [&](const QString &name, int fallback, int maximum) -> std::optional<int> {
@@ -576,6 +651,12 @@ namespace Backend {
 			return result;
 		}
 
+		/**
+		 * @brief 按状态等筛选条件分页列出当前用户订单。
+		 * @param request 当前 HTTP 请求，包含查询、请求体、头和路径参数。
+		 * @param dependencies 数据库、配置、时钟与地图客户端依赖。
+		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
+		 */
 		HttpResponse listOrders(const HttpRequest &request, const ApiDependencies &dependencies) {
 			EV_LOG_DEBUG(backendOrders, nullptr) << "Handling listOrders" << "requestId=" << request.requestId;
 			HttpResponse failure;
@@ -657,6 +738,11 @@ namespace Backend {
 
 	} // namespace
 
+	/**
+	 * @brief 注册充电订单路由；处理器按值捕获依赖，供服务运行期间使用。
+	 * @param router 接收路由注册或用于分派请求的路由器。
+	 * @param dependencies 数据库、配置、时钟与地图客户端依赖。
+	 */
 	void registerOrderRoutes(Router &router, const ApiDependencies &dependencies) {
 		router.add(QStringLiteral("GET"), QStringLiteral("/api/v1/me/active-order"), [dependencies](const HttpRequest &request) { return activeOrder(request, dependencies); });
 		router.add(QStringLiteral("POST"), QStringLiteral("/api/v1/orders"), [dependencies](const HttpRequest &request) { return startOrder(request, dependencies); });

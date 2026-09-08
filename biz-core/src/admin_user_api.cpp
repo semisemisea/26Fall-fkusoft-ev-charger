@@ -1,3 +1,7 @@
+/**
+ * @file admin_user_api.cpp
+ * @brief 管理员用户查询、冻结解冻及钱包流水接口。
+ */
 #include "evcharger/logging.h"
 
 #include "api_support.h"
@@ -19,11 +23,19 @@ Q_LOGGING_CATEGORY(backendAdminUsers, "evcharger.backend.adminusers", QtInfoMsg)
 namespace Backend {
 	namespace {
 
+		/** @brief 经参数校验的页码和页大小，用于 LIMIT/OFFSET 和响应元数据。 */
 		struct Pagination {
-			int page = 1;
-			int pageSize = 20;
+			int page = 1;	   ///< 从 1 开始的页码。
+			int pageSize = 20; ///< 每页记录数。
 		};
 
+		/**
+		 * @brief 验证管理员身份、账号状态及该接口要求的角色权限。
+		 * @param request 当前 HTTP 请求，包含查询、请求体、头和路径参数。
+		 * @param dependencies 数据库、配置、时钟与地图客户端依赖。
+		 * @param[out] failure 必须有效；失败时写入对应 HTTP 错误响应，成功时不应读取该输出。
+		 * @return 通过该接口角色和账号状态检查的管理员；认证或授权失败时返回 std::nullopt，并写入 failure。
+		 */
 		std::optional<Principal> requireAdmin(const HttpRequest &request, const ApiDependencies &dependencies, HttpResponse *failure) {
 			const auto principal = authenticate(request, dependencies, failure);
 			if (!principal.has_value()) {
@@ -36,12 +48,23 @@ namespace Backend {
 			return principal;
 		}
 
+		/**
+		 * @brief 解析严格大于零的整数资源标识，拒绝非法格式或非正值。
+		 * @param value 待校验、舍入或转换的输入值。
+		 * @return 解析出的正整数标识；无法按相应字符串或 JSON 整数规则解析时返回 std::nullopt。
+		 */
 		std::optional<qint64> positiveId(const QString &value) {
 			bool ok = false;
 			const qint64 id = value.toLongLong(&ok);
 			return ok && id > 0 ? std::optional<qint64>(id) : std::nullopt;
 		}
 
+		/**
+		 * @brief 解析页码和每页数量，使用接口默认值并拒绝超出范围的输入。
+		 * @param request 当前 HTTP 请求，包含查询、请求体、头和路径参数。
+		 * @param[out] failure 必须有效；失败时写入对应 HTTP 错误响应，成功时不应读取该输出。
+		 * @return 包含默认值或已校验参数的分页值；非法页码/页大小返回 std::nullopt，并写入 failure。
+		 */
 		std::optional<Pagination> parsePagination(const HttpRequest &request, HttpResponse *failure) {
 			Pagination pagination;
 			auto parse = [&](const QString &name, int fallback, int maximum) -> std::optional<int> {
@@ -66,6 +89,12 @@ namespace Backend {
 			return pagination;
 		}
 
+		/**
+		 * @brief 构造页码、每页数量和总记录数的分页元数据。
+		 * @param pagination 已校验的页码与页大小。
+		 * @param total 筛选后的总记录数。
+		 * @return 符合本接口字段约定的 JSON 数据。
+		 */
 		QJsonObject pageMeta(const Pagination &pagination, qint64 total) {
 			return QJsonObject{
 				{QStringLiteral("page"), pagination.page},
@@ -75,6 +104,16 @@ namespace Backend {
 			};
 		}
 
+		/**
+		 * @brief 按用户 ID 加载统一资料 JSON，区分查询失败和用户不存在。
+		 * @param database 当前调用线程的数据库连接；不得跨线程保存。
+		 * @param userId 用户标识；可选类型为空时不限制订单归属。
+		 * @param[out] user 只有返回 true 且 found 为 true 时才可读取的资源 JSON；指针必须有效。
+		 * @param[out] found SQL 成功时写入记录是否存在；true 返回值并不保证找到记录。
+		 * @param[out] errorMessage 失败时接收驱动或业务一致性错误；调用方必须提供有效指针。
+		 * @return SQL/计量执行成功返回 true（可能 found 为 false）；执行失败返回 false。
+		 * @note found 与结果对象指针必须有效；仅在 found 为 true 时读取投影。
+		 */
 		bool loadUser(QSqlDatabase &database, qint64 userId, QJsonObject *user, bool *found, QString *errorMessage) {
 			QSqlQuery query(database);
 			query.prepare(QStringLiteral("SELECT id,phone,nickname,avatar IS NOT NULL,balance_fen,status,created_at FROM users WHERE id=?"));
@@ -92,6 +131,12 @@ namespace Backend {
 			return true;
 		}
 
+		/**
+		 * @brief 按手机号和状态过滤用户，返回分页资料与总记录数。
+		 * @param request 当前 HTTP 请求，包含查询、请求体、头和路径参数。
+		 * @param dependencies 数据库、配置、时钟与地图客户端依赖。
+		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
+		 */
 		HttpResponse listUsers(const HttpRequest &request, const ApiDependencies &dependencies) {
 			EV_LOG_DEBUG(backendAdminUsers, nullptr) << "Handling listUsers" << "requestId=" << request.requestId;
 			HttpResponse failure;
@@ -158,6 +203,12 @@ namespace Backend {
 			return success ? jsonData(items, request.requestId, 200, pageMeta(*pagination, total)) : databaseFailure(request.requestId, databaseError);
 		}
 
+		/**
+		 * @brief 查询指定用户详情并附带最近订单信息。
+		 * @param request 当前 HTTP 请求，包含查询、请求体、头和路径参数。
+		 * @param dependencies 数据库、配置、时钟与地图客户端依赖。
+		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
+		 */
 		HttpResponse userDetail(const HttpRequest &request, const ApiDependencies &dependencies) {
 			EV_LOG_DEBUG(backendAdminUsers, nullptr) << "Handling userDetail" << "requestId=" << request.requestId;
 			HttpResponse failure;
@@ -204,6 +255,12 @@ namespace Backend {
 			return found ? jsonData(user, request.requestId) : jsonError(QStringLiteral("NOT_FOUND"), QStringLiteral("用户不存在"), {}, request.requestId, 404);
 		}
 
+		/**
+		 * @brief 修改用户状态；冻结时处理活动预约并释放对应充电桩。
+		 * @param request 当前 HTTP 请求，包含查询、请求体、头和路径参数。
+		 * @param dependencies 数据库、配置、时钟与地图客户端依赖。
+		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
+		 */
 		HttpResponse updateUser(const HttpRequest &request, const ApiDependencies &dependencies) {
 			EV_LOG_DEBUG(backendAdminUsers, nullptr) << "Handling updateUser" << "requestId=" << request.requestId;
 			HttpResponse failure;
@@ -281,6 +338,11 @@ namespace Backend {
 			return found ? jsonData(user, request.requestId) : jsonError(QStringLiteral("NOT_FOUND"), QStringLiteral("用户不存在"), {}, request.requestId, 404);
 		}
 
+		/**
+		 * @brief 按查询列顺序转换钱包流水，保留订单关联及变更后余额。
+		 * @param query 已定位到目标记录的 SQL 查询。
+		 * @return 符合本接口字段约定的 JSON 数据。
+		 */
 		QJsonObject walletTransactionJson(const QSqlQuery &query) {
 			return QJsonObject{
 				{QStringLiteral("id"), query.value(0).toLongLong()},
@@ -291,6 +353,12 @@ namespace Backend {
 			};
 		}
 
+		/**
+		 * @brief 分页读取管理员指定用户的钱包流水。
+		 * @param request 当前 HTTP 请求，包含查询、请求体、头和路径参数。
+		 * @param dependencies 数据库、配置、时钟与地图客户端依赖。
+		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
+		 */
 		HttpResponse userWalletTransactions(const HttpRequest &request, const ApiDependencies &dependencies) {
 			EV_LOG_DEBUG(backendAdminUsers, nullptr) << "Handling userWalletTransactions" << "requestId=" << request.requestId;
 			HttpResponse failure;
@@ -353,6 +421,11 @@ namespace Backend {
 
 	} // namespace
 
+	/**
+	 * @brief 注册管理员用户管理路由；处理器按值捕获依赖，供服务运行期间使用。
+	 * @param router 接收路由注册或用于分派请求的路由器。
+	 * @param dependencies 数据库、配置、时钟与地图客户端依赖。
+	 */
 	void registerAdminUserRoutes(Router &router, const ApiDependencies &dependencies) {
 		router.add(QStringLiteral("GET"), QStringLiteral("/api/v1/admin/users"), [dependencies](const HttpRequest &request) { return listUsers(request, dependencies); });
 		router.add(QStringLiteral("GET"), QStringLiteral("/api/v1/admin/users/{userId}"), [dependencies](const HttpRequest &request) { return userDetail(request, dependencies); });

@@ -1,3 +1,7 @@
+/**
+ * @file StationDetailView.cpp
+ * @brief 展示站内电桩并将预约、充电和导航意图交给主窗口。
+ */
 #include <evcharger/logging.h>
 
 #include "StationDetailView.h"
@@ -25,6 +29,11 @@ Q_LOGGING_CATEGORY(userStationDetailViewLog, "evcharger.user.ui", QtInfoMsg)
 
 namespace {
 	// 切换电桩行的选中高亮：改动态属性后强制 QSS 重新匹配（#chargerRow[selected="true"]）
+	/**
+	 * @brief 更新电桩行 selected 属性并重新应用样式。
+	 * @param row 需要更新高亮的电桩行。
+	 * @param selected 是否选中该行。
+	 */
 	void setRowSelected(QFrame *row, bool selected) {
 		row->setProperty("selected", selected);
 		row->style()->unpolish(row);
@@ -32,7 +41,9 @@ namespace {
 	}
 } // namespace
 
-// 构造函数：搭建详情页全部控件与布局；按钮只发信号，实际下单/预约由 MainWindow 处理
+/**
+ * @details 构造函数：搭建详情页全部控件与布局；按钮只发信号，实际下单/预约由 MainWindow 处理
+ */
 StationDetailView::StationDetailView(ApiClient &api, QWidget *parent)
 	: QWidget(parent), m_api(api) {
 	if (objectName().isEmpty())
@@ -161,7 +172,9 @@ StationDetailView::StationDetailView(ApiClient &api, QWidget *parent)
 		m_bgSpacer->setFixedHeight(m_bgPixmap.height() * width() / m_bgPixmap.width());
 }
 
-// 打开电站：填充名称/地址/距离/价格/空闲标签，随后加载电桩列表
+/**
+ * @details 打开电站：填充名称/地址/距离/价格/空闲标签，随后加载电桩列表
+ */
 void StationDetailView::open(const Station &station) {
 	EV_LOG_INFO(userStationDetailViewLog, this) << "Opening station details";
 	m_station = station;
@@ -185,7 +198,9 @@ void StationDetailView::open(const Station &station) {
 	loadChargers();
 }
 
-// 拉取站内电桩并逐行渲染（编号、状态徽标、类型、功率）；行可点击选中
+/**
+ * @details 拉取站内电桩并逐行渲染（编号、状态徽标、类型、功率）；行可点击选中
+ */
 void StationDetailView::loadChargers() {
 	EV_LOG_INFO(userStationDetailViewLog, this) << "Loading station chargers";
 	m_spinner->show();
@@ -265,7 +280,9 @@ void StationDetailView::loadChargers() {
                   m_statusLabel->show(); });
 }
 
-// 处理电桩行点击：取消旧选中样式，记录选中电桩并高亮该行
+/**
+ * @details 处理电桩行点击：取消旧选中样式，记录选中电桩并高亮该行
+ */
 bool StationDetailView::eventFilter(QObject *obj, QEvent *event) {
 	if (event->type() == QEvent::MouseButtonPress) {
 		QVariant prop = obj->property("chargerId");
@@ -291,7 +308,9 @@ bool StationDetailView::eventFilter(QObject *obj, QEvent *event) {
 	return QWidget::eventFilter(obj, event);
 }
 
-// 仅当选中的电桩为 available 时启用预约/充电按钮；禁用态灰色外观由 QSS :disabled 规则接管
+/**
+ * @details 仅当选中的电桩为 available 时启用预约/充电按钮；禁用态灰色外观由 QSS :disabled 规则接管
+ */
 void StationDetailView::updateBottomButtons() {
 	bool available = m_hasSelection &&
 					 m_selectedCharger.status == QLatin1String("available");
@@ -300,7 +319,9 @@ void StationDetailView::updateBottomButtons() {
 	m_chargeButton->setEnabled(available);
 }
 
-// 按控件宽度等比绘制顶部背景图，图片下方用渐变补齐剩余高度
+/**
+ * @details 按控件宽度等比绘制顶部背景图，图片下方用渐变补齐剩余高度
+ */
 void StationDetailView::paintEvent(QPaintEvent *event) {
 	QWidget::paintEvent(event);
 	if (m_bgPixmap.isNull())
@@ -318,7 +339,9 @@ void StationDetailView::paintEvent(QPaintEvent *event) {
 	}
 }
 
-// 尺寸变化时同步调整背景占位高度，保证背景图不被内容遮挡变形
+/**
+ * @details 尺寸变化时同步调整背景占位高度，保证背景图不被内容遮挡变形
+ */
 void StationDetailView::resizeEvent(QResizeEvent *event) {
 	QWidget::resizeEvent(event);
 	if (m_bgSpacer && !m_bgPixmap.isNull() && m_bgPixmap.width() > 0) {

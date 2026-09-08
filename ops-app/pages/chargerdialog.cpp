@@ -1,3 +1,6 @@
+/** @file
+ * @brief 电桩新增与编辑表单，管理电站归属锁定、类型、功率及运维状态输入。
+ */
 #include "chargerdialog.h"
 #include <evcharger/logging.h>
 
@@ -12,6 +15,7 @@
 
 Q_LOGGING_CATEGORY(opsChargerdialogLog, "evcharger.ops.chargerDialog", QtInfoMsg)
 
+/// @brief 建立电桩表单；有初始电桩时回填字段并锁定电站，控件由对话框拥有。
 ChargerDialog::ChargerDialog(const ops::Charger *charger, QWidget *parent)
 	: QDialog(parent) {
 	setObjectName(QStringLiteral("opsChargerDialog"));
@@ -73,14 +77,17 @@ ChargerDialog::ChargerDialog(const ops::Charger *charger, QWidget *parent)
 	connect(buttons, &QDialogButtonBox::rejected, this, &ChargerDialog::reject);
 }
 
+/// @brief 建立电桩表单；有初始电桩时回填字段并锁定电站，控件由对话框拥有。
 ChargerDialog::ChargerDialog(qint64 stationId, const ops::Charger *charger, QWidget *parent)
 	: ChargerDialog(charger, parent) {
 	m_stationIdEdit->setText(QString::number(stationId));
 	m_stationIdEdit->setReadOnly(true);
 }
 
+/// @brief 返回表单中的所属电站 ID。
 qint64 ChargerDialog::stationId() const { return m_stationIdEdit->text().toLongLong(); }
 
+/// @brief 将当前控件值复制为提交表单，不执行网络操作。
 ops::ChargerForm ChargerDialog::form() const {
 	ops::ChargerForm result;
 	result.type = m_typeBox->currentData().toString();

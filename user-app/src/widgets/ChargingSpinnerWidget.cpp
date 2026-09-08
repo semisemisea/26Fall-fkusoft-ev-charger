@@ -1,3 +1,7 @@
+/**
+ * @file ChargingSpinnerWidget.cpp
+ * @brief 绘制双层旋转圆角图形和浮动电池组成的充电动效。
+ */
 #include "ChargingSpinnerWidget.h"
 
 #include "widgets/AppIcons.h"
@@ -7,6 +11,9 @@
 #include <QRadialGradient>
 #include <cmath>
 
+/**
+ * @details 创建 30 ms 动画定时器；旋转与上下浮动均约十秒一周期，随控件销毁释放。
+ */
 ChargingSpinnerWidget::ChargingSpinnerWidget(QWidget *parent)
 	: QWidget(parent) {
 	m_timer = new QTimer(this);
@@ -26,6 +33,9 @@ ChargingSpinnerWidget::ChargingSpinnerWidget(QWidget *parent)
 	m_timer->start(30);
 }
 
+/**
+ * @details 以较短边确定尺寸，先绘制偏移背景层再绘制正面层和电池，不改变控件布局几何。
+ */
 void ChargingSpinnerWidget::paintEvent(QPaintEvent *event) {
 	Q_UNUSED(event)
 	QPainter painter(this);

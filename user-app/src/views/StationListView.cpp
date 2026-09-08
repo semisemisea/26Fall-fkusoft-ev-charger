@@ -1,3 +1,7 @@
+/**
+ * @file StationListView.cpp
+ * @brief 查询附近电站，支持位置预设、文本过滤和基于空闲率的本地推荐。
+ */
 #include <evcharger/logging.h>
 
 #include "StationListView.h"
@@ -24,12 +28,16 @@
 Q_LOGGING_CATEGORY(userStationListViewLog, "evcharger.user.ui", QtInfoMsg)
 
 namespace {
+	/**
+	 * @brief 桌面演示所用的位置预设，选择后写入 Session。
+	 */
 	struct LocationPreset {
-		const char *name;
-		double latitude;
-		double longitude;
+		const char *name; ///< 位置选择器中的 UTF-8 名称。
+		double latitude;  ///< 预设纬度，单位为度。
+		double longitude; ///< 预设经度，单位为度。
 	};
 
+	/// @brief 位置下拉框的固定大连区域样本，不依赖设备定位。
 	const LocationPreset kLocationPresets[] = {
 		{"大连市中心", 38.914, 121.614},
 		{"软件园", 38.889, 121.537},
@@ -39,7 +47,9 @@ namespace {
 	};
 } // namespace
 
-// 构造函数：搭建定位切换、搜索框、AI 推荐横幅与电站卡片滚动列表
+/**
+ * @details 构造函数：搭建定位切换、搜索框、AI 推荐横幅与电站卡片滚动列表
+ */
 StationListView::StationListView(Session &session, ApiClient &api, QWidget *parent)
 	: QWidget(parent), m_session(session), m_api(api) {
 	if (objectName().isEmpty())
@@ -136,13 +146,17 @@ StationListView::StationListView(Session &session, ApiClient &api, QWidget *pare
 	});
 }
 
-// 页面显示时自动刷新列表
+/**
+ * @details 页面显示时自动刷新列表
+ */
 void StationListView::showEvent(QShowEvent *event) {
 	QWidget::showEvent(event);
 	reload();
 }
 
-// 按当前定位请求附近电站并重建卡片；首屏成功后播放一次淡入动画
+/**
+ * @details 按当前定位请求附近电站并重建卡片；首屏成功后播放一次淡入动画
+ */
 void StationListView::reload() {
 	EV_LOG_INFO(userStationListViewLog, this) << "Loading stations";
 	const LocationPreset &preset = kLocationPresets[m_locationCombo->currentIndex()];
@@ -197,7 +211,9 @@ void StationListView::reload() {
 				  m_statusLabel->show(); });
 }
 
-// 按搜索关键字逐卡片匹配（名称/地址），仅切换可见性
+/**
+ * @details 按搜索关键字逐卡片匹配（名称/地址），仅切换可见性
+ */
 void StationListView::applyFilter() {
 	EV_LOG_INFO(userStationListViewLog, this) << "Applying station filter";
 	const QString filter = m_searchEdit->text().trimmed();
@@ -206,7 +222,9 @@ void StationListView::applyFilter() {
 	}
 }
 
-// 根据当前空闲率推荐可用电站，不依赖本期范围之外的预测接口
+/**
+ * @details 根据当前空闲率推荐可用电站，不依赖本期范围之外的预测接口
+ */
 void StationListView::loadRecommendation() {
 	EV_LOG_INFO(userStationListViewLog, this) << "Loading station recommendation";
 	const Station *best = nullptr;

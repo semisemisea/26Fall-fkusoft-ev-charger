@@ -1,3 +1,7 @@
+/**
+ * @file charger_api.cpp
+ * @brief 充电桩公开查询及管理员创建、维护、重启和软删除接口。
+ */
 #include "evcharger/logging.h"
 
 #include "api_support.h"
@@ -20,17 +24,31 @@ Q_LOGGING_CATEGORY(backendChargers, "evcharger.backend.chargers", QtInfoMsg)
 namespace Backend {
 	namespace {
 
+		/** @brief 经参数校验的页码和页大小，用于 LIMIT/OFFSET 和响应元数据。 */
 		struct Pagination {
-			int page = 1;
-			int pageSize = 20;
+			int page = 1;	   ///< 从 1 开始的页码。
+			int pageSize = 20; ///< 每页记录数。
 		};
 
+		/**
+		 * @brief 解析严格大于零的整数资源标识，拒绝非法格式或非正值。
+		 * @param raw 待解析的原始文本。
+		 * @return 解析出的正整数标识；无法按相应字符串或 JSON 整数规则解析时返回 std::nullopt。
+		 */
 		std::optional<qint64> positiveId(const QString &raw) {
 			bool ok = false;
 			const qint64 id = raw.toLongLong(&ok);
 			return ok && id > 0 ? std::optional<qint64>(id) : std::nullopt;
 		}
 
+		/**
+		 * @brief 验证管理员身份、账号状态及该接口要求的角色权限。
+		 * @param request 当前 HTTP 请求，包含查询、请求体、头和路径参数。
+		 * @param dependencies 数据库、配置、时钟与地图客户端依赖。
+		 * @param write 是否按写操作要求完整管理员权限。
+		 * @param[out] failure 必须有效；失败时写入对应 HTTP 错误响应，成功时不应读取该输出。
+		 * @return 通过该接口角色和账号状态检查的管理员；认证或授权失败时返回 std::nullopt，并写入 failure。
+		 */
 		std::optional<Principal> requireAdmin(const HttpRequest &request, const ApiDependencies &dependencies, bool write, HttpResponse *failure) {
 			const auto principal = authenticate(request, dependencies, failure);
 			if (!principal.has_value()) {
@@ -43,6 +61,12 @@ namespace Backend {
 			return principal;
 		}
 
+		/**
+		 * @brief 解析页码和每页数量，使用接口默认值并拒绝超出范围的输入。
+		 * @param request 当前 HTTP 请求，包含查询、请求体、头和路径参数。
+		 * @param[out] failure 必须有效；失败时写入对应 HTTP 错误响应，成功时不应读取该输出。
+		 * @return 包含默认值或已校验参数的分页值；非法页码/页大小返回 std::nullopt，并写入 failure。
+		 */
 		std::optional<Pagination> parsePagination(const HttpRequest &request, HttpResponse *failure) {
 			Pagination result;
 			auto parse = [&](const QString &name, int fallback, int maximum) -> std::optional<int> {
@@ -67,6 +91,12 @@ namespace Backend {
 			return result;
 		}
 
+		/**
+		 * @brief 构造页码、每页数量和总记录数的分页元数据。
+		 * @param pagination 已校验的页码与页大小。
+		 * @param total 筛选后的总记录数。
+		 * @return 符合本接口字段约定的 JSON 数据。
+		 */
 		QJsonObject pageMeta(const Pagination &pagination, qint64 total) {
 			return QJsonObject{
 				{QStringLiteral("page"), pagination.page},
@@ -76,6 +106,14 @@ namespace Backend {
 			};
 		}
 
+		/**
+		 * @brief 校验充电桩筛选值，并生成带绑定参数的 WHERE 条件。
+		 * @param request 当前 HTTP 请求，包含查询、请求体、头和路径参数。
+		 * @param[in,out] where 累积已校验的 SQL 条件文本，调用方传入初始条件。
+		 * @param[in,out] bindings 累积 SQL 占位符对应的参数，顺序与 where 一致。
+		 * @param[out] failure 必须有效；失败时写入对应 HTTP 错误响应，成功时不应读取该输出。
+		 * @return 全部筛选条件有效返回 true；任一条件无效返回 false 并写入 failure，不应继续使用输出条件。
+		 */
 		bool validateFilters(const HttpRequest &request, QString *where, QVariantList *bindings, HttpResponse *failure) {
 			const QString type = request.query.queryItemValue(QStringLiteral("type"));
 			const QString occupancy = request.query.queryItemValue(QStringLiteral("occupancyStatus"));
@@ -101,6 +139,14 @@ namespace Backend {
 			return true;
 		}
 
+		/**
+		 * @brief 根据公开或管理视角过滤充电桩，并按可选站点限制分页查询。
+		 * @param request 当前 HTTP 请求，包含查询、请求体、头和路径参数。
+		 * @param dependencies 数据库、配置、时钟与地图客户端依赖。
+		 * @param admin 是否采用管理员访问范围。
+		 * @param stationId 站点标识；可选类型为空时不按站点过滤。
+		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
+		 */
 		HttpResponse listChargers(const HttpRequest &request, const ApiDependencies &dependencies, bool admin, std::optional<qint64> stationId) {
 			HttpResponse failure;
 			if (admin && !requireAdmin(request, dependencies, false, &failure).has_value()) {
@@ -199,6 +245,13 @@ namespace Backend {
 			return jsonData(items, request.requestId, 200, pageMeta(*page, total));
 		}
 
+		/**
+		 * @brief 读取充电桩详情，按公开或管理员访问范围处理可见性。
+		 * @param request 当前 HTTP 请求，包含查询、请求体、头和路径参数。
+		 * @param dependencies 数据库、配置、时钟与地图客户端依赖。
+		 * @param admin 是否采用管理员访问范围。
+		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
+		 */
 		HttpResponse chargerDetail(const HttpRequest &request, const ApiDependencies &dependencies, bool admin) {
 			HttpResponse failure;
 			if (admin) {
@@ -236,6 +289,12 @@ namespace Backend {
 			return found ? jsonData(charger, request.requestId) : jsonError(QStringLiteral("NOT_FOUND"), QStringLiteral("电桩不存在"), {}, request.requestId, 404);
 		}
 
+		/**
+		 * @brief 校验所属站点、类型和功率后创建充电桩。
+		 * @param request 当前 HTTP 请求，包含查询、请求体、头和路径参数。
+		 * @param dependencies 数据库、配置、时钟与地图客户端依赖。
+		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
+		 */
 		HttpResponse createCharger(const HttpRequest &request, const ApiDependencies &dependencies) {
 			EV_LOG_DEBUG(backendChargers, nullptr) << "Handling createCharger" << "requestId=" << request.requestId;
 			HttpResponse failure;
@@ -310,6 +369,12 @@ namespace Backend {
 			return stationFound ? jsonData(result, request.requestId, 201) : jsonError(QStringLiteral("NOT_FOUND"), QStringLiteral("电站不存在"), {}, request.requestId, 404);
 		}
 
+		/**
+		 * @brief 更新充电桩配置及运行状态，故障变更同时处理相关预约占用。
+		 * @param request 当前 HTTP 请求，包含查询、请求体、头和路径参数。
+		 * @param dependencies 数据库、配置、时钟与地图客户端依赖。
+		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
+		 */
 		HttpResponse updateCharger(const HttpRequest &request, const ApiDependencies &dependencies) {
 			EV_LOG_DEBUG(backendChargers, nullptr) << "Handling updateCharger" << "requestId=" << request.requestId;
 			HttpResponse failure;
@@ -415,6 +480,12 @@ namespace Backend {
 			return found ? jsonData(result, request.requestId) : jsonError(QStringLiteral("NOT_FOUND"), QStringLiteral("电桩不存在"), {}, request.requestId, 404);
 		}
 
+		/**
+		 * @brief 按管理员权限恢复充电桩运行状态。
+		 * @param request 当前 HTTP 请求，包含查询、请求体、头和路径参数。
+		 * @param dependencies 数据库、配置、时钟与地图客户端依赖。
+		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
+		 */
 		HttpResponse restartCharger(const HttpRequest &request, const ApiDependencies &dependencies) {
 			EV_LOG_DEBUG(backendChargers, nullptr) << "Handling restartCharger" << "requestId=" << request.requestId;
 			HttpResponse failure;
@@ -476,6 +547,12 @@ namespace Backend {
 			return invalidState ? jsonError(QStringLiteral("INVALID_STATE_TRANSITION"), QStringLiteral("当前电桩状态不允许重启"), {}, request.requestId, 409) : jsonData(result, request.requestId);
 		}
 
+		/**
+		 * @brief 检查关联业务冲突后软删除充电桩，保留历史数据。
+		 * @param request 当前 HTTP 请求，包含查询、请求体、头和路径参数。
+		 * @param dependencies 数据库、配置、时钟与地图客户端依赖。
+		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
+		 */
 		HttpResponse deleteCharger(const HttpRequest &request, const ApiDependencies &dependencies) {
 			EV_LOG_DEBUG(backendChargers, nullptr) << "Handling deleteCharger" << "requestId=" << request.requestId;
 			HttpResponse failure;
@@ -553,6 +630,11 @@ namespace Backend {
 
 	} // namespace
 
+	/**
+	 * @brief 注册充电桩路由；处理器按值捕获依赖，供服务运行期间使用。
+	 * @param router 接收路由注册或用于分派请求的路由器。
+	 * @param dependencies 数据库、配置、时钟与地图客户端依赖。
+	 */
 	void registerChargerRoutes(Router &router, const ApiDependencies &dependencies) {
 		router.add(QStringLiteral("GET"), QStringLiteral("/api/v1/stations/{stationId}/chargers"), [dependencies](const HttpRequest &request) {
 			const auto stationId = positiveId(request.pathParameters.value(QStringLiteral("stationId")));

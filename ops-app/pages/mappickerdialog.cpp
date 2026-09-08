@@ -1,3 +1,6 @@
+/** @file
+ * @brief 腾讯地图选点对话框，校验 iframe 来源和坐标标题，兼容缺少 WebEngine 或密钥的情况。
+ */
 #include "mappickerdialog.h"
 #include <evcharger/logging.h>
 
@@ -15,16 +18,29 @@ Q_LOGGING_CATEGORY(opsMappickerdialogLog, "evcharger.ops.map", QtInfoMsg)
 
 namespace {
 
+	/// @brief 无效初始坐标时使用的大连默认纬度。
 	constexpr double kDefaultLatitude = 38.914;
+	/// @brief 无效初始坐标时使用的大连默认经度。
 	constexpr double kDefaultLongitude = 121.614;
+	/// @brief 页面标题向 C++ 传递选点结果的专用前缀。
 	const QLatin1String kSelectionPrefix{"ev-charger-location:"};
 
+	/** @brief 校验经纬度为有限数且处于地理范围内。
+	 * @param latitude 纬度，单位度。
+	 * @param longitude 经度，单位度。
+	 * @return 两个值有限且纬度在 -90..90、经度在 -180..180 时为 true。
+	 */
 	bool validCoordinate(double latitude, double longitude) {
 		return qIsFinite(latitude) && qIsFinite(longitude) && latitude >= -90.0 &&
 			   latitude <= 90.0 && longitude >= -180.0 && longitude <= 180.0;
 	}
 
 #ifdef OPS_APP_HAS_WEBENGINE
+	/** @brief 构造腾讯选点器 URL，编码密钥和初始中心坐标。
+	 * @param mapKey 腾讯地图服务密钥。
+	 * @param coordinate 初始中心坐标。
+	 * @return 已编码选点选项、坐标及密钥的 URL。
+	 */
 	QUrl pickerUrl(const QString &mapKey, const MapPickerDialog::Coordinate &coordinate) {
 		QUrl url(QStringLiteral("https://apis.map.qq.com/tools/locpicker"));
 		QUrlQuery query;
@@ -46,6 +62,7 @@ namespace {
 
 } // namespace
 
+/// @brief 校验初始坐标并建立地图选点器；无密钥或 WebEngine 时显示提示。
 MapPickerDialog::MapPickerDialog(const QString &mapKey, double initialLatitude,
 								 double initialLongitude, QWidget *parent)
 	: QDialog(parent) {
@@ -86,6 +103,8 @@ MapPickerDialog::MapPickerDialog(const QString &mapKey, double initialLatitude,
 		const QString source = pickerUrl(mapKey, m_coordinate)
 								   .toString(QUrl::FullyEncoded)
 								   .toHtmlEscaped();
+		// 仅信任选点 iframe 的两个腾讯来源；JavaScript 校验后以专用标题前缀传回 C++。
+		// C++ 再检查有限数和经纬度范围，合法结果才接受对话框。
 		const QString html = QStringLiteral(R"HTML(
 <!doctype html>
 <html>
@@ -133,6 +152,7 @@ MapPickerDialog::MapPickerDialog(const QString &mapKey, double initialLatitude,
 }
 
 std::optional<MapPickerDialog::Coordinate>
+/// @brief 解析专用前缀的纬经度标题；格式、数值或范围错误返回 nullopt。
 MapPickerDialog::coordinateFromTitle(const QString &title) {
 	if (!title.startsWith(kSelectionPrefix))
 		return std::nullopt;

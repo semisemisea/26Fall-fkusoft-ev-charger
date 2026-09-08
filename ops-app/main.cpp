@@ -1,3 +1,6 @@
+/** @file
+ * @brief 组装管理员应用、全局深色主题和共享客户端，以登录循环管理认证失效后的窗口重建。
+ */
 #include "logindialog.h"
 #include "mainwindow.h"
 #include <QThread>
@@ -14,6 +17,7 @@ Q_LOGGING_CATEGORY(opsLifecycle, "evcharger.ops.lifecycle", QtInfoMsg)
 namespace {
 
 	// 深色主题,视觉基调参考 Qt 官方 Thermostat 示例(Widgets + QSS 实现)
+	/// @brief 应用级深色 QSS；通过对象名区分导航、危险操作和指标卡片外观。
 	const char *kAppStyleSheet = R"(
 QMainWindow, QDialog {
     background-color: #1b1e23;
@@ -115,6 +119,11 @@ QMessageBox { background-color: #22262c; }
 )";
 } // namespace
 
+/** @brief 创建应用、共享 API 和登录循环；认证失效后销毁本轮主窗口并重新登录。
+ * @param argc 命令行参数数量。
+ * @param argv 命令行参数数组。
+ * @return 退出码；当前正常退出路径返回零。
+ */
 int main(int argc, char *argv[]) {
 	evcharger::logging::installMessageHandler();
 	QApplication a(argc, argv);

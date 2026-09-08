@@ -1,3 +1,7 @@
+/**
+ * @file user_api.cpp
+ * @brief 个人资料、头像、钱包余额及幂等充值接口。
+ */
 #include "evcharger/logging.h"
 
 #include "api_support.h"
@@ -20,11 +24,20 @@ Q_LOGGING_CATEGORY(backendUsers, "evcharger.backend.users", QtInfoMsg)
 namespace Backend {
 	namespace {
 
+		/** @brief 经参数校验的页码和页大小，用于 LIMIT/OFFSET 和响应元数据。 */
 		struct Pagination {
-			int page = 1;
-			int pageSize = 20;
+			int page = 1;	   ///< 从 1 开始的页码。
+			int pageSize = 20; ///< 每页记录数。
 		};
 
+		/**
+		 * @brief 验证调用者为普通用户，并按当前操作要求检查账号是否处于 active 状态。
+		 * @param request 当前 HTTP 请求，包含查询、请求体、头和路径参数。
+		 * @param dependencies 数据库、配置、时钟与地图客户端依赖。
+		 * @param requireActive 是否禁止冻结用户执行此操作。
+		 * @param[out] failure 必须有效；失败时写入对应 HTTP 错误响应，成功时不应读取该输出。
+		 * @return 通过用户类型及所需账号状态检查的主体；认证失败或不满足权限条件时返回 std::nullopt，并写入 failure。
+		 */
 		std::optional<Principal> requireUser(const HttpRequest &request, const ApiDependencies &dependencies, bool requireActive, HttpResponse *failure) {
 			const auto principal = authenticate(request, dependencies, failure);
 			if (!principal.has_value()) {
@@ -41,6 +54,12 @@ namespace Backend {
 			return principal;
 		}
 
+		/**
+		 * @brief 解析页码和每页数量，使用接口默认值并拒绝超出范围的输入。
+		 * @param request 当前 HTTP 请求，包含查询、请求体、头和路径参数。
+		 * @param[out] failure 必须有效；失败时写入对应 HTTP 错误响应，成功时不应读取该输出。
+		 * @return 包含默认值或已校验参数的分页值；非法页码/页大小返回 std::nullopt，并写入 failure。
+		 */
 		std::optional<Pagination> parsePagination(const HttpRequest &request, HttpResponse *failure) {
 			Pagination pagination;
 			auto parse = [&](const QString &name, int defaultValue, int maximum) -> std::optional<int> {
@@ -65,6 +84,12 @@ namespace Backend {
 			return pagination;
 		}
 
+		/**
+		 * @brief 读取当前用户资料、头像存在标志与余额。
+		 * @param request 当前 HTTP 请求，包含查询、请求体、头和路径参数。
+		 * @param dependencies 数据库、配置、时钟与地图客户端依赖。
+		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
+		 */
 		HttpResponse getProfile(const HttpRequest &request, const ApiDependencies &dependencies) {
 			EV_LOG_DEBUG(backendUsers, nullptr) << "Handling getProfile" << "requestId=" << request.requestId;
 			HttpResponse failure;
@@ -96,6 +121,12 @@ namespace Backend {
 			return found ? jsonData(profile, request.requestId) : jsonError(QStringLiteral("NOT_FOUND"), QStringLiteral("用户不存在"), {}, request.requestId, 404);
 		}
 
+		/**
+		 * @brief 校验并更新当前用户昵称，返回最新个人资料。
+		 * @param request 当前 HTTP 请求，包含查询、请求体、头和路径参数。
+		 * @param dependencies 数据库、配置、时钟与地图客户端依赖。
+		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
+		 */
 		HttpResponse updateProfile(const HttpRequest &request, const ApiDependencies &dependencies) {
 			EV_LOG_DEBUG(backendUsers, nullptr) << "Handling updateProfile" << "requestId=" << request.requestId;
 			HttpResponse failure;
@@ -128,11 +159,17 @@ namespace Backend {
 			return success ? getProfile(request, dependencies) : databaseFailure(request.requestId, databaseError);
 		}
 
+		/** @brief 解析后的单个头像文件，包含媒体类型和原始字节。 */
 		struct AvatarPart {
-			QByteArray mimeType;
-			QByteArray bytes;
+			QByteArray mimeType; ///< JPEG 或 PNG 头像媒体类型。
+			QByteArray bytes;	 ///< 头像文件原始字节。
 		};
 
+		/**
+		 * @brief 解析单文件 multipart 头像内容，校验边界、文件字段与 JPEG/PNG 媒体类型。
+		 * @param request 当前 HTTP 请求，包含查询、请求体、头和路径参数。
+		 * @return 媒体类型和文件字节；multipart 边界、文件部分头或图片媒体类型不符合约定时返回 std::nullopt。
+		 */
 		std::optional<AvatarPart> parseAvatar(const HttpRequest &request) {
 			const QByteArray contentType = request.headers.value(QByteArrayLiteral("content-type"));
 			static const QRegularExpression boundaryExpression(QStringLiteral("^multipart/form-data\\s*;\\s*boundary=(?:\"([^\"]+)\"|([^;\\s]+))$"), QRegularExpression::CaseInsensitiveOption);
@@ -180,6 +217,12 @@ namespace Backend {
 			return AvatarPart{mimeType, request.body.mid(dataStart, dataEnd - dataStart)};
 		}
 
+		/**
+		 * @brief 验证活动用户及头像大小后，在事务中保存头像字节与媒体类型。
+		 * @param request 当前 HTTP 请求，包含查询、请求体、头和路径参数。
+		 * @param dependencies 数据库、配置、时钟与地图客户端依赖。
+		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
+		 */
 		HttpResponse uploadAvatar(const HttpRequest &request, const ApiDependencies &dependencies) {
 			EV_LOG_DEBUG(backendUsers, nullptr) << "Handling uploadAvatar" << "requestId=" << request.requestId;
 			HttpResponse failure;
@@ -213,6 +256,12 @@ namespace Backend {
 			return success ? jsonData(QJsonObject{{QStringLiteral("hasAvatar"), true}, {QStringLiteral("mimeType"), QString::fromLatin1(avatar->mimeType)}}, request.requestId) : databaseFailure(request.requestId, databaseError);
 		}
 
+		/**
+		 * @brief 读取当前用户头像并以其媒体类型返回二进制；不存在时返回资源错误。
+		 * @param request 当前 HTTP 请求，包含查询、请求体、头和路径参数。
+		 * @param dependencies 数据库、配置、时钟与地图客户端依赖。
+		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
+		 */
 		HttpResponse getAvatar(const HttpRequest &request, const ApiDependencies &dependencies) {
 			EV_LOG_DEBUG(backendUsers, nullptr) << "Handling getAvatar" << "requestId=" << request.requestId;
 			HttpResponse failure;
@@ -244,6 +293,12 @@ namespace Backend {
 			return mimeType.isEmpty() ? jsonError(QStringLiteral("NOT_FOUND"), QStringLiteral("尚未上传头像"), {}, request.requestId, 404) : HttpResponse{200, mimeType, bytes, {}};
 		}
 
+		/**
+		 * @brief 清空当前用户头像数据与媒体类型。
+		 * @param request 当前 HTTP 请求，包含查询、请求体、头和路径参数。
+		 * @param dependencies 数据库、配置、时钟与地图客户端依赖。
+		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
+		 */
 		HttpResponse deleteAvatar(const HttpRequest &request, const ApiDependencies &dependencies) {
 			EV_LOG_DEBUG(backendUsers, nullptr) << "Handling deleteAvatar" << "requestId=" << request.requestId;
 			HttpResponse failure;
@@ -267,6 +322,12 @@ namespace Backend {
 			return success ? HttpResponse{204, {}, {}, {}} : databaseFailure(request.requestId, databaseError);
 		}
 
+		/**
+		 * @brief 读取当前用户钱包余额，以分为单位返回。
+		 * @param request 当前 HTTP 请求，包含查询、请求体、头和路径参数。
+		 * @param dependencies 数据库、配置、时钟与地图客户端依赖。
+		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
+		 */
 		HttpResponse getWallet(const HttpRequest &request, const ApiDependencies &dependencies) {
 			EV_LOG_DEBUG(backendUsers, nullptr) << "Handling getWallet" << "requestId=" << request.requestId;
 			HttpResponse failure;
@@ -291,6 +352,11 @@ namespace Backend {
 			return success ? jsonData(QJsonObject{{QStringLiteral("balanceFen"), balance}}, request.requestId) : databaseFailure(request.requestId, databaseError);
 		}
 
+		/**
+		 * @brief 按查询列顺序转换钱包流水，保留订单关联及变更后余额。
+		 * @param query 已定位到目标记录的 SQL 查询。
+		 * @return 符合本接口字段约定的 JSON 数据。
+		 */
 		QJsonObject walletTransactionJson(const QSqlQuery &query) {
 			return QJsonObject{
 				{QStringLiteral("id"), query.value(0).toLongLong()},
@@ -301,6 +367,12 @@ namespace Backend {
 			};
 		}
 
+		/**
+		 * @brief 分页读取当前用户钱包流水并返回总数。
+		 * @param request 当前 HTTP 请求，包含查询、请求体、头和路径参数。
+		 * @param dependencies 数据库、配置、时钟与地图客户端依赖。
+		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
+		 */
 		HttpResponse listWalletTransactions(const HttpRequest &request, const ApiDependencies &dependencies) {
 			EV_LOG_DEBUG(backendUsers, nullptr) << "Handling listWalletTransactions" << "requestId=" << request.requestId;
 			HttpResponse failure;
@@ -350,6 +422,12 @@ namespace Backend {
 														   });
 		}
 
+		/**
+		 * @brief 校验充值金额和幂等键，在同一事务内更新余额、记录流水并保存重放结果。
+		 * @param request 当前 HTTP 请求，包含查询、请求体、头和路径参数。
+		 * @param dependencies 数据库、配置、时钟与地图客户端依赖。
+		 * @return 成功数据或对应的校验、权限、业务冲突、数据库错误响应。
+		 */
 		HttpResponse topUp(const HttpRequest &request, const ApiDependencies &dependencies) {
 			EV_LOG_DEBUG(backendUsers, nullptr) << "Handling topUp" << "requestId=" << request.requestId;
 			HttpResponse failure;
@@ -420,6 +498,7 @@ namespace Backend {
 					return false;
 				}
 				const qint64 balance = user.value(0).toLongLong();
+				// 先做减法比较避免 balance + amount 溢出；上限失败也需保存幂等结果。
 				if (balance > dependencies.config.maxWalletBalanceFen - amount) {
 					resultStatus = 422;
 					result = idempotencyError(QStringLiteral("BALANCE_LIMIT_EXCEEDED"), QStringLiteral("充值后余额将超过上限"));
@@ -489,6 +568,11 @@ namespace Backend {
 
 	} // namespace
 
+	/**
+	 * @brief 注册个人资料和钱包路由；处理器按值捕获依赖，供服务运行期间使用。
+	 * @param router 接收路由注册或用于分派请求的路由器。
+	 * @param dependencies 数据库、配置、时钟与地图客户端依赖。
+	 */
 	void registerUserRoutes(Router &router, const ApiDependencies &dependencies) {
 		router.add(QStringLiteral("GET"), QStringLiteral("/api/v1/me"), [dependencies](const HttpRequest &request) { return getProfile(request, dependencies); });
 		router.add(QStringLiteral("PATCH"), QStringLiteral("/api/v1/me"), [dependencies](const HttpRequest &request) { return updateProfile(request, dependencies); });

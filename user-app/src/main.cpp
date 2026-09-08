@@ -1,3 +1,7 @@
+/**
+ * @file main.cpp
+ * @brief 创建 QApplication、加载资源样式表并启动用户主窗口。
+ */
 #include <QApplication>
 #include <QFile>
 #include <QThread>
@@ -8,6 +12,12 @@
 Q_LOGGING_CATEGORY(userApplication, "evcharger.user.application", QtInfoMsg)
 
 // 程序入口：配置 WebEngine 兼容参数，加载全局样式表后显示主窗口
+/**
+ * @brief 配置应用运行环境、加载全局样式并进入 Qt 事件循环。
+ * @param argc 命令行参数数量，由 QApplication 解析。
+ * @param argv 命令行参数数组，应用运行期间保持有效。
+ * @return Qt 事件循环退出码。
+ */
 int main(int argc, char *argv[]) {
 	evcharger::logging::installMessageHandler();
 	QThread::currentThread()->setObjectName(QStringLiteral("userMainThread"));
