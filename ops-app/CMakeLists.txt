@@ -18,6 +18,7 @@ set(PROJECT_SOURCES
     pages/stationpage.h
     pages/userpage.cpp
     pages/userpage.h
+    resources/resources.qrc
 )
 
 qt_add_executable(ops-app

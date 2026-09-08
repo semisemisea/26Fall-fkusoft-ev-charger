@@ -1,11 +1,26 @@
 #include "logindialog.h"
 #include "ui_logindialog.h"
 
+#include <QLabel>
+#include <QPixmap>
 #include <QPushButton>
+#include <QVBoxLayout>
 
 LoginDialog::LoginDialog(ops::ApiClient *api, QWidget *parent)
 	: QDialog(parent), ui(new Ui::LoginDialog), m_api(api) {
 	ui->setupUi(this);
+	// 品牌图标:插在标题上方;资源由 resources.qrc 打包,缺失时静默跳过
+	auto *logoLabel = new QLabel(this);
+	logoLabel->setAlignment(Qt::AlignCenter);
+	logoLabel->setStyleSheet(QStringLiteral("background: transparent;"));
+	const QPixmap logoPixmap(QStringLiteral(":/logo.png"));
+	if (!logoPixmap.isNull()) {
+		logoLabel->setPixmap(logoPixmap.scaled(80, 80, Qt::KeepAspectRatio,
+											 Qt::SmoothTransformation));
+		qobject_cast<QVBoxLayout *>(layout())->insertWidget(0, logoLabel);
+	} else {
+		delete logoLabel;
+	}
 	ui->passwordEdit->setEchoMode(QLineEdit::EchoMode::Password);
 	setWindowTitle(tr("充电桩管理平台 - 管理员登录"));
 

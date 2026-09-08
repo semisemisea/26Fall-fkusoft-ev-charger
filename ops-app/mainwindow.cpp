@@ -62,6 +62,17 @@ void MainWindow::buildSidebar(QHBoxLayout *layout) {
 	sideLayout->setContentsMargins(12, 24, 12, 16);
 	sideLayout->setSpacing(8);
 
+	// 品牌图标:与下方文字品牌上下排列,透明底 PNG 由 resources.qrc 打包
+	auto *logoLabel = new QLabel(side);
+	logoLabel->setObjectName(QStringLiteral("brandLogo"));
+	logoLabel->setAlignment(Qt::AlignCenter);
+	logoLabel->setStyleSheet(QStringLiteral("background: transparent;"));
+	const QPixmap logoPixmap(QStringLiteral(":/logo.png"));
+	if (!logoPixmap.isNull())
+		logoLabel->setPixmap(logoPixmap.scaled(72, 72, Qt::KeepAspectRatio,
+											 Qt::SmoothTransformation));
+	sideLayout->addWidget(logoLabel);
+
 	auto *brand = new QLabel(tr("充电桩管理平台"), side);
 	brand->setObjectName(QStringLiteral("brand"));
 	sideLayout->addWidget(brand);
