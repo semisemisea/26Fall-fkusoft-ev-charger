@@ -279,25 +279,36 @@ namespace ops {
 					 emit chargerStatusFetched({}, r.errorCode);
 					 return;
 				 }
-				 const qint64 total = jsonI64(r.data, "total");
-				 QList<ChargerStatusCount> rows;
-				 const auto append = [&rows, total](const QJsonObject &group, const char *name) {
+				 const QJsonValue totalValue = r.data.value(QLatin1String("total"));
+				 const QJsonValue occupancyValue = r.data.value(QLatin1String("occupancy"));
+				 const QJsonValue operationalValue = r.data.value(QLatin1String("operational"));
+				 if (!totalValue.isDouble() || !occupancyValue.isObject() ||
+					 !operationalValue.isObject()) {
+					 emit chargerStatusFetched({}, QStringLiteral("INVALID_RESPONSE"));
+					 return;
+				 }
+
+				 ChargerStatusSnapshot snapshot;
+				 snapshot.total = jsonI64(r.data, "total");
+				 const auto append = [&snapshot](QList<ChargerStatusCount> &rows,
+												 const QJsonObject &group, const char *name) {
 					 ChargerStatusCount row;
 					 row.status = QLatin1String(name);
 					 row.count = jsonI64(group, name);
-					 row.percent = total > 0 ? static_cast<double>(row.count) / total : 0.0;
+					 row.percent = snapshot.total > 0
+									   ? static_cast<double>(row.count) / snapshot.total
+									   : 0.0;
 					 rows.append(row);
 				 };
-				 const QJsonObject occupancy =
-					 r.data.value(QLatin1String("occupancy")).toObject();
-				 const QJsonObject operational =
-					 r.data.value(QLatin1String("operational")).toObject();
-				 append(occupancy, "available");
-				 append(occupancy, "reserved");
-				 append(occupancy, "charging");
-				 append(operational, "fault");
-				 append(operational, "offline");
-				 emit chargerStatusFetched(rows, {});
+				 const QJsonObject occupancy = occupancyValue.toObject();
+				 const QJsonObject operational = operationalValue.toObject();
+				 append(snapshot.occupancy, occupancy, "available");
+				 append(snapshot.occupancy, occupancy, "reserved");
+				 append(snapshot.occupancy, occupancy, "charging");
+				 append(snapshot.operational, operational, "online");
+				 append(snapshot.operational, operational, "fault");
+				 append(snapshot.operational, operational, "offline");
+				 emit chargerStatusFetched(snapshot, {});
 			 });
 	}
 
@@ -389,7 +400,6 @@ namespace ops {
 					 StationSummary s;
 					 s.id = jsonI64(o, "id");
 					 s.name = jsonStr(o, "name");
-					 s.address = jsonStr(o, "address");
 					 s.latitude = jsonDbl(o, "latitude");
 					 s.longitude = jsonDbl(o, "longitude");
 					 s.pricePerKwhFen = jsonI64(o, "priceFenPerKwh");
@@ -451,7 +461,6 @@ namespace ops {
 	void ApiClient::createStation(const StationForm &form) {
 		QJsonObject body;
 		body.insert(QStringLiteral("name"), form.name);
-		body.insert(QStringLiteral("address"), form.address);
 		body.insert(QStringLiteral("latitude"), form.latitude);
 		body.insert(QStringLiteral("longitude"), form.longitude);
 		body.insert(QStringLiteral("priceFenPerKwh"), static_cast<double>(form.pricePerKwhFen));

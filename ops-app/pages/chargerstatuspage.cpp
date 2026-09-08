@@ -3,6 +3,7 @@
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QLabel>
+#include <QProgressBar>
 #include <QTableWidget>
 #include <QVBoxLayout>
 
@@ -12,6 +13,23 @@ namespace {
 			   ColCount,
 			   ColPercent,
 			   ColBar };
+
+	QTableWidget *createStatusTable(const QString &objectName, QWidget *parent) {
+		auto *table = new QTableWidget(parent);
+		table->setObjectName(objectName);
+		table->setColumnCount(4);
+		table->setHorizontalHeaderLabels(
+			{QObject::tr("状态"), QObject::tr("数量"), QObject::tr("占比"), QObject::tr("分布")});
+		table->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+		table->horizontalHeader()->setSectionResizeMode(ColStatus, QHeaderView::Fixed);
+		table->setColumnWidth(ColStatus, 90);
+		table->setEditTriggers(QAbstractItemView::NoEditTriggers);
+		table->setSelectionMode(QAbstractItemView::NoSelection);
+		table->setAlternatingRowColors(true);
+		table->verticalHeader()->setVisible(false);
+		table->verticalHeader()->setDefaultSectionSize(40);
+		return table;
+	}
 
 } // namespace
 
@@ -27,57 +45,59 @@ ChargerStatusPage::ChargerStatusPage(ops::ApiClient *api, QWidget *parent)
 	topBar->addWidget(title);
 	topBar->addStretch();
 	m_totalLabel = new QLabel(this);
+	m_totalLabel->setObjectName(QStringLiteral("chargerTotalLabel"));
 	m_totalLabel->setStyleSheet(QStringLiteral("color: #8a8f98;"));
 	topBar->addWidget(m_totalLabel);
 	root->addLayout(topBar);
 
-	m_table = new QTableWidget(this);
-	m_table->setColumnCount(4);
-	m_table->setHorizontalHeaderLabels(
-		{tr("状态"), tr("数量"), tr("占比"), tr("分布")});
-	m_table->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
-	m_table->horizontalHeader()->setSectionResizeMode(ColStatus, QHeaderView::Fixed);
-	m_table->setEditTriggers(QAbstractItemView::NoEditTriggers);
-	m_table->setSelectionBehavior(QAbstractItemView::SelectRows);
-	m_table->setSelectionMode(QAbstractItemView::SingleSelection);
-	m_table->setAlternatingRowColors(true);
-	m_table->verticalHeader()->setVisible(false);
-	m_table->verticalHeader()->setDefaultSectionSize(40);
-	root->addWidget(m_table, 1);
+	auto *tables = new QHBoxLayout;
+	auto *occupancyColumn = new QVBoxLayout;
+	auto *occupancyTitle = new QLabel(tr("占用状态"), this);
+	occupancyTitle->setStyleSheet(QStringLiteral("font-size: 16px; font-weight: bold;"));
+	occupancyColumn->addWidget(occupancyTitle);
+	m_occupancyTable = createStatusTable(QStringLiteral("occupancyStatusTable"), this);
+	occupancyColumn->addWidget(m_occupancyTable, 1);
+	tables->addLayout(occupancyColumn, 1);
+
+	auto *operationalColumn = new QVBoxLayout;
+	auto *operationalTitle = new QLabel(tr("运维状态"), this);
+	operationalTitle->setStyleSheet(QStringLiteral("font-size: 16px; font-weight: bold;"));
+	operationalColumn->addWidget(operationalTitle);
+	m_operationalTable = createStatusTable(QStringLiteral("operationalStatusTable"), this);
+	operationalColumn->addWidget(m_operationalTable, 1);
+	tables->addLayout(operationalColumn, 1);
+	root->addLayout(tables, 1);
 
 	connect(m_api, &ops::ApiClient::chargerStatusFetched, this,
-			[this](const QList<ops::ChargerStatusCount> &rows, const QString &errorCode) {
+			[this](const ops::ChargerStatusSnapshot &snapshot, const QString &errorCode) {
 				if (!errorCode.isEmpty()) {
 					m_totalLabel->setText(tr("状态分布加载失败(%1)").arg(errorCode));
 					return;
 				}
-				qint64 total = 0;
-				for (const auto &r : rows) {
-					if (r.status == QLatin1String("available") || r.status == QLatin1String("reserved") || r.status == QLatin1String("charging")) {
-						total += r.count;
-					}
-				}
-				m_totalLabel->setText(tr("电桩总数: %1").arg(total));
-				m_table->setRowCount(rows.size());
-				for (int i = 0; i < rows.size(); ++i) {
-					const auto &r = rows.at(i);
-					auto *statusItem =
-						new QTableWidgetItem(ops::statusText(r.status));
-					statusItem->setData(Qt::UserRole, r.status);
-					m_table->setItem(i, ColStatus, statusItem);
-					m_table->setItem(i, ColCount,
-									 new QTableWidgetItem(QString::number(r.count)));
-					m_table->setItem(
-						i, ColPercent,
-						new QTableWidgetItem(
-							QStringLiteral("%1%").arg(r.percent * 100, 0, 'f', 1)));
-					// 简易条形:用背景色块长度模拟占比展示
-					auto *barItem = new QTableWidgetItem();
-					barItem->setBackground(
-						QColor(0x4d, 0xa3, 0xff, int(40 + 160 * qBound(0.0, r.percent, 1.0))));
-					m_table->setItem(i, ColBar, barItem);
-				}
+				m_totalLabel->setText(tr("电桩总数: %1").arg(snapshot.total));
+				populateTable(m_occupancyTable, snapshot.occupancy);
+				populateTable(m_operationalTable, snapshot.operational);
 			});
+}
+
+void ChargerStatusPage::populateTable(QTableWidget *table,
+									  const QList<ops::ChargerStatusCount> &rows) {
+	table->setRowCount(rows.size());
+	for (int i = 0; i < rows.size(); ++i) {
+		const auto &row = rows.at(i);
+		auto *statusItem = new QTableWidgetItem(ops::statusText(row.status));
+		statusItem->setData(Qt::UserRole, row.status);
+		table->setItem(i, ColStatus, statusItem);
+		table->setItem(i, ColCount, new QTableWidgetItem(QString::number(row.count)));
+		table->setItem(
+			i, ColPercent,
+			new QTableWidgetItem(QStringLiteral("%1%").arg(row.percent * 100, 0, 'f', 1)));
+		auto *bar = new QProgressBar(table);
+		bar->setRange(0, 1000);
+		bar->setValue(qRound(qBound(0.0, row.percent, 1.0) * 1000));
+		bar->setTextVisible(false);
+		table->setCellWidget(i, ColBar, bar);
+	}
 }
 
 void ChargerStatusPage::showEvent(QShowEvent *event) {
@@ -86,8 +106,6 @@ void ChargerStatusPage::showEvent(QShowEvent *event) {
 }
 
 void ChargerStatusPage::refresh() {
-	if (m_loaded)
-		return;
-	m_loaded = true;
+	m_totalLabel->setText(tr("正在刷新..."));
 	m_api->fetchChargerStatus();
 }

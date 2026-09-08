@@ -64,9 +64,15 @@ namespace ops {
 	};
 
 	struct ChargerStatusCount {
-		QString status; // available/reserved/charging/fault/offline
+		QString status;
 		qint64 count = 0;
 		double percent = 0.0;
+	};
+
+	struct ChargerStatusSnapshot {
+		qint64 total = 0;
+		QList<ChargerStatusCount> occupancy;
+		QList<ChargerStatusCount> operational;
 	};
 
 	struct Charger {
@@ -90,7 +96,6 @@ namespace ops {
 	struct StationSummary {
 		qint64 id = 0;
 		QString name;
-		QString address;
 		double latitude = 0.0;
 		double longitude = 0.0;
 		qint64 pricePerKwhFen = 0;
@@ -112,7 +117,6 @@ namespace ops {
 	// 新增电站表单;电桩通过独立管理操作逐个创建。
 	struct StationForm {
 		QString name;
-		QString address;
 		double latitude = 0.0;
 		double longitude = 0.0;
 		qint64 pricePerKwhFen = 0;
@@ -135,6 +139,8 @@ namespace ops {
 			return QStringLiteral("故障");
 		if (s == QLatin1String("offline"))
 			return QStringLiteral("离线");
+		if (s == QLatin1String("online"))
+			return QStringLiteral("在线");
 		if (s == QLatin1String("active"))
 			return QStringLiteral("正常");
 		if (s == QLatin1String("frozen"))

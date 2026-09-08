@@ -13,6 +13,11 @@ concept HasChargerCount = requires(T value) {
 };
 
 template <typename T>
+concept HasAddress = requires(T value) {
+	value.address;
+};
+
+template <typename T>
 void configureLegacyChargerCounts(T &form) {
 	if constexpr (HasChargerCount<T>) {
 		form.chargerCount = 2;
@@ -25,11 +30,16 @@ class StationApiTests : public QObject {
 
 private slots:
 	void stationFormDoesNotOwnChargers();
+	void stationFormDoesNotOwnAddress();
 	void createStationSendsOneRequest();
 };
 
 void StationApiTests::stationFormDoesNotOwnChargers() {
 	QVERIFY(!HasChargerCount<ops::StationForm>);
+}
+
+void StationApiTests::stationFormDoesNotOwnAddress() {
+	QVERIFY(!HasAddress<ops::StationForm>);
 }
 
 void StationApiTests::createStationSendsOneRequest() {
@@ -68,7 +78,6 @@ void StationApiTests::createStationSendsOneRequest() {
 	QSignalSpy finished(&client, &ops::ApiClient::stationCreated);
 	ops::StationForm form;
 	form.name = QStringLiteral("软件园充电站");
-	form.address = QStringLiteral("大连市甘井子区软件园");
 	form.latitude = 38.889;
 	form.longitude = 121.537;
 	form.pricePerKwhFen = 98;
@@ -80,7 +89,8 @@ void StationApiTests::createStationSendsOneRequest() {
 	QCOMPARE(requests.size(), 1);
 	QVERIFY(requests.first().startsWith("POST /api/v1/admin/stations "));
 	const QJsonObject body = QJsonDocument::fromJson(requests.first().split('\n').last()).object();
-	QCOMPARE(body.size(), 5);
+	QCOMPARE(body.size(), 4);
+	QVERIFY(!body.contains(QStringLiteral("address")));
 	QCOMPARE(body.value(QStringLiteral("priceFenPerKwh")).toInt(), 98);
 }
 

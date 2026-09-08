@@ -13,7 +13,6 @@ class QListWidget;
 class QStackedWidget;
 class SalesPage;
 class ChargerStatusPage;
-class ChargerManagePage;
 class StationPage;
 class UserPage;
 
@@ -37,7 +36,6 @@ private:
 	QLabel *m_userLabel = nullptr;
 	SalesPage *m_salesPage = nullptr;
 	ChargerStatusPage *m_chargerStatusPage = nullptr;
-	ChargerManagePage *m_chargerManagePage = nullptr;
 	StationPage *m_stationPage = nullptr;
 	UserPage *m_userPage = nullptr;
 };

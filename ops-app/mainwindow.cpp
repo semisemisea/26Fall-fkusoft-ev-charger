@@ -1,6 +1,5 @@
 #include "mainwindow.h"
 
-#include "pages/chargermanagepage.h"
 #include "pages/chargerstatuspage.h"
 #include "pages/salespage.h"
 #include "pages/stationpage.h"
@@ -20,7 +19,6 @@ namespace {
 	enum PageIndex {
 		PageSales = 0,
 		PageChargerStatus,
-		PageChargerManage,
 		PageStationManage,
 		PageUserManage,
 		PageCount
@@ -39,12 +37,12 @@ MainWindow::MainWindow(ops::ApiClient *api, QWidget *parent)
 	layout->setSpacing(0);
 	setCentralWidget(central);
 
+	buildSidebar(layout); // 侧边栏加入 central 的布局(QMainWindow 自身布局不接受裸 widget)
+
 	m_stack = new QStackedWidget(central);
 	layout->addWidget(m_stack, 1);
 	for (int i = 0; i < PageCount; ++i)
 		m_stack->addWidget(createPage(i));
-
-	buildSidebar(layout); // 侧边栏加入 central 的布局(QMainWindow 自身布局不接受裸 widget)
 
 	connect(m_navList, &QListWidget::currentRowChanged, m_stack, &QStackedWidget::setCurrentIndex);
 	m_navList->setCurrentRow(PageSales);
@@ -83,7 +81,6 @@ void MainWindow::buildSidebar(QHBoxLayout *layout) {
 	m_navList->setFrameShape(QFrame::NoFrame);
 	m_navList->addItem(tr("销售业绩"));
 	m_navList->addItem(tr("电桩状态"));
-	m_navList->addItem(tr("充电桩管理"));
 	m_navList->addItem(tr("充电站管理"));
 	m_navList->addItem(tr("用户管理"));
 	sideLayout->addWidget(m_navList, 1);
@@ -114,9 +111,6 @@ QWidget *MainWindow::createPage(int index) {
 	case PageChargerStatus:
 		m_chargerStatusPage = new ChargerStatusPage(m_api, this);
 		return m_chargerStatusPage;
-	case PageChargerManage:
-		m_chargerManagePage = new ChargerManagePage(m_api, this);
-		return m_chargerManagePage;
 	case PageStationManage:
 		m_stationPage = new StationPage(m_api, this);
 		return m_stationPage;

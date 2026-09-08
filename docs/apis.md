@@ -135,7 +135,6 @@ JSON 成功响应统一为：
 {
   "id": 3,
   "name": "软件园充电站",
-  "address": "大连市甘井子区软件园",
   "latitude": 38.889,
   "longitude": 121.537,
   "priceFenPerKwh": 98,
@@ -766,21 +765,20 @@ amountFen = roundHalfUp(powerW * elapsedSeconds * unitPriceFenPerKwh / 3,600,000
 ```json
 {
   "name": "软件园充电站",
-  "address": "大连市甘井子区软件园",
   "latitude": 38.889,
   "longitude": 121.537,
   "priceFenPerKwh": 98
 }
 ```
 
-名称去除首尾空白后为 1 至 100 个 Unicode 字符；地址为 1 至 200 个 Unicode 字符；经纬度必须合法；单价必须在配置上限内。成功返回 201。新电站为 active 且不包含电桩。
+名称去除首尾空白后为 1 至 100 个 Unicode 字符；经纬度必须合法；单价必须在配置上限内。成功返回 201。新电站为 active 且不包含电桩。
 
 ### 10.3 电站详情和修改
 
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
 | GET | `/admin/stations/{stationId}` | 电站详情；可读取 inactive 电站 |
-| PATCH | `/admin/stations/{stationId}` | 修改名称、地址、经纬度、单价或状态 |
+| PATCH | `/admin/stations/{stationId}` | 修改名称、经纬度、单价或状态 |
 
 PATCH 至少包含一个可修改字段。预约不锁定价格，修改单价只影响修改后开始的订单。把电站设为 inactive 时，原子地使站内 active 预约过期并释放对应占用。重新设为 active 不改变电桩状态。重复设置已有状态幂等成功。
 

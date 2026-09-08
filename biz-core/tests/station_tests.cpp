@@ -74,7 +74,6 @@ namespace {
 		qint64 createStation(const QString &name, double latitude, qint64 price) {
 			const Backend::HttpResponse response = send(QStringLiteral("POST"), QStringLiteral("/api/v1/admin/stations"), QJsonObject{
 																															  {QStringLiteral("name"), name},
-																															  {QStringLiteral("address"), QStringLiteral("测试地址")},
 																															  {QStringLiteral("latitude"), latitude},
 																															  {QStringLiteral("longitude"), 0.0},
 																															  {QStringLiteral("priceFenPerKwh"), price},
@@ -95,7 +94,9 @@ void StationTests::managesStationLifecycleAndNearbySearch() {
 	const qint64 secondId = fixture.createStation(QStringLiteral("二号站"), 0.01, 100);
 	const Backend::HttpResponse detail = fixture.send(QStringLiteral("GET"), QStringLiteral("/api/v1/stations/%1").arg(firstId));
 	QCOMPARE(detail.status, 200);
-	QCOMPARE(object(detail).value(QStringLiteral("data")).toObject().value(QStringLiteral("name")).toString(), QStringLiteral("一号站"));
+	const QJsonObject station = object(detail).value(QStringLiteral("data")).toObject();
+	QCOMPARE(station.value(QStringLiteral("name")).toString(), QStringLiteral("一号站"));
+	QVERIFY(!station.contains(QStringLiteral("address")));
 
 	QUrlQuery nearbyQuery;
 	nearbyQuery.addQueryItem(QStringLiteral("latitude"), QStringLiteral("0"));
@@ -222,7 +223,6 @@ void StationTests::readonlyAdministratorCannotWrite() {
 	QCOMPARE(fixture.send(QStringLiteral("GET"), QStringLiteral("/api/v1/admin/stations"), {}, viewerToken).status, 200);
 	const Backend::HttpResponse create = fixture.send(QStringLiteral("POST"), QStringLiteral("/api/v1/admin/stations"), QJsonObject{
 																															{QStringLiteral("name"), QStringLiteral("无权创建")},
-																															{QStringLiteral("address"), QStringLiteral("地址")},
 																															{QStringLiteral("latitude"), 0},
 																															{QStringLiteral("longitude"), 0},
 																															{QStringLiteral("priceFenPerKwh"), 100},

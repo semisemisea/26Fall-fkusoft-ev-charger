@@ -12,6 +12,7 @@ class ChargerApiTests : public QObject {
 
 private slots:
 	void createsUpdatesAndDeletesCharger();
+	void fetchesCompleteStatusOverview();
 };
 
 void ChargerApiTests::createsUpdatesAndDeletesCharger() {
@@ -87,6 +88,43 @@ void ChargerApiTests::createsUpdatesAndDeletesCharger() {
 	client.deleteCharger(9);
 	QTRY_COMPARE(finished.count(), 3);
 	QVERIFY(requests.at(2).startsWith("DELETE /api/v1/admin/chargers/9 "));
+}
+
+void ChargerApiTests::fetchesCompleteStatusOverview() {
+	QTcpServer server;
+	QVERIFY(server.listen(QHostAddress::LocalHost));
+	connect(&server, &QTcpServer::newConnection, this, [&] {
+		QTcpSocket *socket = server.nextPendingConnection();
+		connect(socket, &QTcpSocket::readyRead, socket, [socket] {
+			socket->readAll();
+			const QByteArray body = R"({"data":{"total":20,"occupancy":{"available":12,"reserved":3,"charging":5},"operational":{"online":17,"fault":2,"offline":1}},"meta":{"requestId":"test"}})";
+			const QByteArray response =
+				"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: " +
+				QByteArray::number(body.size()) + "\r\nConnection: close\r\n\r\n" + body;
+			socket->write(response);
+			socket->disconnectFromHost();
+		});
+	});
+
+	ops::ApiClient client;
+	client.setBaseUrl(QStringLiteral("http://127.0.0.1:%1/api/v1").arg(server.serverPort()));
+	ops::ChargerStatusSnapshot snapshot;
+	bool received = false;
+	connect(&client, &ops::ApiClient::chargerStatusFetched, this,
+			[&](const ops::ChargerStatusSnapshot &value, const QString &) {
+				snapshot = value;
+				received = true;
+			});
+	client.fetchChargerStatus();
+	QTRY_VERIFY(received);
+
+	QCOMPARE(snapshot.total, 20);
+	QCOMPARE(snapshot.occupancy.size(), 3);
+	QCOMPARE(snapshot.operational.size(), 3);
+	QCOMPARE(snapshot.occupancy.at(0).status, QStringLiteral("available"));
+	QCOMPARE(snapshot.occupancy.at(0).count, 12);
+	QCOMPARE(snapshot.operational.at(0).status, QStringLiteral("online"));
+	QCOMPARE(snapshot.operational.at(0).count, 17);
 }
 
 QTEST_GUILESS_MAIN(ChargerApiTests)
