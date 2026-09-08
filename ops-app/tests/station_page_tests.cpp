@@ -5,8 +5,15 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
+#include <QSignalSpy>
 #include <QTableWidget>
 #include <QTest>
+
+#ifdef OPS_APP_HAS_WEBENGINE
+#include <QWebEngineView>
+
+#include <memory>
+#endif
 
 class StationPageTests : public QObject {
 	Q_OBJECT
@@ -17,6 +24,8 @@ private slots:
 	void stationDialogOffersMapPicker();
 	void mapPickerReportsMissingConfiguration();
 	void parsesTencentMapSelection();
+	void confirmsRedirectedMapSelection_data();
+	void confirmsRedirectedMapSelection();
 };
 
 void StationPageTests::selectedStationOwnsDisplayedChargers() {
@@ -95,6 +104,61 @@ void StationPageTests::parsesTencentMapSelection() {
 				 .has_value());
 	QVERIFY(!MapPickerDialog::coordinateFromTitle(QStringLiteral("untrusted:38,121"))
 				 .has_value());
+}
+
+void StationPageTests::confirmsRedirectedMapSelection_data() {
+	QTest::addColumn<QString>("origin");
+	QTest::addColumn<bool>("fromPicker");
+	QTest::addColumn<bool>("validCoordinate");
+	QTest::addColumn<bool>("shouldAccept");
+	QTest::newRow("redirected-picker") << QStringLiteral("https://mapapi.qq.com") << true << true << true;
+	QTest::newRow("original-picker") << QStringLiteral("https://apis.map.qq.com") << true << true << true;
+	QTest::newRow("untrusted-origin") << QStringLiteral("https://example.com") << true << true << false;
+	QTest::newRow("wrong-window") << QStringLiteral("https://mapapi.qq.com") << false << true << false;
+	QTest::newRow("invalid-coordinate") << QStringLiteral("https://mapapi.qq.com") << true << false << false;
+}
+
+void StationPageTests::confirmsRedirectedMapSelection() {
+#ifdef OPS_APP_HAS_WEBENGINE
+	QFETCH(QString, origin);
+	QFETCH(bool, fromPicker);
+	QFETCH(bool, validCoordinate);
+	QFETCH(bool, shouldAccept);
+	MapPickerDialog picker(QStringLiteral("test-key"), 38.0, 121.0);
+	auto *map = picker.findChild<QWebEngineView *>();
+	QVERIFY(map);
+	QSignalSpy accepted(&picker, &QDialog::accepted);
+	auto ready = std::make_shared<bool>(false);
+	QTRY_VERIFY_WITH_TIMEOUT(([&] {
+								 map->page()->runJavaScript(QStringLiteral("document.querySelector('iframe') !== null"),
+															[ready](const QVariant &value) { *ready = value.toBool(); });
+								 return *ready;
+							 })(),
+							 5000);
+	auto dispatched = std::make_shared<bool>(false);
+	map->page()->runJavaScript(QStringLiteral(R"JS(
+      window.dispatchEvent(new MessageEvent('message', {
+        origin: '%1',
+        source: %2,
+        data: {module: 'locationPicker', latlng: {lat: %3, lng: 121.537}}
+      }));
+    )JS")
+								   .arg(origin, fromPicker ? QStringLiteral("document.querySelector('iframe').contentWindow") : QStringLiteral("window"), validCoordinate ? QStringLiteral("38.889") : QStringLiteral("91")),
+							   [dispatched](const QVariant &) { *dispatched = true; });
+	QTRY_VERIFY(*dispatched);
+	if (!shouldAccept) {
+		QTest::qWait(100);
+		QCOMPARE(accepted.count(), 0);
+		QCOMPARE(picker.latitude(), 38.0);
+		QCOMPARE(picker.longitude(), 121.0);
+		return;
+	}
+	QTRY_COMPARE_WITH_TIMEOUT(accepted.count(), 1, 3000);
+	QCOMPARE(picker.latitude(), 38.889);
+	QCOMPARE(picker.longitude(), 121.537);
+#else
+	QSKIP("Qt WebEngine is unavailable");
+#endif
 }
 
 QTEST_MAIN(StationPageTests)

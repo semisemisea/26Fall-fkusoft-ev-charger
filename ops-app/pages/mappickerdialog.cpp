@@ -85,7 +85,10 @@ MapPickerDialog::MapPickerDialog(const QString &mapKey, double initialLatitude,
   <iframe src="%1" allow="geolocation"></iframe>
   <script>
     window.addEventListener('message', function(event) {
-      if (event.origin !== 'https://apis.map.qq.com') return;
+      // The picker entry point redirects to mapapi.qq.com.
+      if (event.origin !== 'https://apis.map.qq.com' &&
+          event.origin !== 'https://mapapi.qq.com') return;
+      if (event.source !== document.querySelector('iframe').contentWindow) return;
       const value = event.data;
       if (!value || value.module !== 'locationPicker' || !value.latlng) return;
       const lat = Number(value.latlng.lat);
