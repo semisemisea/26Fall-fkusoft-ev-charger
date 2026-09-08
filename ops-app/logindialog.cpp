@@ -1,13 +1,18 @@
 #include "logindialog.h"
 #include "ui_logindialog.h"
+#include <evcharger/logging.h>
 
 #include <QLabel>
 #include <QPixmap>
 #include <QPushButton>
 #include <QVBoxLayout>
 
+Q_LOGGING_CATEGORY(opsLogindialogLog, "evcharger.ops.auth", QtInfoMsg)
+
 LoginDialog::LoginDialog(ops::ApiClient *api, QWidget *parent)
 	: QDialog(parent), ui(new Ui::LoginDialog), m_api(api) {
+	setObjectName(QStringLiteral("opsLoginDialog"));
+	EV_LOG_DEBUG(opsLogindialogLog, this) << "LoginDialog initialized";
 	ui->setupUi(this);
 	// 品牌图标:插在标题上方;资源由 resources.qrc 打包,缺失时静默跳过
 	auto *logoLabel = new QLabel(this);
@@ -16,7 +21,7 @@ LoginDialog::LoginDialog(ops::ApiClient *api, QWidget *parent)
 	const QPixmap logoPixmap(QStringLiteral(":/logo.png"));
 	if (!logoPixmap.isNull()) {
 		logoLabel->setPixmap(logoPixmap.scaled(80, 80, Qt::KeepAspectRatio,
-											 Qt::SmoothTransformation));
+											   Qt::SmoothTransformation));
 		qobject_cast<QVBoxLayout *>(layout())->insertWidget(0, logoLabel);
 	} else {
 		delete logoLabel;
@@ -45,6 +50,7 @@ void LoginDialog::accept() {
 	const QString username = ui->usernameEdit->text().trimmed();
 	const QString password = ui->passwordEdit->text();
 	if (username.isEmpty() || password.isEmpty()) {
+		EV_LOG_DEBUG(opsLogindialogLog, this) << "Login validation failed; required credentials are missing";
 		ui->messageLabel->setText(tr("请输入账号和密码"));
 		return;
 	}

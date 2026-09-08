@@ -1,4 +1,5 @@
 #include "salespage.h"
+#include <evcharger/logging.h>
 
 #include <QComboBox>
 #include <QHBoxLayout>
@@ -17,6 +18,8 @@
 #include <QPainter>
 #include <numeric>
 
+Q_LOGGING_CATEGORY(opsSalespageLog, "evcharger.ops.sales", QtInfoMsg)
+
 namespace {
 
 	// 卡片样式在全局 QSS 之外单独控制大数字排版
@@ -33,6 +36,8 @@ namespace {
 
 SalesPage::SalesPage(ops::ApiClient *api, QWidget *parent)
 	: QWidget(parent), m_api(api) {
+	setObjectName(QStringLiteral("opsSalesPage"));
+	EV_LOG_DEBUG(opsSalespageLog, this) << "SalesPage initialized";
 	auto *root = new QVBoxLayout(this);
 	root->setContentsMargins(24, 24, 24, 24);
 	root->setSpacing(16);
@@ -110,6 +115,7 @@ SalesPage::SalesPage(ops::ApiClient *api, QWidget *parent)
 	connect(m_api, &ops::ApiClient::dashboardSummaryFetched, this,
 			[this](const ops::DashboardSummary &s, const QString &errorCode) {
 				if (!errorCode.isEmpty()) {
+					EV_LOG_WARNING(opsSalespageLog, this) << "Dashboard or revenue data loading failed";
 					m_extraLabel->setText(tr("指标加载失败(%1),请切换时间范围重试").arg(errorCode));
 					return;
 				}
@@ -130,6 +136,7 @@ SalesPage::SalesPage(ops::ApiClient *api, QWidget *parent)
 				if (range != m_range)
 					return; // 过期响应丢弃
 				if (!errorCode.isEmpty()) {
+					EV_LOG_WARNING(opsSalespageLog, this) << "Dashboard or revenue data loading failed";
 #ifdef OPS_APP_HAS_CHARTS
 					m_chart->setTitle(tr("营收趋势(加载失败: %1)").arg(errorCode));
 #else
@@ -199,6 +206,7 @@ void SalesPage::showEvent(QShowEvent *event) {
 }
 
 void SalesPage::refresh() {
+	EV_LOG_DEBUG(opsSalespageLog, this) << "Page refresh requested";
 	if (m_loaded)
 		return;
 	m_loaded = true;

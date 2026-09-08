@@ -1,4 +1,5 @@
 #include "chargerstatuspage.h"
+#include <evcharger/logging.h>
 
 #include <QHBoxLayout>
 #include <QHeaderView>
@@ -6,6 +7,8 @@
 #include <QProgressBar>
 #include <QTableWidget>
 #include <QVBoxLayout>
+
+Q_LOGGING_CATEGORY(opsChargerstatuspageLog, "evcharger.ops.chargers", QtInfoMsg)
 
 namespace {
 
@@ -35,6 +38,8 @@ namespace {
 
 ChargerStatusPage::ChargerStatusPage(ops::ApiClient *api, QWidget *parent)
 	: QWidget(parent), m_api(api) {
+	setObjectName(QStringLiteral("opsChargerStatusPage"));
+	EV_LOG_DEBUG(opsChargerstatuspageLog, this) << "ChargerStatusPage initialized";
 	auto *root = new QVBoxLayout(this);
 	root->setContentsMargins(24, 24, 24, 24);
 	root->setSpacing(16);
@@ -71,6 +76,7 @@ ChargerStatusPage::ChargerStatusPage(ops::ApiClient *api, QWidget *parent)
 	connect(m_api, &ops::ApiClient::chargerStatusFetched, this,
 			[this](const ops::ChargerStatusSnapshot &snapshot, const QString &errorCode) {
 				if (!errorCode.isEmpty()) {
+					EV_LOG_WARNING(opsChargerstatuspageLog, this) << "Charger status loading failed";
 					m_totalLabel->setText(tr("状态分布加载失败(%1)").arg(errorCode));
 					return;
 				}
@@ -106,6 +112,7 @@ void ChargerStatusPage::showEvent(QShowEvent *event) {
 }
 
 void ChargerStatusPage::refresh() {
+	EV_LOG_DEBUG(opsChargerstatuspageLog, this) << "Page refresh requested";
 	m_totalLabel->setText(tr("正在刷新..."));
 	m_api->fetchChargerStatus();
 }

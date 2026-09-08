@@ -1,4 +1,5 @@
 #include "mainwindow.h"
+#include <evcharger/logging.h>
 
 #include "pages/chargerstatuspage.h"
 #include "pages/salespage.h"
@@ -12,6 +13,8 @@
 #include <QStatusBar>
 #include <QVBoxLayout>
 #include <QWidget>
+
+Q_LOGGING_CATEGORY(opsMainwindowLog, "evcharger.ops.ui", QtInfoMsg)
 
 namespace {
 
@@ -28,6 +31,8 @@ namespace {
 
 MainWindow::MainWindow(ops::ApiClient *api, QWidget *parent)
 	: QMainWindow(parent), m_api(api) {
+	setObjectName(QStringLiteral("opsMainWindow"));
+	EV_LOG_DEBUG(opsMainwindowLog, this) << "MainWindow initialized";
 	setWindowTitle(tr("充电桩运营管理平台 - 管理后台"));
 	resize(1180, 760);
 
@@ -45,6 +50,7 @@ MainWindow::MainWindow(ops::ApiClient *api, QWidget *parent)
 		m_stack->addWidget(createPage(i));
 
 	connect(m_navList, &QListWidget::currentRowChanged, m_stack, &QStackedWidget::setCurrentIndex);
+	connect(m_navList, &QListWidget::currentRowChanged, this, [this](int index) { EV_LOG_DEBUG(opsMainwindowLog, this) << "Navigation changed; page_index=" << index; });
 	m_navList->setCurrentRow(PageSales);
 
 	statusBar()->showMessage(tr("就绪"));
@@ -68,7 +74,7 @@ void MainWindow::buildSidebar(QHBoxLayout *layout) {
 	const QPixmap logoPixmap(QStringLiteral(":/logo.png"));
 	if (!logoPixmap.isNull())
 		logoLabel->setPixmap(logoPixmap.scaled(72, 72, Qt::KeepAspectRatio,
-											 Qt::SmoothTransformation));
+											   Qt::SmoothTransformation));
 	sideLayout->addWidget(logoLabel);
 
 	auto *brand = new QLabel(tr("充电桩管理平台"), side);
