@@ -1,108 +1,103 @@
-﻿#include "AppIcons.h"
+#include "AppIcons.h"
 
 #include "common/Theme.h"
 
 #include <QPainter>
 #include <QPainterPath>
-#include <cmath>
 #include <QSvgRenderer>
+#include <cmath>
 
 namespace {
-// 创建透明底色的正方形画布
-QPixmap makePixmap(int size)
-{
-    QPixmap pixmap(size, size);
-    pixmap.fill(Qt::transparent);
-    return pixmap;
-}
+	// 创建透明底色的正方形画布
+	QPixmap makePixmap(int size) {
+		QPixmap pixmap(size, size);
+		pixmap.fill(Qt::transparent);
+		return pixmap;
+	}
 
-// 右上角红点角标：白底外圈 + 错误色实心圆
-void drawBadge(QPainter &painter)
-{
-    painter.setPen(Qt::NoPen);
-    painter.setBrush(Qt::white);
-    painter.drawEllipse(QPointF(18.8, 4.8), 4.2, 4.2);
-    painter.setBrush(theme::error());
-    painter.drawEllipse(QPointF(18.8, 4.8), 3.0, 3.0);
-}
+	// 右上角红点角标：白底外圈 + 错误色实心圆
+	void drawBadge(QPainter &painter) {
+		painter.setPen(Qt::NoPen);
+		painter.setBrush(Qt::white);
+		painter.drawEllipse(QPointF(18.8, 4.8), 4.2, 4.2);
+		painter.setBrush(theme::error());
+		painter.drawEllipse(QPointF(18.8, 4.8), 3.0, 3.0);
+	}
 } // namespace
 
 // 定位图钉：QPainterPath 拼出圆形头部 + 三角尾部，中心镂空
-QPixmap AppIcons::pin(const QColor &color, int size, bool badge)
-{
-    QPixmap pixmap = makePixmap(size);
-    QPainter painter(&pixmap);
-    painter.setRenderHint(QPainter::Antialiasing);
-    painter.scale(size / 24.0, size / 24.0);
-    painter.setPen(Qt::NoPen);
-    painter.setBrush(color);
+QPixmap AppIcons::pin(const QColor &color, int size, bool badge) {
+	QPixmap pixmap = makePixmap(size);
+	QPainter painter(&pixmap);
+	painter.setRenderHint(QPainter::Antialiasing);
+	painter.scale(size / 24.0, size / 24.0);
+	painter.setPen(Qt::NoPen);
+	painter.setBrush(color);
 
-    QPainterPath head;
-    head.addEllipse(QPointF(12, 9.8), 6.6, 6.6);
-    QPainterPath tail;
-    tail.moveTo(7.3, 14.4);
-    tail.lineTo(12, 21.8);
-    tail.lineTo(16.7, 14.4);
-    tail.closeSubpath();
-    painter.drawPath(head.united(tail));
+	QPainterPath head;
+	head.addEllipse(QPointF(12, 9.8), 6.6, 6.6);
+	QPainterPath tail;
+	tail.moveTo(7.3, 14.4);
+	tail.lineTo(12, 21.8);
+	tail.lineTo(16.7, 14.4);
+	tail.closeSubpath();
+	painter.drawPath(head.united(tail));
 
-    painter.setCompositionMode(QPainter::CompositionMode_Clear);
-    painter.drawEllipse(QPointF(12, 9.8), 2.6, 2.6);
-    painter.setCompositionMode(QPainter::CompositionMode_SourceOver);
+	painter.setCompositionMode(QPainter::CompositionMode_Clear);
+	painter.drawEllipse(QPointF(12, 9.8), 2.6, 2.6);
+	painter.setCompositionMode(QPainter::CompositionMode_SourceOver);
 
-    if (badge) {
-        drawBadge(painter);
-    }
-    return pixmap;
+	if (badge) {
+		drawBadge(painter);
+	}
+	return pixmap;
 }
 
 // 闪电：SVG 路径渲染（填充与描边同色）
-QPixmap AppIcons::bolt(const QColor &color, int size, bool badge)
-{
-    const QString hex = color.name();
-    const QString svg = QStringLiteral(
-        "<svg viewBox=\"0 0 24 24\" xmlns=\"http://www.w3.org/2000/svg\" fill=\"none\">"
-        "<path fill=\"%1\" stroke=\"%1\" stroke-linecap=\"round\" stroke-linejoin=\"round\" "
-        "stroke-width=\"2\" d=\"M4 14 14 3v7h6L10 21v-7H4z\"/></svg>").arg(hex);
-    QSvgRenderer renderer(svg.toUtf8());
-    QPixmap pixmap = makePixmap(size);
-    QPainter painter(&pixmap);
-    painter.setRenderHint(QPainter::Antialiasing);
-    renderer.render(&painter);
-    if (badge) {
-        drawBadge(painter);
-    }
-    return pixmap;
+QPixmap AppIcons::bolt(const QColor &color, int size, bool badge) {
+	const QString hex = color.name();
+	const QString svg = QStringLiteral(
+							"<svg viewBox=\"0 0 24 24\" xmlns=\"http://www.w3.org/2000/svg\" fill=\"none\">"
+							"<path fill=\"%1\" stroke=\"%1\" stroke-linecap=\"round\" stroke-linejoin=\"round\" "
+							"stroke-width=\"2\" d=\"M4 14 14 3v7h6L10 21v-7H4z\"/></svg>")
+							.arg(hex);
+	QSvgRenderer renderer(svg.toUtf8());
+	QPixmap pixmap = makePixmap(size);
+	QPainter painter(&pixmap);
+	painter.setRenderHint(QPainter::Antialiasing);
+	renderer.render(&painter);
+	if (badge) {
+		drawBadge(painter);
+	}
+	return pixmap;
 }
 
 // 人形：圆头 + 贝塞尔曲线肩部
-QPixmap AppIcons::person(const QColor &color, int size, bool badge)
-{
-    QPixmap pixmap = makePixmap(size);
-    QPainter painter(&pixmap);
-    painter.setRenderHint(QPainter::Antialiasing);
-    painter.scale(size / 24.0, size / 24.0);
-    painter.setPen(Qt::NoPen);
-    painter.setBrush(color);
+QPixmap AppIcons::person(const QColor &color, int size, bool badge) {
+	QPixmap pixmap = makePixmap(size);
+	QPainter painter(&pixmap);
+	painter.setRenderHint(QPainter::Antialiasing);
+	painter.scale(size / 24.0, size / 24.0);
+	painter.setPen(Qt::NoPen);
+	painter.setBrush(color);
 
-    painter.drawEllipse(QPointF(12, 8.2), 4.2, 4.2);
+	painter.drawEllipse(QPointF(12, 8.2), 4.2, 4.2);
 
-    QPainterPath body;
-    body.moveTo(3.5, 21.8);
-    body.cubicTo(3.5, 15.5, 7.3, 13.8, 12, 13.8);
-    body.cubicTo(16.7, 13.8, 20.5, 15.5, 20.5, 21.8);
-    body.closeSubpath();
-    painter.drawPath(body);
+	QPainterPath body;
+	body.moveTo(3.5, 21.8);
+	body.cubicTo(3.5, 15.5, 7.3, 13.8, 12, 13.8);
+	body.cubicTo(16.7, 13.8, 20.5, 15.5, 20.5, 21.8);
+	body.closeSubpath();
+	painter.drawPath(body);
 
-    if (badge) {
-        drawBadge(painter);
-    }
-    return pixmap;
+	if (badge) {
+		drawBadge(painter);
+	}
+	return pixmap;
 }
 
 // 放大镜：描边圆圈 + 斜线手柄
-QPixmap AppIcons::search(const QColor &color, int size, bool badge)
-{
+QPixmap AppIcons::search(const QColor &color, int size, bool badge) {
 	QPixmap pixmap = makePixmap(size);
 	QPainter painter(&pixmap);
 	painter.setRenderHint(QPainter::Antialiasing);
@@ -110,10 +105,10 @@ QPixmap AppIcons::search(const QColor &color, int size, bool badge)
 	painter.setPen(QPen(color, 2.2));
 	painter.setBrush(Qt::NoBrush);
 
-		   // 画圆圈（放大镜的镜片）
+	// 画圆圈（放大镜的镜片）
 	painter.drawEllipse(QPointF(9.5, 9.5), 6.0, 6.0);
 
-		   // 画手柄（放大镜的柄）
+	// 画手柄（放大镜的柄）
 	painter.setPen(QPen(color, 2.5));
 	painter.drawLine(QPointF(14.0, 14.0), QPointF(20.5, 20.5));
 
@@ -124,8 +119,7 @@ QPixmap AppIcons::search(const QColor &color, int size, bool badge)
 }
 
 // 信号强度：四根递增竖条
-QPixmap AppIcons::signal(const QColor &color, int size, bool badge)
-{
+QPixmap AppIcons::signal(const QColor &color, int size, bool badge) {
 	QString svgTemplate = R"SVG(
 		<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none">
 		<rect x="2" y="16" width="3.5" height="6" rx="1" fill="%1"/>
@@ -151,8 +145,7 @@ QPixmap AppIcons::signal(const QColor &color, int size, bool badge)
 }
 
 // 时钟：内嵌 SVG 模板替换颜色后由 QSvgRenderer 渲染
-QPixmap AppIcons::clock(const QColor &color, int size, bool badge)
-{
+QPixmap AppIcons::clock(const QColor &color, int size, bool badge) {
 	// SVG 模板（用 %1 占位颜色）
 	QString svgTemplate = R"(
 		<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -176,8 +169,7 @@ QPixmap AppIcons::clock(const QColor &color, int size, bool badge)
 }
 
 // 日历：SVG 模板渲染
-QPixmap AppIcons::calendar(const QColor &color, int size, bool badge)
-{
+QPixmap AppIcons::calendar(const QColor &color, int size, bool badge) {
 	// SVG 模板（用 %1 占位颜色）
 	QString svgTemplate = R"(
 		<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -201,8 +193,7 @@ QPixmap AppIcons::calendar(const QColor &color, int size, bool badge)
 }
 
 // 钱袋：SVG 模板渲染
-QPixmap AppIcons::wallet(const QColor &color, int size, bool badge)
-{
+QPixmap AppIcons::wallet(const QColor &color, int size, bool badge) {
 	// SVG 模板（用 %1 占位颜色）
 	QString svgTemplate = R"(
 		<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -234,8 +225,7 @@ QPixmap AppIcons::wallet(const QColor &color, int size, bool badge)
 }
 
 // 车辆：SVG 模板渲染
-QPixmap AppIcons::car(const QColor &color, int size, bool badge)
-{
+QPixmap AppIcons::car(const QColor &color, int size, bool badge) {
 	QString svgTemplate = R"SVG(
 		<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
 		<path d="M3 8L5.72187 10.2682C5.90158 10.418 6.12811 10.5 6.36205 10.5H17.6379C17.8719 10.5 18.0984 10.418 18.2781 10.2682L21 8M6.5 14H6.51M17.5 14H17.51M8.16065 4.5H15.8394C16.5571 4.5 17.2198 4.88457 17.5758 5.50772L20.473 10.5777C20.8183 11.1821 21 11.8661 21 12.5623V18.5C21 19.0523 20.5523 19.5 20 19.5H19C18.4477 19.5 18 19.0523 18 18.5V17.5H6V18.5C6 19.0523 5.55228 19.5 5 19.5H4C3.44772 19.5 3 19.0523 3 18.5V12.5623C3 11.8661 3.18166 11.1821 3.52703 10.5777L6.42416 5.50772C6.78024 4.88457 7.44293 4.5 8.16065 4.5ZM7 14C7 14.2761 6.77614 14.5 6.5 14.5C6.22386 14.5 6 14.2761 6 14C6 13.7239 6.22386 13.5 6.5 13.5C6.77614 13.5 7 13.7239 7 14ZM18 14C18 14.2761 17.7761 14.5 17.5 14.5C17.2239 14.5 17 14.2761 17 14C17 13.7239 17.2239 13.5 17.5 13.5C17.7761 13.5 18 13.7239 18 14Z" stroke="%1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -258,8 +248,7 @@ QPixmap AppIcons::car(const QColor &color, int size, bool badge)
 }
 
 // 信息图标：SVG 模板渲染
-QPixmap AppIcons::info(const QColor &color, int size, bool badge)
-{
+QPixmap AppIcons::info(const QColor &color, int size, bool badge) {
 	QString svgTemplate = R"SVG(
 		<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
 		<circle cx="12" cy="12" r="10" stroke="%1" stroke-width="1.5"/>
@@ -284,8 +273,7 @@ QPixmap AppIcons::info(const QColor &color, int size, bool badge)
 }
 
 // 右向尖括号：SVG 模板渲染
-QPixmap AppIcons::chevronRight(const QColor &color, int size, bool badge)
-{
+QPixmap AppIcons::chevronRight(const QColor &color, int size, bool badge) {
 	QString svgTemplate = R"SVG(
 		<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
 		<path d="M9 6L15 12L9 18" stroke="%1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -308,8 +296,7 @@ QPixmap AppIcons::chevronRight(const QColor &color, int size, bool badge)
 }
 
 // 右转箭头：SVG 模板渲染
-QPixmap AppIcons::turnRight(const QColor &color, int size, bool badge)
-{
+QPixmap AppIcons::turnRight(const QColor &color, int size, bool badge) {
 	QString svgTemplate = R"SVG(
 		<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none">
 		<path d="M3.71493213,19.3875 C3.71493213,13.0983574 9.05986213,9 15.6531674,9 L19,9" stroke="%1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -333,8 +320,7 @@ QPixmap AppIcons::turnRight(const QColor &color, int size, bool badge)
 }
 
 // 绘制电池图标（边框黑色，内部绿色填充）
-QPixmap AppIcons::battery(int size, bool badge)
-{
+QPixmap AppIcons::battery(int size, bool badge) {
 	QString svgTemplate = R"SVG(
 		<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
 		<rect x="2" y="6" width="18" height="14" rx="2" stroke="#000000" stroke-width="1.5" fill="none"/>
@@ -355,8 +341,7 @@ QPixmap AppIcons::battery(int size, bool badge)
 	return pixmap;
 }
 
-QPixmap AppIcons::batteryVertical(int size, double percent, double wavePhase)
-{
+QPixmap AppIcons::batteryVertical(int size, double percent, double wavePhase) {
 	const double pct = qBound(0.0, percent, 1.0);
 
 	QString svgTemplate = R"SVG(
@@ -415,8 +400,7 @@ QPixmap AppIcons::batteryVertical(int size, double percent, double wavePhase)
 	return pixmap;
 }
 // 绘制用户头像图标（面部轮廓）
-QPixmap AppIcons::avatar(const QColor &color, int size, bool badge)
-{
+QPixmap AppIcons::avatar(const QColor &color, int size, bool badge) {
 	QString svgTemplate = R"SVG(
 		<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
 		<path d="M0,15.832c0-4.947,6-3.958,6-5.937a2.881,2.881,0,0,0-.546-1.979A4.532,4.532,0,0,1,4,4.453,4.245,4.245,0,0,1,8,0a4.245,4.245,0,0,1,4,4.453,4.458,4.458,0,0,1-1.474,3.463A3,3,0,0,0,10,9.895c0,1.979,6,.989,6,5.937,0,0-1.593,1.168-8,1.168S0,15.832,0,15.832Z" transform="translate(4 3)" stroke="%1" stroke-width="1.5" fill="none" stroke-miterlimit="10"/>
@@ -439,8 +423,7 @@ QPixmap AppIcons::avatar(const QColor &color, int size, bool badge)
 }
 
 // 支付成功图标：渐变圆圈（主色→黄绿色）+ 主色打勾，背景透明
-QPixmap AppIcons::successCheck(int width, int height)
-{
+QPixmap AppIcons::successCheck(int width, int height) {
 	QString svgTemplate = R"SVG(
 		<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
 		<defs>
@@ -455,9 +438,9 @@ QPixmap AppIcons::successCheck(int width, int height)
 	)SVG";
 
 	QString fullSvg = svgTemplate
-		.arg(theme::primary().name())
-		.arg(QStringLiteral("#FFF200"))
-		.arg(theme::primary().name());
+						  .arg(theme::primary().name())
+						  .arg(QStringLiteral("#FFF200"))
+						  .arg(theme::primary().name());
 
 	QSvgRenderer renderer(fullSvg.toUtf8());
 	QPixmap pixmap(width, height);

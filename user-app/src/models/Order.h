@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include <QString>
 #include <QtGlobal>
@@ -22,7 +22,6 @@ struct Order
     qlonglong amountFen = 0;
     QString stationName;
     QString chargerCode;
-    QString chargerType;
 
     // 从服务端 JSON 对象构造 Order
     static Order fromJson(const QJsonObject &object);

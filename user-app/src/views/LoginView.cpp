@@ -1,18 +1,18 @@
-﻿#include "LoginView.h"
+#include "LoginView.h"
 
 #include "models/User.h"
-#include "widgets/Toast.h"
 #include "widgets/ScaleButton.h"
+#include "widgets/Toast.h"
 
+#include <QHBoxLayout>
 #include <QJsonObject>
 #include <QLabel>
 #include <QLineEdit>
-#include <QPushButton>
 #include <QPixmap>
+#include <QPushButton>
 #include <QRegularExpression>
 #include <QRegularExpressionValidator>
 #include <QVBoxLayout>
-#include <QHBoxLayout>
 
 namespace {
 	const QRegularExpression kPhonePattern{QLatin1String("\\d{11}")};
@@ -20,15 +20,12 @@ namespace {
 
 // 构造函数：搭建登录界面（Logo/标题/手机号输入/登录按钮），回车或点击均触发 submit
 LoginView::LoginView(Session &session, ApiClient &api, QWidget *parent)
-	: QWidget(parent)
-	  , m_session(session)
-	  , m_api(api)
-{
+	: QWidget(parent), m_session(session), m_api(api) {
 	auto *logoLabel = new QLabel(this);
 	logoLabel->setAlignment(Qt::AlignCenter);
 	logoLabel->setObjectName(QStringLiteral("prepareIcon"));
 	logoLabel->setPixmap(QPixmap(QStringLiteral(":/backgrounds/logo.png"))
-								 .scaled(160, 160, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+							 .scaled(160, 160, Qt::KeepAspectRatio, Qt::SmoothTransformation));
 	logoLabel->setFixedSize(160, 160);
 
 	auto *title = new QLabel(QStringLiteral("欢迎使用智能充电系统"), this);
@@ -57,13 +54,13 @@ LoginView::LoginView(Session &session, ApiClient &api, QWidget *parent)
 	m_messageLabel->setObjectName(QStringLiteral("error"));
 	m_messageLabel->hide();
 
-		   // 输入框居中容器
+	// 输入框居中容器
 	auto *phoneContainer = new QHBoxLayout();
 	phoneContainer->addStretch();
 	phoneContainer->addWidget(m_phoneEdit);
 	phoneContainer->addStretch();
 
-		   // 按钮居中容器
+	// 按钮居中容器
 	auto *btnContainer = new QHBoxLayout();
 	btnContainer->addStretch();
 	btnContainer->addWidget(m_loginButton);
@@ -89,8 +86,7 @@ LoginView::LoginView(Session &session, ApiClient &api, QWidget *parent)
 }
 
 // 提交登录：本地校验 11 位手机号，成功后写入 Session 并发 loginSucceeded；新用户提示自动注册
-void LoginView::submit()
-{
+void LoginView::submit() {
 	const QString phone = m_phoneEdit->text().trimmed();
 	if (!kPhonePattern.match(phone).hasMatch()) {
 		m_messageLabel->setText(QStringLiteral("请输入 11 位数字手机号"));
@@ -103,8 +99,7 @@ void LoginView::submit()
 
 	QJsonObject body;
 	body.insert(QLatin1String("phone"), phone);
-	m_api.post(QStringLiteral("/auth/user/login"), body,
-			   [this](const QJsonValue &data, const QJsonObject &) {
+	m_api.post(QStringLiteral("/auth/user/login"), body, [this](const QJsonValue &data, const QJsonObject &) {
 				   m_loginButton->setEnabled(true);
 				   const QJsonObject object = data.toObject();
 				   const User user = User::fromJson(object.value(QLatin1String("user")).toObject());
@@ -112,11 +107,8 @@ void LoginView::submit()
 					   Toast::success(this, QStringLiteral("已自动注册，默认昵称：%1").arg(user.nickname));
 				   }
 				   m_session.signIn(user, object.value(QLatin1String("accessToken")).toString());
-				   emit loginSucceeded();
-			   },
-			   [this](const ApiError &error) {
+				   emit loginSucceeded(); }, [this](const ApiError &error) {
 				   m_loginButton->setEnabled(true);
 				   m_messageLabel->setText(error.message.isEmpty() ? error.code : error.message);
-				   m_messageLabel->show();
-			   });
+				   m_messageLabel->show(); });
 }

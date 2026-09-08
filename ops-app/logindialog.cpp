@@ -1,0 +1,54 @@
+#include "logindialog.h"
+#include "ui_logindialog.h"
+
+#include <QLabel>
+#include <QPixmap>
+#include <QPushButton>
+#include <QVBoxLayout>
+
+LoginDialog::LoginDialog(ops::ApiClient *api, QWidget *parent)
+	: QDialog(parent), ui(new Ui::LoginDialog), m_api(api) {
+	ui->setupUi(this);
+	// 品牌图标:插在标题上方;资源由 resources.qrc 打包,缺失时静默跳过
+	auto *logoLabel = new QLabel(this);
+	logoLabel->setAlignment(Qt::AlignCenter);
+	logoLabel->setStyleSheet(QStringLiteral("background: transparent;"));
+	const QPixmap logoPixmap(QStringLiteral(":/logo.png"));
+	if (!logoPixmap.isNull()) {
+		logoLabel->setPixmap(logoPixmap.scaled(80, 80, Qt::KeepAspectRatio,
+											 Qt::SmoothTransformation));
+		qobject_cast<QVBoxLayout *>(layout())->insertWidget(0, logoLabel);
+	} else {
+		delete logoLabel;
+	}
+	ui->passwordEdit->setEchoMode(QLineEdit::EchoMode::Password);
+	setWindowTitle(tr("充电桩管理平台 - 管理员登录"));
+
+	connect(ui->loginButton, &QPushButton::clicked, this, &LoginDialog::accept);
+	connect(m_api, &ops::ApiClient::loginSucceeded, this,
+			[this](const ops::AdminUser &admin) {
+				ui->messageLabel->setText(
+					tr("欢迎, %1 (%2)").arg(admin.displayName, admin.role));
+				QDialog::accept(); // 调用基类,绕过本类拦截登录的 accept()
+			});
+	connect(m_api, &ops::ApiClient::loginFailed, this,
+			[this](const QString &code, const QString &message) {
+				ui->messageLabel->setText(
+					tr("登录失败: %1 (%2)").arg(message, code));
+				ui->loginButton->setEnabled(true);
+			});
+}
+
+LoginDialog::~LoginDialog() { delete ui; }
+
+void LoginDialog::accept() {
+	const QString username = ui->usernameEdit->text().trimmed();
+	const QString password = ui->passwordEdit->text();
+	if (username.isEmpty() || password.isEmpty()) {
+		ui->messageLabel->setText(tr("请输入账号和密码"));
+		return;
+	}
+	ui->loginButton->setEnabled(false);
+	ui->messageLabel->setText(tr("登录中..."));
+	m_api->login(username, password);
+}

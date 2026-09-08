@@ -4,109 +4,101 @@
 #include "common/Theme.h"
 #include "models/Order.h"
 #include "models/Reservation.h"
+#include "widgets/AppIcons.h"
 #include "widgets/BackButton.h"
 #include "widgets/Spinner.h"
-#include "widgets/AppIcons.h"
 
 #include <QFrame>
 #include <QGridLayout>
+#include <QHBoxLayout>
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QLabel>
 #include <QPushButton>
 #include <QScrollArea>
-#include <QHBoxLayout>
 #include <QVBoxLayout>
 
 namespace {
-// 搭建通用页面骨架：返回键 + 标题 + 加载指示 + 滚动列表，返回状态标签
-QLabel *makePageShell(const QString &title, const std::function<void()> &onBack,
-                      QVBoxLayout **listLayout, Spinner **spinnerOut, QWidget *parent)
-{
-    auto *backButton = new BackButton(parent);
-    auto *titleLabel = new QLabel(title, parent);
-    titleLabel->setObjectName(QStringLiteral("pageTitle"));
+	// 搭建通用页面骨架：返回键 + 标题 + 加载指示 + 滚动列表，返回状态标签
+	QLabel *makePageShell(const QString &title, const std::function<void()> &onBack,
+						  QVBoxLayout **listLayout, Spinner **spinnerOut, QWidget *parent) {
+		auto *backButton = new BackButton(parent);
+		auto *titleLabel = new QLabel(title, parent);
+		titleLabel->setObjectName(QStringLiteral("pageTitle"));
 
-    auto *statusLabel = new QLabel(parent);
-    statusLabel->setObjectName(QStringLiteral("muted"));
-    statusLabel->hide();
+		auto *statusLabel = new QLabel(parent);
+		statusLabel->setObjectName(QStringLiteral("muted"));
+		statusLabel->hide();
 
-    auto *spinner = new Spinner(parent);
-    spinner->hide();
-    *spinnerOut = spinner;
+		auto *spinner = new Spinner(parent);
+		spinner->hide();
+		*spinnerOut = spinner;
 
-    auto *statusRow = new QWidget(parent);
-    auto *statusRowLayout = new QHBoxLayout(statusRow);
-    statusRowLayout->setContentsMargins(0, 0, 0, 0);
-    statusRowLayout->setSpacing(8);
-    statusRowLayout->addStretch();
-    statusRowLayout->addWidget(spinner);
-    statusRowLayout->addWidget(statusLabel);
-    statusRowLayout->addStretch();
+		auto *statusRow = new QWidget(parent);
+		auto *statusRowLayout = new QHBoxLayout(statusRow);
+		statusRowLayout->setContentsMargins(0, 0, 0, 0);
+		statusRowLayout->setSpacing(8);
+		statusRowLayout->addStretch();
+		statusRowLayout->addWidget(spinner);
+		statusRowLayout->addWidget(statusLabel);
+		statusRowLayout->addStretch();
 
-    auto *container = new QWidget(parent);
-    *listLayout = new QVBoxLayout(container);
-    (*listLayout)->setContentsMargins(0, 0, 0, 0);
-    (*listLayout)->setSpacing(10);
-    (*listLayout)->addWidget(statusRow);
-    (*listLayout)->addStretch();
+		auto *container = new QWidget(parent);
+		*listLayout = new QVBoxLayout(container);
+		(*listLayout)->setContentsMargins(0, 0, 0, 0);
+		(*listLayout)->setSpacing(10);
+		(*listLayout)->addWidget(statusRow);
+		(*listLayout)->addStretch();
 
-    auto *scrollArea = new QScrollArea(parent);
-    scrollArea->setWidgetResizable(true);
-    scrollArea->setWidget(container);
+		auto *scrollArea = new QScrollArea(parent);
+		scrollArea->setWidgetResizable(true);
+		scrollArea->setWidget(container);
 
-    auto *headerRow = new QHBoxLayout;
-    headerRow->addWidget(backButton);
-    headerRow->addStretch();
-    headerRow->addWidget(titleLabel);
-    headerRow->addStretch();
+		auto *headerRow = new QHBoxLayout;
+		headerRow->addWidget(backButton);
+		headerRow->addStretch();
+		headerRow->addWidget(titleLabel);
+		headerRow->addStretch();
 
-    auto *layout = new QVBoxLayout(parent);
-    layout->setContentsMargins(12, 12, 12, 12);
-    layout->setSpacing(10);
-    layout->addLayout(headerRow);
-    layout->addWidget(scrollArea);
+		auto *layout = new QVBoxLayout(parent);
+		layout->setContentsMargins(12, 12, 12, 12);
+		layout->setSpacing(10);
+		layout->addLayout(headerRow);
+		layout->addWidget(scrollArea);
 
-    QObject::connect(backButton, &QPushButton::clicked, parent, onBack);
-    return statusLabel;
-}
+		QObject::connect(backButton, &QPushButton::clicked, parent, onBack);
+		return statusLabel;
+	}
 
-// 清空列表中的卡片（保留状态行与底部 stretch）
-void clearCards(QVBoxLayout *listLayout)
-{
-    while (listLayout->count() > 2) {
-        QLayoutItem *item = listLayout->takeAt(1);
-        item->widget()->deleteLater();
-        delete item;
-    }
-}
+	// 清空列表中的卡片（保留状态行与底部 stretch）
+	void clearCards(QVBoxLayout *listLayout) {
+		while (listLayout->count() > 2) {
+			QLayoutItem *item = listLayout->takeAt(1);
+			item->widget()->deleteLater();
+			delete item;
+		}
+	}
 } // namespace
 
 // 构造历史订单页骨架
 OrderHistoryView::OrderHistoryView(ApiClient &api, QWidget *parent)
-    : QWidget(parent)
-    , m_api(api)
-{
-    QVBoxLayout *listLayout = nullptr;
-    m_statusLabel = makePageShell(QStringLiteral("历史充电订单"), [this] { emit backRequested(); },
-                                  &listLayout, &m_spinner, this);
-    m_listLayout = listLayout;
+	: QWidget(parent), m_api(api) {
+	QVBoxLayout *listLayout = nullptr;
+	m_statusLabel = makePageShell(QStringLiteral("历史充电订单"), [this] { emit backRequested(); }, &listLayout, &m_spinner, this);
+	m_listLayout = listLayout;
 }
 
 // 页面显示时加载订单列表
-void OrderHistoryView::showEvent(QShowEvent *event)
-{
-    QWidget::showEvent(event);
-    load();
+void OrderHistoryView::showEvent(QShowEvent *event) {
+	QWidget::showEvent(event);
+	load();
 }
 
 // 拉取历史订单（GET /orders）并按状态着色渲染卡片
-void OrderHistoryView::load()
-{
-    m_spinner->show();
-    m_statusLabel->hide();
-    m_api.get(QStringLiteral("/orders?pageSize=50"),
-              [this](const QJsonValue &data, const QJsonObject &) {
+void OrderHistoryView::load() {
+	m_spinner->show();
+	m_statusLabel->hide();
+	m_api.get(QStringLiteral("/orders?pageSize=50"), [this](const QJsonValue &data, const QJsonObject &) {
                   m_spinner->hide();
                   clearCards(m_listLayout);
                   const QJsonArray orders = data.toArray();
@@ -156,40 +148,31 @@ void OrderHistoryView::load()
                       grid->addWidget(amountLabel, 2, 1, Qt::AlignRight);
 
                       m_listLayout->insertWidget(m_listLayout->count() - 1, card);
-                  }
-              },
-              [this](const ApiError &error) {
+                  } }, [this](const ApiError &error) {
                   m_spinner->hide();
                   m_statusLabel->setText(error.message.isEmpty() ? error.code : error.message);
-                  m_statusLabel->show();
-              });
+                  m_statusLabel->show(); });
 }
 
 // 构造钱包流水页骨架
 TransactionsView::TransactionsView(ApiClient &api, QWidget *parent)
-    : QWidget(parent)
-    , m_api(api)
-{
-    QVBoxLayout *listLayout = nullptr;
-    m_statusLabel = makePageShell(QStringLiteral("钱包流水"), [this] { emit backRequested(); },
-                                  &listLayout, &m_spinner, this);
-    m_listLayout = listLayout;
+	: QWidget(parent), m_api(api) {
+	QVBoxLayout *listLayout = nullptr;
+	m_statusLabel = makePageShell(QStringLiteral("钱包流水"), [this] { emit backRequested(); }, &listLayout, &m_spinner, this);
+	m_listLayout = listLayout;
 }
 
 // 页面显示时加载流水列表
-void TransactionsView::showEvent(QShowEvent *event)
-{
-    QWidget::showEvent(event);
-    load();
+void TransactionsView::showEvent(QShowEvent *event) {
+	QWidget::showEvent(event);
+	load();
 }
 
 // 拉取钱包流水并渲染卡片，金额正负用绿 / 红区分
-void TransactionsView::load()
-{
-    m_spinner->show();
-    m_statusLabel->hide();
-    m_api.get(QStringLiteral("/me/wallet/transactions"),
-              [this](const QJsonValue &data, const QJsonObject &) {
+void TransactionsView::load() {
+	m_spinner->show();
+	m_statusLabel->hide();
+	m_api.get(QStringLiteral("/me/wallet/transactions"), [this](const QJsonValue &data, const QJsonObject &) {
                   m_spinner->hide();
                   clearCards(m_listLayout);
                   const QJsonArray transactions = data.toArray();
@@ -247,40 +230,31 @@ void TransactionsView::load()
                       grid->addWidget(balanceLabel, 1, 1, Qt::AlignRight);
 
                       m_listLayout->insertWidget(m_listLayout->count() - 1, card);
-                  }
-              },
-              [this](const ApiError &error) {
+                  } }, [this](const ApiError &error) {
                   m_spinner->hide();
                   m_statusLabel->setText(error.message.isEmpty() ? error.code : error.message);
-                  m_statusLabel->show();
-              });
+                  m_statusLabel->show(); });
 }
 
 // 构造预约记录页骨架
 ReservationHistoryView::ReservationHistoryView(ApiClient &api, QWidget *parent)
-    : QWidget(parent)
-    , m_api(api)
-{
-    QVBoxLayout *listLayout = nullptr;
-    m_statusLabel = makePageShell(QStringLiteral("我的预约记录"), [this] { emit backRequested(); },
-                                  &listLayout, &m_spinner, this);
-    m_listLayout = listLayout;
+	: QWidget(parent), m_api(api) {
+	QVBoxLayout *listLayout = nullptr;
+	m_statusLabel = makePageShell(QStringLiteral("我的预约记录"), [this] { emit backRequested(); }, &listLayout, &m_spinner, this);
+	m_listLayout = listLayout;
 }
 
 // 页面显示时加载预约记录
-void ReservationHistoryView::showEvent(QShowEvent *event)
-{
-    QWidget::showEvent(event);
-    load();
+void ReservationHistoryView::showEvent(QShowEvent *event) {
+	QWidget::showEvent(event);
+	load();
 }
 
 // 拉取预约记录（GET /reservations）并按状态着色渲染卡片
-void ReservationHistoryView::load()
-{
-    m_spinner->show();
-    m_statusLabel->hide();
-    m_api.get(QStringLiteral("/reservations"),
-              [this](const QJsonValue &data, const QJsonObject &) {
+void ReservationHistoryView::load() {
+	m_spinner->show();
+	m_statusLabel->hide();
+	m_api.get(QStringLiteral("/reservations"), [this](const QJsonValue &data, const QJsonObject &) {
                   m_spinner->hide();
                   clearCards(m_listLayout);
                   const QJsonArray reservations = data.toArray();
@@ -330,52 +304,48 @@ void ReservationHistoryView::load()
                       grid->addWidget(expireLabel, 1, 1, Qt::AlignRight);
 
                       m_listLayout->insertWidget(m_listLayout->count() - 1, card);
-                  }
-              },
-              [this](const ApiError &error) {
+                  } }, [this](const ApiError &error) {
                   m_spinner->hide();
                   m_statusLabel->setText(error.message.isEmpty() ? error.code : error.message);
-                  m_statusLabel->show();
-              });
+                  m_statusLabel->show(); });
 }
 
 // 构造“关于系统”静态展示页
 AboutView::AboutView(QWidget *parent)
-    : QWidget(parent)
-{
-    auto *backButton = new BackButton(this);
-    connect(backButton, &QPushButton::clicked, this, &AboutView::backRequested);
-    auto *headerRow = new QHBoxLayout;
-    headerRow->addWidget(backButton);
-    headerRow->addStretch();
+	: QWidget(parent) {
+	auto *backButton = new BackButton(this);
+	connect(backButton, &QPushButton::clicked, this, &AboutView::backRequested);
+	auto *headerRow = new QHBoxLayout;
+	headerRow->addWidget(backButton);
+	headerRow->addStretch();
 
-    auto *iconLabel = new QLabel(this);
-    iconLabel->setAlignment(Qt::AlignCenter);
-    iconLabel->setObjectName(QStringLiteral("heroIconSmall"));
-    iconLabel->setPixmap(QPixmap(QStringLiteral(":/backgrounds/logo.png"))
-                             .scaled(160, 160, Qt::KeepAspectRatio, Qt::SmoothTransformation));
-    iconLabel->setFixedSize(160, 160);
+	auto *iconLabel = new QLabel(this);
+	iconLabel->setAlignment(Qt::AlignCenter);
+	iconLabel->setObjectName(QStringLiteral("heroIconSmall"));
+	iconLabel->setPixmap(QPixmap(QStringLiteral(":/backgrounds/logo.png"))
+							 .scaled(160, 160, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+	iconLabel->setFixedSize(160, 160);
 
-    auto *nameLabel = new QLabel(QStringLiteral("智能充电系统"), this);
-    nameLabel->setAlignment(Qt::AlignCenter);
-    nameLabel->setObjectName(QStringLiteral("heroTitle"));
+	auto *nameLabel = new QLabel(QStringLiteral("智能充电系统"), this);
+	nameLabel->setAlignment(Qt::AlignCenter);
+	nameLabel->setObjectName(QStringLiteral("heroTitle"));
 
-    auto *versionLabel = new QLabel(QStringLiteral("版本 1.0.0"), this);
-    versionLabel->setAlignment(Qt::AlignCenter);
-    versionLabel->setObjectName(QStringLiteral("muted"));
+	auto *versionLabel = new QLabel(QStringLiteral("版本 1.0.0"), this);
+	versionLabel->setAlignment(Qt::AlignCenter);
+	versionLabel->setObjectName(QStringLiteral("muted"));
 
-    auto *detailLabel = new QLabel(QStringLiteral("电动汽车充电桩应用管理平台 · 用户端\n基于 Qt 6 构建"), this);
-    detailLabel->setAlignment(Qt::AlignCenter);
-    detailLabel->setObjectName(QStringLiteral("muted"));
+	auto *detailLabel = new QLabel(QStringLiteral("电动汽车充电桩应用管理平台 · 用户端\n基于 Qt 6 构建"), this);
+	detailLabel->setAlignment(Qt::AlignCenter);
+	detailLabel->setObjectName(QStringLiteral("muted"));
 
-    auto *layout = new QVBoxLayout(this);
-    layout->setContentsMargins(12, 12, 12, 12);
-    layout->addLayout(headerRow);
-    layout->addStretch(2);
-    layout->addWidget(iconLabel, 0, Qt::AlignHCenter);
-    layout->addWidget(nameLabel);
-    layout->addWidget(versionLabel);
-    layout->addSpacing(12);
-    layout->addWidget(detailLabel);
-    layout->addStretch(3);
+	auto *layout = new QVBoxLayout(this);
+	layout->setContentsMargins(12, 12, 12, 12);
+	layout->addLayout(headerRow);
+	layout->addStretch(2);
+	layout->addWidget(iconLabel, 0, Qt::AlignHCenter);
+	layout->addWidget(nameLabel);
+	layout->addWidget(versionLabel);
+	layout->addSpacing(12);
+	layout->addWidget(detailLabel);
+	layout->addStretch(3);
 }
