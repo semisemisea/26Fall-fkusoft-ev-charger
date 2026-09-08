@@ -1,6 +1,6 @@
 /**
  * @file StationListView.cpp
- * @brief 查询附近电站，支持位置预设、文本过滤和基于空闲率的本地推荐。
+ * @brief 查询附近电站，支持地图选址、手动坐标、文本过滤和基于空闲率的本地推荐。
  */
 #include <evcharger/logging.h>
 
@@ -12,40 +12,22 @@
 #include "widgets/Spinner.h"
 #include "widgets/StationCard.h"
 
-#include "widgets/ComboBox.h"
+#include "evcharger/mappickerdialog.h"
 #include <QGraphicsOpacityEffect>
 #include <QHBoxLayout>
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QLabel>
 #include <QLineEdit>
+#include <QPointer>
 #include <QPropertyAnimation>
 #include <QPushButton>
 #include <QScrollArea>
 #include <QUrlQuery>
 #include <QVBoxLayout>
+#include <cmath>
 
 Q_LOGGING_CATEGORY(userStationListViewLog, "evcharger.user.ui", QtInfoMsg)
-
-namespace {
-	/**
-	 * @brief 桌面演示所用的位置预设，选择后写入 Session。
-	 */
-	struct LocationPreset {
-		const char *name; ///< 位置选择器中的 UTF-8 名称。
-		double latitude;  ///< 预设纬度，单位为度。
-		double longitude; ///< 预设经度，单位为度。
-	};
-
-	/// @brief 位置下拉框的固定大连区域样本，不依赖设备定位。
-	const LocationPreset kLocationPresets[] = {
-		{"大连市中心", 38.914, 121.614},
-		{"软件园", 38.889, 121.537},
-		{"星海广场", 38.881, 121.584},
-		{"东港商务区", 38.928, 121.663},
-		{"大连北站", 39.056, 121.585},
-	};
-} // namespace
 
 /**
  * @details 构造函数：搭建定位切换、搜索框、AI 推荐横幅与电站卡片滚动列表
@@ -65,30 +47,45 @@ StationListView::StationListView(Session &session, ApiClient &api, QWidget *pare
 	QPixmap pinPixmap = AppIcons::pin(theme::textSecondary(), 18, false);
 	locationIcon->setPixmap(pinPixmap);
 
-	auto *locationLabel = new QLabel(QStringLiteral("当前定位（区域）"), this);
-	locationLabel->setObjectName(QStringLiteral("meta"));
+	m_locationLabel = new QLabel(this);
+	m_locationLabel->setObjectName(QStringLiteral("searchLocation"));
+	m_locationLabel->setWordWrap(true);
+	m_locationLabel->setTextFormat(Qt::PlainText);
+	m_locationLabel->setText(QStringLiteral("请地图选址或填写经纬度，然后确认位置"));
 
 	locationLayout->addWidget(locationIcon);
-	locationLayout->addWidget(locationLabel);
+	locationLayout->addWidget(m_locationLabel);
 	locationLayout->addStretch();
 
-	m_locationCombo = new ComboBox(this);
-	m_locationCombo->setObjectName(QStringLiteral("locationCombo"));
-	for (const LocationPreset &preset : kLocationPresets) {
-		m_locationCombo->addItem(preset.name);
-	}
-	connect(m_locationCombo, &QComboBox::activated, this, [this] {
-		const LocationPreset &preset = kLocationPresets[m_locationCombo->currentIndex()];
-		m_session.setLocation(preset.latitude, preset.longitude);
-		reload();
-	});
+	auto *mapButton = new QPushButton(QStringLiteral("地图选址"), this);
+	mapButton->setObjectName(QStringLiteral("pickLocationButton"));
+	connect(mapButton, &QPushButton::clicked, this, &StationListView::pickLocation);
 
-	auto *sectionTitle = new QLabel(QStringLiteral("附近充电站（按距离排序）"), this);
+	m_latitudeEdit = new QLineEdit(QString::number(m_session.latitude(), 'f', 6), this);
+	m_latitudeEdit->setObjectName(QStringLiteral("latitudeEdit"));
+	m_latitudeEdit->setPlaceholderText(QStringLiteral("纬度 -90～90"));
+	m_longitudeEdit = new QLineEdit(QString::number(m_session.longitude(), 'f', 6), this);
+	m_longitudeEdit->setObjectName(QStringLiteral("longitudeEdit"));
+	m_longitudeEdit->setPlaceholderText(QStringLiteral("经度 -180～180"));
+	auto *coordinateButton = new QPushButton(QStringLiteral("确认位置"), this);
+	coordinateButton->setObjectName(QStringLiteral("searchCoordinatesButton"));
+	auto *coordinateRow = new QHBoxLayout;
+	coordinateRow->addWidget(new QLabel(QStringLiteral("纬度"), this));
+	coordinateRow->addWidget(m_latitudeEdit, 1);
+	coordinateRow->addWidget(new QLabel(QStringLiteral("经度"), this));
+	coordinateRow->addWidget(m_longitudeEdit, 1);
+
+	connect(coordinateButton, &QPushButton::clicked, this, &StationListView::searchCoordinates);
+	connect(m_latitudeEdit, &QLineEdit::returnPressed, this, &StationListView::searchCoordinates);
+	connect(m_longitudeEdit, &QLineEdit::returnPressed, this, &StationListView::searchCoordinates);
+
+	auto *sectionTitle = new QLabel(QStringLiteral("附近充电站（50 公里内，按直线距离由近到远）"), this);
 	sectionTitle->setObjectName(QStringLiteral("meta"));
+	sectionTitle->setWordWrap(true);
 
 	// ===== 搜索框：图标在输入框内部左侧 =====
 	m_searchEdit = new QLineEdit(this);
-	m_searchEdit->setPlaceholderText(QStringLiteral("搜索电站 / 地址"));
+	m_searchEdit->setPlaceholderText(QStringLiteral("在结果中筛选站名 / 地址"));
 	m_searchEdit->setClearButtonEnabled(true);
 	connect(m_searchEdit, &QLineEdit::textChanged, this, [this] { applyFilter(); });
 
@@ -104,6 +101,8 @@ StationListView::StationListView(Session &session, ApiClient &api, QWidget *pare
 
 	m_statusLabel = new QLabel(this);
 	m_statusLabel->setObjectName(QStringLiteral("error"));
+	m_statusLabel->setWordWrap(true);
+	m_statusLabel->setTextFormat(Qt::PlainText);
 	m_statusLabel->hide();
 
 	m_spinner = new Spinner(this);
@@ -132,7 +131,9 @@ StationListView::StationListView(Session &session, ApiClient &api, QWidget *pare
 	layout->setContentsMargins(12, 12, 12, 12);
 	layout->setSpacing(10);
 	layout->addWidget(locationWidget);
-	layout->addWidget(m_locationCombo);
+	layout->addWidget(mapButton);
+	layout->addLayout(coordinateRow);
+	layout->addWidget(coordinateButton);
 	layout->addWidget(sectionTitle);
 	layout->addWidget(m_searchEdit);
 	layout->addWidget(m_bannerButton);
@@ -151,7 +152,8 @@ StationListView::StationListView(Session &session, ApiClient &api, QWidget *pare
  */
 void StationListView::showEvent(QShowEvent *event) {
 	QWidget::showEvent(event);
-	reload();
+	if (m_locationConfirmed)
+		reload();
 }
 
 /**
@@ -159,56 +161,111 @@ void StationListView::showEvent(QShowEvent *event) {
  */
 void StationListView::reload() {
 	EV_LOG_INFO(userStationListViewLog, this) << "Loading stations";
-	const LocationPreset &preset = kLocationPresets[m_locationCombo->currentIndex()];
+	const quint64 generation = beginSearch();
+	const QPointer<StationListView> guard(this);
 
 	QUrlQuery query;
-	query.addQueryItem(QLatin1String("latitude"), QString::number(preset.latitude));
-	query.addQueryItem(QLatin1String("longitude"), QString::number(preset.longitude));
+	query.addQueryItem(QLatin1String("latitude"), QString::number(m_session.latitude(), 'f', 6));
+	query.addQueryItem(QLatin1String("longitude"), QString::number(m_session.longitude(), 'f', 6));
 	query.addQueryItem(QLatin1String("radiusKm"), QStringLiteral("50"));
 
+	query.addQueryItem(QStringLiteral("sort"), QStringLiteral("distance"));
+
+	const auto onSuccess = [this, guard, generation](const QJsonValue &data, const QJsonObject &) {
+		if (!guard || generation != m_requestGeneration)
+			return;
+		m_spinner->hide();
+		const QJsonArray stations = data.toArray();
+		for (const QJsonValue &value : stations) {
+			auto *card = new StationCard(Station::fromJson(value.toObject()), this);
+			connect(card, &StationCard::clicked, this, &StationListView::stationSelected);
+			connect(card, &StationCard::navigateRequested, this, &StationListView::navigateRequested);
+			m_cardsLayout->insertWidget(m_cardsLayout->count() - 1, card);
+			m_cards.append(card);
+		}
+		if (stations.isEmpty()) {
+			m_statusLabel->setText(QStringLiteral("该位置 50 公里内暂无充电站"));
+			m_statusLabel->show();
+			return;
+		}
+		applyFilter();
+		loadRecommendation();
+		if (!m_listAnimated) {
+			m_listAnimated = true;
+			auto *fade = new QGraphicsOpacityEffect(m_scrollArea);
+			m_scrollArea->setGraphicsEffect(fade);
+			fade->setOpacity(0.0);
+			auto *anim = new QPropertyAnimation(fade, "opacity", m_scrollArea);
+			anim->setDuration(demo::ms(220));
+			anim->setStartValue(0.0);
+			anim->setEndValue(1.0);
+			anim->setEasingCurve(QEasingCurve::OutQuint);
+			connect(anim, &QPropertyAnimation::finished, m_scrollArea, [this] {
+				m_scrollArea->setGraphicsEffect(nullptr);
+			});
+			anim->start(QAbstractAnimation::DeleteWhenStopped);
+		}
+	};
+	const auto onFailure = [this, guard, generation](const ApiError &error) {
+		if (!guard || generation != m_requestGeneration)
+			return;
+		EV_LOG_WARNING(userStationListViewLog, this) << "API operation failed in view";
+		m_spinner->hide();
+		m_statusLabel->setText(error.message.isEmpty() ? error.code : error.message);
+		m_statusLabel->show();
+	};
+	m_api.get(QStringLiteral("/stations/nearby?%1").arg(query.toString(QUrl::FullyEncoded)), onSuccess, onFailure);
+}
+
+quint64 StationListView::beginSearch() {
+	++m_requestGeneration;
+	qDeleteAll(m_cards);
+	m_cards.clear();
 	m_spinner->show();
 	m_statusLabel->hide();
 	m_bannerButton->hide();
 	m_hasRecommendation = false;
+	return m_requestGeneration;
+}
 
-	m_api.get(QStringLiteral("/stations/nearby?%1").arg(query.toString(QUrl::FullyEncoded)), [this](const QJsonValue &data, const QJsonObject &) {
-				  m_spinner->hide();
-				  qDeleteAll(m_cards);
-				  m_cards.clear();
-				  const QJsonArray stations = data.toArray();
-				  for (const QJsonValue &value : stations) {
-					  auto *card = new StationCard(Station::fromJson(value.toObject()), this);
-					  connect(card, &StationCard::clicked, this, &StationListView::stationSelected);
-					  connect(card, &StationCard::navigateRequested, this, &StationListView::navigateRequested);
-					  m_cardsLayout->insertWidget(m_cardsLayout->count() - 1, card);
-					  m_cards.append(card);
-				  }
-				  if (stations.isEmpty()) {
-					  m_statusLabel->setText(QStringLiteral("附近没有可用充电站"));
-					  m_statusLabel->show();
-					  return;
-				  }
-				  applyFilter();
-				  loadRecommendation();
-				  if (!m_listAnimated) {
-					  m_listAnimated = true;
-					  auto *fade = new QGraphicsOpacityEffect(m_scrollArea);
-					  m_scrollArea->setGraphicsEffect(fade);
-					  fade->setOpacity(0.0);
-					  auto *anim = new QPropertyAnimation(fade, "opacity", m_scrollArea);
-					  anim->setDuration(demo::ms(220));
-					  anim->setStartValue(0.0);
-					  anim->setEndValue(1.0);
-					  anim->setEasingCurve(QEasingCurve::OutQuint);
-					  connect(anim, &QPropertyAnimation::finished, m_scrollArea, [this] {
-						  m_scrollArea->setGraphicsEffect(nullptr);
-					  });
-					  anim->start(QAbstractAnimation::DeleteWhenStopped);
-				  } }, [this](const ApiError &error) {
- EV_LOG_WARNING(userStationListViewLog, this) << "API operation failed in view";
-				  m_spinner->hide();
-				  m_statusLabel->setText(error.message.isEmpty() ? error.code : error.message);
-				  m_statusLabel->show(); });
+void StationListView::useLocation(double latitude, double longitude) {
+	m_locationConfirmed = true;
+	m_session.setLocation(latitude, longitude);
+	m_latitudeEdit->setText(QString::number(latitude, 'f', 6));
+	m_longitudeEdit->setText(QString::number(longitude, 'f', 6));
+	m_locationLabel->setText(QStringLiteral("查询中心：纬度 %1，经度 %2")
+								 .arg(latitude, 0, 'f', 6)
+								 .arg(longitude, 0, 'f', 6));
+	m_searchEdit->clear();
+	reload();
+}
+
+void StationListView::searchCoordinates() {
+	bool latitudeOk = false;
+	bool longitudeOk = false;
+	const double latitude = m_latitudeEdit->text().trimmed().toDouble(&latitudeOk);
+	const double longitude = m_longitudeEdit->text().trimmed().toDouble(&longitudeOk);
+	if (!latitudeOk || !longitudeOk || !std::isfinite(latitude) || !std::isfinite(longitude) || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+		m_statusLabel->setText(QStringLiteral("请输入有效坐标：纬度 -90～90，经度 -180～180"));
+		m_statusLabel->show();
+		return;
+	}
+	useLocation(latitude, longitude);
+}
+
+void StationListView::pickLocation() {
+	bool latitudeOk = false;
+	bool longitudeOk = false;
+	const double latitude = m_latitudeEdit->text().trimmed().toDouble(&latitudeOk);
+	const double longitude = m_longitudeEdit->text().trimmed().toDouble(&longitudeOk);
+	const bool valid = latitudeOk && longitudeOk && std::isfinite(latitude) && std::isfinite(longitude) && std::abs(latitude) <= 90 && std::abs(longitude) <= 180;
+	MapPickerDialog picker(qEnvironmentVariable("TENCENT_MAP_KEY"),
+						   valid ? latitude : m_session.latitude(), valid ? longitude : m_session.longitude(), this, window()->size());
+	if (picker.exec() != QDialog::Accepted)
+		return;
+	m_latitudeEdit->setText(QString::number(picker.latitude(), 'f', 6));
+	m_longitudeEdit->setText(QString::number(picker.longitude(), 'f', 6));
+	m_statusLabel->hide();
 }
 
 /**

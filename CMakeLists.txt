@@ -26,6 +26,8 @@ add_subdirectory(common/logging)
 # All applications and their test targets share the same logging support.
 link_libraries(evcharger-logging)
 
+add_subdirectory(common/map-picker)
+
 add_subdirectory(biz-core)
 add_subdirectory(user-app)
 add_subdirectory(ops-app)

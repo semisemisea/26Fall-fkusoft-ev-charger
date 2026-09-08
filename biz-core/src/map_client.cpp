@@ -6,12 +6,15 @@
 
 #include "backend/map_client.h"
 
+#include "tencent_map_request.h"
+#include <QCryptographicHash>
 #include <QEventLoop>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
+#include <QStringList>
 #include <QTimer>
 #include <QUrl>
 #include <QUrlQuery>
@@ -23,6 +26,24 @@
 Q_LOGGING_CATEGORY(backendMap, "evcharger.backend.map", QtInfoMsg)
 
 namespace Backend {
+	QNetworkRequest tencentMapRequest(QUrl url, const QMap<QString, QString> &parameters, const QString &secretKey) {
+		QStringList rawItems;
+		QStringList encodedItems;
+		for (auto it = parameters.cbegin(); it != parameters.cend(); ++it) {
+			rawItems.append(it.key() + QLatin1Char('=') + it.value());
+			encodedItems.append(QString::fromLatin1(QUrl::toPercentEncoding(it.key())) + QLatin1Char('=') + QString::fromLatin1(QUrl::toPercentEncoding(it.value())));
+		}
+		if (!secretKey.isEmpty()) {
+			const QByteArray input = (url.path() + QLatin1Char('?') + rawItems.join(QLatin1Char('&')) + secretKey).toUtf8();
+			const QByteArray signature = QCryptographicHash::hash(input, QCryptographicHash::Md5).toHex();
+			encodedItems.append(QStringLiteral("sig=") + QString::fromLatin1(signature));
+		}
+		url.setQuery(encodedItems.join(QLatin1Char('&')), QUrl::StrictMode);
+		QNetworkRequest request(url);
+		request.setRawHeader("x-legacy-url-decode", "no");
+		return request;
+	}
+
 	namespace {
 
 		/** @brief 地图 GET 的可用性与响应字节，供 JSON 业务状态解析。 */
@@ -33,17 +54,17 @@ namespace Backend {
 
 		/**
 		 * @brief 通过局部事件循环执行有超时的 GET；按配置次数重试网络请求。
-		 * @param url 地图或测试 HTTP 请求的目标 URL。
+		 * @param request 已编码并按需签名的地图请求。
 		 * @param timeoutMs 等待超时，单位毫秒。
 		 * @param retryCount 初次请求之外允许的重试次数。
 		 * @return 网络分类状态及成功时的响应体；重试耗尽返回 Unavailable。
 		 */
-		NetworkResult getWithRetry(const QUrl &url, int timeoutMs, int retryCount) {
+		NetworkResult getWithRetry(const QNetworkRequest &request, int timeoutMs, int retryCount) {
 			QNetworkAccessManager manager;
 			manager.setObjectName(QStringLiteral("tencent-map-network"));
 			for (int attempt = 0; attempt <= retryCount; ++attempt) {
 				EV_LOG_DEBUG(backendMap, &manager) << "Requesting map provider" << "attempt=" << attempt + 1;
-				QNetworkReply *reply = manager.get(QNetworkRequest(url));
+				QNetworkReply *reply = manager.get(request);
 				reply->setObjectName(QStringLiteral("tencent-map-reply"));
 				QEventLoop loop;
 				QTimer timer;
@@ -170,8 +191,8 @@ namespace Backend {
 	 * @param timeoutMs 等待超时，单位毫秒。
 	 * @param retryCount 初次请求之外允许的重试次数。
 	 */
-	TencentMapClient::TencentMapClient(QString key, int timeoutMs, int retryCount)
-		: m_key(std::move(key)), m_timeoutMs(timeoutMs), m_retryCount(retryCount) {
+	TencentMapClient::TencentMapClient(QString key, int timeoutMs, int retryCount, QString secretKey)
+		: m_key(std::move(key)), m_secretKey(std::move(secretKey)), m_timeoutMs(timeoutMs), m_retryCount(retryCount) {
 	}
 
 	/**
@@ -186,14 +207,13 @@ namespace Backend {
 			return {};
 		}
 		QUrl url(QStringLiteral("https://apis.map.qq.com/ws/geocoder/v1/"));
-		QUrlQuery query;
-		query.addQueryItem(QStringLiteral("address"), address);
+		QMap<QString, QString> query;
+		query.insert(QStringLiteral("address"), address);
 		if (!region.isEmpty()) {
-			query.addQueryItem(QStringLiteral("region"), region);
+			query.insert(QStringLiteral("region"), region);
 		}
-		query.addQueryItem(QStringLiteral("key"), m_key);
-		url.setQuery(query);
-		const NetworkResult network = getWithRetry(url, m_timeoutMs, m_retryCount);
+		query.insert(QStringLiteral("key"), m_key);
+		const NetworkResult network = getWithRetry(tencentMapRequest(url, query, m_secretKey), m_timeoutMs, m_retryCount);
 		if (network.status != MapStatus::Success) {
 			return GeocodeResult{network.status};
 		}
@@ -231,12 +251,11 @@ namespace Backend {
 			return {};
 		}
 		QUrl url(QStringLiteral("https://apis.map.qq.com/ws/direction/v1/%1/").arg(mode));
-		QUrlQuery query;
-		query.addQueryItem(QStringLiteral("from"), coordinate(fromLatitude, fromLongitude));
-		query.addQueryItem(QStringLiteral("to"), coordinate(toLatitude, toLongitude));
-		query.addQueryItem(QStringLiteral("key"), m_key);
-		url.setQuery(query);
-		const NetworkResult network = getWithRetry(url, m_timeoutMs, m_retryCount);
+		QMap<QString, QString> query;
+		query.insert(QStringLiteral("from"), coordinate(fromLatitude, fromLongitude));
+		query.insert(QStringLiteral("to"), coordinate(toLatitude, toLongitude));
+		query.insert(QStringLiteral("key"), m_key);
+		const NetworkResult network = getWithRetry(tencentMapRequest(url, query, m_secretKey), m_timeoutMs, m_retryCount);
 		if (network.status != MapStatus::Success) {
 			return RouteResult{network.status};
 		}

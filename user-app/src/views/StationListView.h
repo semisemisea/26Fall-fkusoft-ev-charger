@@ -1,6 +1,6 @@
 /**
  * @file StationListView.h
- * @brief 查询附近电站，支持位置预设、文本过滤和基于空闲率的本地推荐。
+ * @brief 查询附近电站，支持地图选址、手动坐标、文本过滤和基于空闲率的本地推荐。
  */
 #pragma once
 
@@ -11,7 +11,6 @@
 #include <QVector>
 #include <QWidget>
 
-class ComboBox;
 class QLabel;
 class QLineEdit;
 class QPushButton;
@@ -60,6 +59,14 @@ private:
 	 * @brief 重新加载附近电站（GET /stations/nearby）并重建卡片列表
 	 */
 	void reload();
+	/// @brief 打开腾讯地图选址，选点只回填输入框，确认后才查询。
+	void pickLocation();
+	/// @brief 校验并使用手动填写的经纬度。
+	void searchCoordinates();
+	/// @brief 更新查询及导航共用的位置，并刷新附近电站。
+	void useLocation(double latitude, double longitude);
+	/// @brief 清空旧结果，开始新请求并使旧回调失效。
+	quint64 beginSearch();
 	/**
 	 * @brief 按搜索框关键字过滤卡片可见性
 	 */
@@ -71,7 +78,10 @@ private:
 
 	Session &m_session;					   ///< 共享会话；页面保存非拥有引用，主窗口保存由自身拥有的对象指针。
 	ApiClient &m_api;					   ///< 共享网络出口；页面不拥有客户端，主窗口通过 Qt 父子关系拥有它。
-	ComboBox *m_locationCombo = nullptr;   ///< 预设地理位置选择框。
+	QLineEdit *m_latitudeEdit = nullptr;   ///< 手动纬度输入。
+	QLineEdit *m_longitudeEdit = nullptr;  ///< 手动经度输入。
+	QLabel *m_locationLabel = nullptr;	   ///< 实际查询中心。
+	quint64 m_requestGeneration = 0;	   ///< 只接受最新请求的结果。
 	QLineEdit *m_searchEdit = nullptr;	   ///< 按站名或地址过滤的输入框。
 	QPushButton *m_bannerButton = nullptr; ///< 显示本地推荐站点并打开详情的横幅按钮。
 	QLabel *m_statusLabel = nullptr;	   ///< 列表加载、空数据或错误状态标签。
@@ -81,5 +91,6 @@ private:
 	QVector<StationCard *> m_cards;		   ///< 卡片指针索引；实际对象由 Qt 父子树拥有。
 	Station m_recommendedStation;		   ///< 本轮按空闲率选择的推荐站点快照。
 	bool m_hasRecommendation = false;	   ///< 是否存在可供横幅打开的推荐站点。
+	bool m_locationConfirmed = false;	   ///< 首次确认位置后才允许加载列表。
 	bool m_listAnimated = false;		   ///< 是否已执行首轮列表淡入，避免刷新时重复播放。
 };

@@ -73,6 +73,7 @@ qt_add_executable(user-app
 target_include_directories(user-app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 target_link_libraries(user-app PRIVATE
+    evcharger-map-picker
     Qt6::Network
     Qt6::Svg
     Qt6::Widgets
@@ -119,4 +120,26 @@ if(BUILD_TESTING)
     target_link_libraries(user-app-contract-tests PRIVATE Qt6::Test Qt6::Network Qt6::Widgets Qt6::Svg)
     add_test(NAME user-app-contract-tests COMMAND user-app-contract-tests)
     set_tests_properties(user-app-contract-tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+endif()
+
+if(BUILD_TESTING)
+    add_executable(user-app-station-search-tests
+        tests/station_search_tests.cpp
+        src/api/ApiClient.cpp
+        src/app/Session.cpp
+        src/models/User.cpp
+        src/models/Station.cpp
+        src/views/StationListView.cpp
+        src/widgets/StationCard.cpp
+        src/widgets/Spinner.cpp
+        src/widgets/AppIcons.cpp
+    )
+    target_include_directories(user-app-station-search-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+    target_link_libraries(user-app-station-search-tests PRIVATE evcharger-map-picker Qt6::Test Qt6::Network Qt6::Widgets Qt6::Svg)
+    if(TARGET Qt6::WebEngineWidgets)
+        target_link_libraries(user-app-station-search-tests PRIVATE Qt6::WebEngineWidgets)
+        target_compile_definitions(user-app-station-search-tests PRIVATE USER_APP_HAS_WEBENGINE)
+    endif()
+    add_test(NAME user-app-station-search-tests COMMAND user-app-station-search-tests)
+    set_tests_properties(user-app-station-search-tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 endif()

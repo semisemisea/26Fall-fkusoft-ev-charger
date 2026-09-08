@@ -884,7 +884,9 @@ PATCH 不接受 `stationId` 或 `occupancyStatus`。修改功率只影响后续�
 
 默认配置文件为可执行文件同目录的 UTF-8 `config.ini`。环境变量覆盖 INI，INI 覆盖内置默认值。配置只在启动时加载。非法配置导致启动失败。
 
-腾讯地图密钥使用环境变量 `TENCENT_MAP_KEY`。SERVICE 令牌使用环境变量 `ML_SERVICE_TOKEN`。这两个值不从 INI 读取。
+腾讯地图 API Key 使用环境变量 `TENCENT_MAP_KEY`。若控制台启用了 WebServiceAPI 的 SN 校验，还需设置 `TENCENT_MAP_SECRET_KEY`，填入该 Key 对应的 SecretKey（SK）；后端对地址解析和路线请求计算 `sig`，SK 不会作为请求参数发送。两者不能混用。未启用 SN 校验时可省略 `TENCENT_MAP_SECRET_KEY`。SERVICE 令牌使用环境变量 `ML_SERVICE_TOKEN`。这些凭据均不从 INI 读取。
+
+签名遵循[腾讯 WebServiceAPI 官方规则](https://lbs.qq.com/faq/serverFaq/webServiceKey)：原始参数按名称升序排列，以请求路径、查询参数和 SK 计算小写 MD5，再对发送的参数值做 URL 编码。
 
 ### 13.2 默认配置
 

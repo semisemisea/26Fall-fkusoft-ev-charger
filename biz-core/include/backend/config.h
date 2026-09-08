@@ -33,6 +33,7 @@ namespace Backend {
 		qint64 avatarBodyLimitBytes = 5'242'880;	 ///< 头像请求正文及头像文件校验上限，单位字节。
 		int shutdownTimeoutMs = 1000;				 ///< 停止服务时等待工作任务的期限，单位毫秒。
 		QString tencentMapKey;						 ///< 从 TENCENT_MAP_KEY 环境变量读取的地图密钥。
+		QString tencentMapSecretKey;				 ///< 从 TENCENT_MAP_SECRET_KEY 读取的可选 SN 签名密钥。
 		QString serviceToken;						 ///< 从 ML_SERVICE_TOKEN 环境变量读取的服务令牌；空值不启用服务身份。
 
 		/**
