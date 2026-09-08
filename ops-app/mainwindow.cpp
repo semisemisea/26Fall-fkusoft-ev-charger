@@ -37,12 +37,12 @@ MainWindow::MainWindow(ops::ApiClient *api, QWidget *parent)
 	layout->setSpacing(0);
 	setCentralWidget(central);
 
+	buildSidebar(layout); // 侧边栏加入 central 的布局(QMainWindow 自身布局不接受裸 widget)
+
 	m_stack = new QStackedWidget(central);
 	layout->addWidget(m_stack, 1);
 	for (int i = 0; i < PageCount; ++i)
 		m_stack->addWidget(createPage(i));
-
-	buildSidebar(layout); // 侧边栏加入 central 的布局(QMainWindow 自身布局不接受裸 widget)
 
 	connect(m_navList, &QListWidget::currentRowChanged, m_stack, &QStackedWidget::setCurrentIndex);
 	m_navList->setCurrentRow(PageSales);
