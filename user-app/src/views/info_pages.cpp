@@ -241,6 +241,8 @@ void TransactionsView::load() {
                           type = QStringLiteral("调整");
                       }
                       const qlonglong amount = object.value(QLatin1String("amountFen")).toInteger();
+                      // 契约约定流水金额恒为正、收支方向由 type 表达；amount<0 兼容旧 mock 的负数写法
+                      const bool expense = typeCode == QLatin1String("charge_debit") || amount < 0;
 
                       auto *card = new QFrame(this);
                       card->setObjectName(QStringLiteral("infoCard"));
@@ -254,11 +256,11 @@ void TransactionsView::load() {
                       timeLabel->setObjectName(QStringLiteral("meta"));
                       auto *amountLabel = new QLabel(
                           QStringLiteral("%1￥%2")
-                              .arg(amount >= 0 ? QStringLiteral("+") : QStringLiteral("-"),
+                              .arg(expense ? QStringLiteral("-") : QStringLiteral("+"),
                                    fenToYuan(qAbs(amount))),
                           card);
-                      amountLabel->setObjectName(amount >= 0 ? QStringLiteral("txIncome")
-                                                             : QStringLiteral("txExpense"));
+                      amountLabel->setObjectName(expense ? QStringLiteral("txExpense")
+                                                         : QStringLiteral("txIncome"));
                       amountLabel->setAlignment(Qt::AlignRight);
                       auto *balanceLabel = new QLabel(
                           QStringLiteral("余额 ￥%1")
