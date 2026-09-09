@@ -88,11 +88,11 @@ ProfileView::ProfileView(Session &session, ApiClient &api, QWidget *parent)
 	m_nicknameLabel = new QLabel(headerCard);
 	m_nicknameLabel->setObjectName(QStringLiteral("profileName"));
 
-	auto *editButton = new QPushButton(QStringLiteral("✏️"), headerCard);
+	auto *editButton = new QPushButton(QStringLiteral("修改昵称"), headerCard);
 	editButton->setObjectName(QStringLiteral("iconGhost"));
 	editButton->setCursor(Qt::PointingHandCursor);
 	editButton->setToolTip(QStringLiteral("修改昵称"));
-	editButton->setFixedSize(24, 24);
+	editButton->setAccessibleName(QStringLiteral("修改昵称"));
 
 	m_phoneLabel = new QLabel(headerCard);
 	m_phoneLabel->setObjectName(QStringLiteral("profilePhone"));
@@ -323,13 +323,19 @@ void ProfileView::changeNickname() {
 	EV_LOG_INFO(userProfileViewLog, this) << "Nickname change requested";
 	bool ok = false;
 	const QString nickname = QInputDialog::getText(this, QStringLiteral("修改昵称"), QStringLiteral("新昵称（1-30 字符）"),
-												   QLineEdit::Normal, m_session.user().nickname, &ok);
-	if (!ok || nickname.trimmed().isEmpty() || nickname == m_session.user().nickname) {
+												   QLineEdit::Normal, m_session.user().nickname, &ok)
+								 .trimmed();
+	if (!ok || nickname == m_session.user().nickname) {
+		return;
+	}
+
+	if (nickname.isEmpty() || nickname.toUcs4().size() > 30) {
+		Toast::error(this, QStringLiteral("昵称应为 1 至 30 个字符"));
 		return;
 	}
 
 	QJsonObject body;
-	body.insert(QLatin1String("nickname"), nickname.trimmed());
+	body.insert(QLatin1String("nickname"), nickname);
 	m_api.patch(QStringLiteral("/me"), body, [this](const QJsonValue &data, const QJsonObject &) { m_session.updateUser(User::fromJson(data.toObject())); }, [this](const ApiError &error) {
  EV_LOG_WARNING(userProfileViewLog, this) << "API operation failed in view"; Toast::error(this, error.message.isEmpty() ? error.code : error.message); });
 }
