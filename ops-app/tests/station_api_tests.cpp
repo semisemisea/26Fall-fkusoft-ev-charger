@@ -48,6 +48,7 @@ private slots:
 	/// @brief 检查电站表单不再含地址文本字段。
 	void stationFormDoesNotOwnAddress();
 	/// @brief 检查新增电站只发送一次请求及四个基本字段，单价按分发送。
+	void createStationSendsOneRequest_data();
 	void createStationSendsOneRequest();
 };
 
@@ -65,13 +66,24 @@ void StationApiTests::stationFormDoesNotOwnAddress() {
 
 /// @brief 检查新增电站只发送一次请求及四个基本字段，单价按分发送。
 
+void StationApiTests::createStationSendsOneRequest_data() {
+	QTest::addColumn<QByteArray>("method");
+	QTest::addColumn<bool>("success");
+	QTest::newRow("create") << QByteArray("POST") << true;
+	QTest::newRow("update") << QByteArray("PATCH") << true;
+	QTest::newRow("delete") << QByteArray("DELETE") << true;
+	QTest::newRow("delete-conflict") << QByteArray("DELETE") << false;
+}
+
 void StationApiTests::createStationSendsOneRequest() {
+	QFETCH(QByteArray, method);
+	QFETCH(bool, success);
 	QTcpServer server;
 	QVERIFY(server.listen(QHostAddress::LocalHost));
 	QList<QByteArray> requests;
 	connect(&server, &QTcpServer::newConnection, this, [&] {
 		QTcpSocket *socket = server.nextPendingConnection();
-		connect(socket, &QTcpSocket::readyRead, socket, [socket, &requests] {
+		connect(socket, &QTcpSocket::readyRead, socket, [socket, &requests, method, success] {
 			// TCP readyRead 可能仅收到部分报文；按 Content-Length 收齐后才断言和应答。
 			QByteArray request = socket->property("requestBuffer").toByteArray();
 			request.append(socket->readAll());
@@ -87,10 +99,14 @@ void StationApiTests::createStationSendsOneRequest() {
 			if (request.size() < headerEnd + 4 + contentLength)
 				return;
 			requests.append(request);
-			const QByteArray responseBody =
-				R"({"data":{"id":5},"meta":{"requestId":"test"}})";
+			const QByteArray responseBody = !success
+												? QByteArray(R"({"error":{"code":"INVALID_STATE_TRANSITION","message":"active reservation"}})")
+											: method == "DELETE" ? QByteArray()
+																 : QByteArray(R"({"data":{"id":5},"meta":{"requestId":"test"}})");
+			const QByteArray status = !success ? "409 Conflict" : method == "DELETE" ? "204 No Content"
+																					 : "200 OK";
 			const QByteArray response =
-				"HTTP/1.1 201 Created\r\nContent-Type: application/json\r\nContent-Length: " +
+				"HTTP/1.1 " + status + "\r\nContent-Type: application/json\r\nContent-Length: " +
 				QByteArray::number(responseBody.size()) + "\r\nConnection: close\r\n\r\n" + responseBody;
 			socket->write(response);
 			socket->disconnectFromHost();
@@ -100,20 +116,41 @@ void StationApiTests::createStationSendsOneRequest() {
 	ops::ApiClient client;
 	client.setBaseUrl(QStringLiteral("http://127.0.0.1:%1/api/v1").arg(server.serverPort()));
 	QSignalSpy finished(&client, &ops::ApiClient::stationCreated);
+	QSignalSpy mutation(&client, &ops::ApiClient::stationMutationFinished);
 	ops::StationForm form;
 	form.name = QStringLiteral("软件园充电站");
 	form.latitude = 38.889;
 	form.longitude = 121.537;
 	form.pricePerKwhFen = 98;
+	form.status = QStringLiteral("inactive");
 	configureLegacyChargerCounts(form);
-	client.createStation(form);
-	QTRY_COMPARE(finished.count(), 1);
+	if (method == "POST") {
+		client.createStation(form);
+		QTRY_COMPARE(finished.count(), 1);
+	} else {
+		if (method == "PATCH")
+			client.updateStation(5, form);
+		else
+			client.deleteStation(5);
+		QTRY_COMPARE(mutation.count(), 1);
+		QCOMPARE(mutation.first().at(1).toLongLong(), 5);
+		QCOMPARE(mutation.first().at(2).toBool(), success);
+		if (!success)
+			QCOMPARE(mutation.first().at(3).toString(), QStringLiteral("active reservation"));
+	}
 	QTest::qWait(50);
 
 	QCOMPARE(requests.size(), 1);
-	QVERIFY(requests.first().startsWith("POST /api/v1/admin/stations "));
+	const QByteArray path = method == "POST" ? "/api/v1/admin/stations " : "/api/v1/admin/stations/5 ";
+	QVERIFY(requests.first().startsWith(method + " " + path));
+	if (method == "DELETE")
+		return;
 	const QJsonObject body = QJsonDocument::fromJson(requests.first().split('\n').last()).object();
-	QCOMPARE(body.size(), 4);
+	QCOMPARE(body.size(), method == "PATCH" ? 5 : 4);
+	if (method == "PATCH")
+		QCOMPARE(body.value(QStringLiteral("status")).toString(), QStringLiteral("inactive"));
+	else
+		QVERIFY(!body.contains(QStringLiteral("status")));
 	QVERIFY(!body.contains(QStringLiteral("address")));
 	QCOMPARE(body.value(QStringLiteral("priceFenPerKwh")).toInt(), 98);
 }

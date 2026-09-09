@@ -9,6 +9,7 @@
 #include <QWidget>
 
 #include "api/api_client.h"
+class QComboBox;
 class QLabel;
 class QLineEdit;
 class QPushButton;
@@ -57,7 +58,12 @@ private:
 	/** @brief 依页码和下一页标志设置翻页条可见性及按钮状态。
 	 */
 	void updatePager();
+	/// @brief 根据电站选择、权限和写操作状态更新按钮。
+	void updateStationActions();
 
+	QPushButton *m_editButton = nullptr;
+	QPushButton *m_deleteButton = nullptr;
+	bool m_stationMutationPending = false;
 	ops::ApiClient *m_api;						   ///< 非拥有的共享客户端，须比界面对象存活更久。
 	QLineEdit *m_searchEdit = nullptr;			   ///< 搜索输入框；由 Qt 对象树管理。
 	QTableWidget *m_table = nullptr;			   ///< 主列表表格；由 Qt 对象树管理。
@@ -97,8 +103,11 @@ public:
 	 * @return 当前表单值副本。
 	 */
 	ops::StationForm form() const;
+	/// @brief 切换为编辑模式，并预填电站信息。
+	void setStation(const ops::StationSummary &station);
 
 private:
+	QComboBox *m_statusCombo = nullptr;			 ///< 仅编辑模式显示的电站状态选项。
 	QLineEdit *m_nameEdit = nullptr;			 ///< 站名输入框；由 Qt 对象树管理。
 	QPushButton *m_pickLocationButton = nullptr; ///< 地图选点入口按钮；由 Qt 对象树管理。
 	QLineEdit *m_latEdit = nullptr;				 ///< 纬度输入框；由 Qt 对象树管理。

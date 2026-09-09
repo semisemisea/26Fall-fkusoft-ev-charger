@@ -146,12 +146,13 @@ namespace ops {
 	};
 
 	// 新增电站表单;电桩通过独立管理操作逐个创建。
-	/// @brief 仅创建电站基本信息的表单；电桩通过独立操作添加。
+	/// @brief 电站基本信息表单；编辑时可附带状态，电桩通过独立操作添加。
 	struct StationForm {
 		QString name;			   ///< 电站名称。
 		double latitude = 0.0;	   ///< 纬度，单位度。
 		double longitude = 0.0;	   ///< 经度，单位度。
 		qint64 pricePerKwhFen = 0; ///< 每千瓦时单价，单位分。
+		QString status;			   ///< 编辑时提交 active/inactive，空值表示不修改状态。
 	};
 
 	// ---- 展示辅助 ----
