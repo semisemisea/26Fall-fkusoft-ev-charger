@@ -162,3 +162,20 @@ if(BUILD_TESTING)
     add_test(NAME user-app-profile-tests COMMAND user-app-profile-tests)
     set_tests_properties(user-app-profile-tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 endif()
+
+if(BUILD_TESTING)
+    add_executable(user-app-transactions-tests
+        tests/transactions_tests.cpp
+        src/api/api_client.cpp
+        src/models/order.cpp
+        src/models/reservation.cpp
+        src/views/info_pages.cpp
+        src/widgets/back_button.cpp
+        src/widgets/spinner.cpp
+        src/widgets/app_icons.cpp
+    )
+    target_include_directories(user-app-transactions-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+    target_link_libraries(user-app-transactions-tests PRIVATE Qt6::Test Qt6::Network Qt6::Widgets Qt6::Svg)
+    add_test(NAME user-app-transactions-tests COMMAND user-app-transactions-tests)
+    set_tests_properties(user-app-transactions-tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+endif()

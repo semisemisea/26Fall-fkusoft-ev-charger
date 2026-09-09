@@ -616,7 +616,7 @@ class Handler(BaseHTTPRequestHandler):
         wallet_transactions.setdefault(user["id"], []).append({
             "id": next_transaction_id,
             "type": "charge_debit",
-            # 契约约定：流水金额恒为正，收支方向由 type 表达（与 biz-core 一致）
+            # 契约约定：流水金额为非负大小，收支方向由 type 表达（与 biz-core 一致）
             "amountFen": order["amountFen"],
             "balanceAfterFen": user["walletBalanceFen"],
             "status": "succeeded",
