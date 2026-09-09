@@ -92,6 +92,7 @@ private:
 	Session &m_session;				   ///< 共享会话；页面保存非拥有引用，主窗口保存由自身拥有的对象指针。
 	ApiClient &m_api;				   ///< 共享网络出口；页面不拥有客户端，主窗口通过 Qt 父子关系拥有它。
 	QLabel *m_avatarLabel = nullptr;   ///< 头像显示区，同时安装点击过滤器。
+	bool m_signingOut = false;		   ///< 防止重复发送退出请求。
 	QLabel *m_nicknameLabel = nullptr; ///< 当前昵称标签。
 	QLabel *m_phoneLabel = nullptr;	   ///< 脱敏手机号标签。
 	QLabel *m_balanceLabel = nullptr;  ///< 钱包余额标签，显示时由分转换为元。

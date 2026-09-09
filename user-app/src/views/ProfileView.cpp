@@ -354,13 +354,28 @@ void ProfileView::openRecharge() {
 }
 
 /**
- * @details 确认后调用会话退出登录
+ * @details 确认后撤销服务端令牌，成功或令牌已失效时清空本地会话
  */
 void ProfileView::signOut() {
+	if (m_signingOut)
+		return;
 	EV_LOG_INFO(userProfileViewLog, this) << "Sign-out requested";
 	const auto choice = QMessageBox::question(this, QStringLiteral("退出登录"),
 											  QStringLiteral("确定退出当前账号吗？"));
 	if (choice == QMessageBox::Yes) {
-		m_session.signOut();
+		m_signingOut = true;
+		auto *button = findChild<QPushButton *>(QStringLiteral("outlineDangerButton"));
+		button->setEnabled(false);
+		m_api.post(QStringLiteral("/auth/logout"), {}, [this, button](const QJsonValue &, const QJsonObject &) {
+                m_signingOut = false;
+                button->setEnabled(true);
+                m_session.signOut(); }, [this, button](const ApiError &error) {
+                m_signingOut = false;
+                button->setEnabled(true);
+                if (error.httpStatus == 401) {
+                    m_session.signOut();
+                    return;
+                }
+                Toast::error(this, error.message.isEmpty() ? error.code : error.message); });
 	}
 }

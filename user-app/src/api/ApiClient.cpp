@@ -106,6 +106,10 @@ void ApiClient::send(const QString &path, Verb verb, const QJsonObject *body, Su
 				reply->deleteLater();
 
 				const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+				if (status == 204 && reply->error() == QNetworkReply::NoError) {
+					onSuccess(QJsonValue(), QJsonObject());
+					return;
+				}
 				QJsonParseError parseError;
 				const QJsonDocument document = QJsonDocument::fromJson(reply->readAll(), &parseError);
 				const QJsonObject root = document.object();
