@@ -38,9 +38,10 @@ public:
 private:
 	/** @brief 创建初始含标题与占位符的营收卡片。
 	 * @param title 卡片初始展示标题。
+	 * @param accent 卡片顶边强调色（CSS 颜色文本）。
 	 * @return 当前页面拥有的 QLabel，后续响应更新其文本。
 	 */
-	QLabel *makeCard(const QString &title);
+	QLabel *makeCard(const QString &title, const QString &accent);
 	/** @brief 先交给 QWidget 处理显示事件，再触发本页刷新。
 	 * @param event Qt 传入的显示事件，不转移所有权。
 	 */

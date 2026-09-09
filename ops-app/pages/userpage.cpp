@@ -4,6 +4,7 @@
 #include "userpage.h"
 #include <evcharger/logging.h>
 
+#include <QColor>
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QLabel>
@@ -71,7 +72,7 @@ UserPage::UserPage(ops::ApiClient *api, QWidget *parent)
 	root->addWidget(m_table, 1);
 
 	m_hintLabel = new QLabel(this);
-	m_hintLabel->setStyleSheet(QStringLiteral("color: #8a8f98;"));
+	m_hintLabel->setStyleSheet(QStringLiteral("color: #9aa3b2;"));
 	root->addWidget(m_hintLabel);
 
 	// 分页条:上一页/下一页/页码;服务端未返回分页 meta 时整行隐藏
@@ -79,7 +80,7 @@ UserPage::UserPage(ops::ApiClient *api, QWidget *parent)
 	pagerRow->addStretch();
 	m_prevButton = new QPushButton(tr("上一页"), this);
 	m_pageLabel = new QLabel(this);
-	m_pageLabel->setStyleSheet(QStringLiteral("color: #8a8f98;"));
+	m_pageLabel->setStyleSheet(QStringLiteral("color: #9aa3b2;"));
 	m_nextButton = new QPushButton(tr("下一页"), this);
 	pagerRow->addWidget(m_prevButton);
 	pagerRow->addWidget(m_pageLabel);
@@ -128,8 +129,14 @@ UserPage::UserPage(ops::ApiClient *api, QWidget *parent)
 									 new QTableWidgetItem(ops::fenCents(u.walletBalanceFen)));
 					m_table->setItem(i, ColCreatedAt,
 									 new QTableWidgetItem(u.createdAt.left(10)));
-					m_table->setItem(i, ColStatus,
-									 new QTableWidgetItem(ops::statusText(u.status)));
+					auto *statusItem =
+						new QTableWidgetItem(ops::statusText(u.status));
+					// 状态徽标色:冻结红、正常绿
+					statusItem->setForeground(
+						u.status == QLatin1String("frozen")
+							? QColor(0xf8, 0x71, 0x71)
+							: QColor(0x34, 0xd3, 0x99));
+					m_table->setItem(i, ColStatus, statusItem);
 				}
 				m_hintLabel->setText(tr("共 %1 名用户。").arg(users.size()));
 				m_hasNext = meta.valid && meta.hasNext;

@@ -9,11 +9,17 @@
 #include "pages/stationpage.h"
 #include "pages/userpage.h"
 
+#include <QColor>
 #include <QHBoxLayout>
+#include <QIcon>
 #include <QLabel>
 #include <QListWidget>
+#include <QPainter>
+#include <QPainterPath>
+#include <QPixmap>
 #include <QStackedWidget>
 #include <QStatusBar>
+#include <QStringList>
 #include <QVBoxLayout>
 #include <QWidget>
 
@@ -30,6 +36,78 @@ namespace {
 		PageUserManage,
 		PageCount
 	};
+
+	/// @brief 在 24x24 设计网格上绘制导航图标，避免为管理端引入额外图片资源。
+	/// @param name 图标语义名：sales、chargers、stations、users。
+	/// @param color 图标前景色。
+	/// @return 36x36 逻辑尺寸、2 倍采样保证高分屏清晰的透明底位图。
+	QPixmap drawNavIcon(const QString &name, const QColor &color) {
+		QPixmap pixmap(72, 72);
+		pixmap.setDevicePixelRatio(2.0);
+		pixmap.fill(Qt::transparent);
+
+		QPainter painter(&pixmap);
+		painter.setRenderHint(QPainter::Antialiasing);
+		painter.scale(3.0, 3.0); // 24x24 网格映射到 72px 位图
+
+		if (name == QLatin1String("sales")) { // 柱状图：三根圆头立柱与基线
+			painter.setPen(QPen(color, 1.8, Qt::SolidLine, Qt::RoundCap));
+			painter.drawLine(QPointF(6.2, 16.0), QPointF(6.2, 11.4));
+			painter.drawLine(QPointF(12.0, 16.0), QPointF(12.0, 6.6));
+			painter.drawLine(QPointF(17.8, 16.0), QPointF(17.8, 9.4));
+			painter.drawLine(QPointF(4.8, 18.8), QPointF(19.2, 18.8));
+		} else if (name == QLatin1String("chargers")) { // 闪电：充电隐喻
+			painter.setPen(Qt::NoPen);
+			painter.setBrush(color);
+			QPainterPath bolt;
+			bolt.moveTo(13.4, 2.6);
+			bolt.lineTo(5.4, 13.4);
+			bolt.lineTo(10.8, 13.4);
+			bolt.lineTo(10.2, 21.4);
+			bolt.lineTo(18.6, 10.2);
+			bolt.lineTo(12.9, 10.2);
+			bolt.closeSubpath();
+			painter.drawPath(bolt);
+		} else if (name == QLatin1String("stations")) { // 定位钉：站点隐喻
+			painter.setPen(Qt::NoPen);
+			painter.setBrush(color);
+			QPainterPath pin;
+			pin.setFillRule(Qt::WindingFill);
+			pin.addEllipse(QPointF(12.0, 9.6), 5.6, 5.6);
+			pin.moveTo(8.2, 13.0);
+			pin.lineTo(12.0, 21.2);
+			pin.lineTo(15.8, 13.0);
+			pin.closeSubpath();
+			painter.drawPath(pin);
+			painter.setCompositionMode(QPainter::CompositionMode_Clear);
+			painter.drawEllipse(QPointF(12.0, 9.6), 2.4, 2.4); // 抠出内孔
+			painter.setCompositionMode(QPainter::CompositionMode_SourceOver);
+		} else { // users：双人剪影，远者降透明度制造层次
+			painter.setPen(Qt::NoPen);
+			painter.setBrush(color);
+			painter.drawEllipse(QPointF(9.4, 8.6), 3.0, 3.0);
+			QPainterPath front;
+			front.addRoundedRect(QRectF(3.4, 13.2, 12.0, 7.4), 3.4, 3.4);
+			painter.drawPath(front);
+			painter.setOpacity(0.72);
+			painter.drawEllipse(QPointF(16.8, 9.8), 2.4, 2.4);
+			QPainterPath back;
+			back.addRoundedRect(QRectF(13.8, 14.8, 7.6, 5.8), 2.6, 2.6);
+			painter.drawPath(back);
+			painter.setOpacity(1.0);
+		}
+		return pixmap;
+	}
+
+	/// @brief 生成普通/悬停/选中三态导航图标，选中态切换为品牌绿。
+	QIcon makeNavIcon(const QString &name) {
+		QIcon icon;
+		const QPixmap idle = drawNavIcon(name, QColor(0x9a, 0xa3, 0xb2));
+		icon.addPixmap(idle, QIcon::Normal);
+		icon.addPixmap(idle, QIcon::Active);
+		icon.addPixmap(drawNavIcon(name, QColor(0x34, 0xd3, 0x99)), QIcon::Selected);
+		return icon;
+	}
 
 } // namespace
 
@@ -91,10 +169,18 @@ void MainWindow::buildSidebar(QHBoxLayout *layout) {
 	m_navList = new QListWidget(side);
 	m_navList->setObjectName(QStringLiteral("navList"));
 	m_navList->setFrameShape(QFrame::NoFrame);
+	m_navList->setIconSize(QSize(20, 20));
 	m_navList->addItem(tr("销售业绩"));
 	m_navList->addItem(tr("电桩状态"));
 	m_navList->addItem(tr("充电站管理"));
 	m_navList->addItem(tr("用户管理"));
+	// 导航图标:按页面顺序绘制,选中态自动切换品牌绿
+	const QStringList navIconNames = {QStringLiteral("sales"),
+			QStringLiteral("chargers"),
+			QStringLiteral("stations"),
+			QStringLiteral("users")};
+	for (int i = 0; i < m_navList->count() && i < navIconNames.size(); ++i)
+		m_navList->item(i)->setIcon(makeNavIcon(navIconNames.at(i)));
 	sideLayout->addWidget(m_navList, 1);
 
 	m_userLabel = new QLabel(side);

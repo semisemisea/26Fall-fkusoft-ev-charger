@@ -4,6 +4,8 @@
 #include "salespage.h"
 #include <evcharger/logging.h>
 
+#include <QBrush>
+#include <QColor>
 #include <QComboBox>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -25,11 +27,16 @@ Q_LOGGING_CATEGORY(opsSalespageLog, "evcharger.ops.sales", QtInfoMsg)
 
 namespace {
 
-	// 卡片样式在全局 QSS 之外单独控制大数字排版
-	/// @brief 预留的大数字排版样式；当前卡片实际使用内联富文本样式。
-	const char *kValueStyle = "font-size: 24px; font-weight: bold; background: transparent;";
-	/// @brief 预留的卡片标题样式；当前卡片实际使用内联富文本样式。
-	const char *kTitleStyle = "color: #8a8f98; background: transparent;";
+	/// @brief 组装指标卡富文本：小标题 + 大数字，数据未就绪时显示占位符。
+	/// @param title 卡片标题。
+	/// @param value 展示值。
+	/// @return 用于 QLabel 富文本的 HTML 片段。
+	QString cardMarkup(const QString &title, const QString &value) {
+		return QStringLiteral(
+				       "<div style='color:#9aa3b2;font-size:13px;'>%1</div>"
+				       "<div style='font-size:30px;font-weight:bold;color:#e6eaf0;'>%2</div>")
+				.arg(title.toHtmlEscaped(), value.toHtmlEscaped());
+	}
 
 	/** @brief 将 ISO 时间显示为月日，解析失败时保留前十个字符。
 	 * @param isoUtc ISO 时间文本。
@@ -68,17 +75,17 @@ SalesPage::SalesPage(ops::ApiClient *api, QWidget *parent)
 	// ---- 三大指标卡片 ----
 	auto *cards = new QHBoxLayout;
 	cards->setSpacing(16);
-	m_todayCard = makeCard(tr("今日营收 (元)"));
-	m_monthCard = makeCard(tr("本月营收 (元)"));
-	m_totalCard = makeCard(tr("累计营收 (元)"));
+	m_todayCard = makeCard(tr("今日营收 (元)"), QStringLiteral("#34d399"));
+	m_monthCard = makeCard(tr("本月营收 (元)"), QStringLiteral("#60a5fa"));
+	m_totalCard = makeCard(tr("累计营收 (元)"), QStringLiteral("#fbbf24"));
 	cards->addWidget(m_todayCard);
 	cards->addWidget(m_monthCard);
 	cards->addWidget(m_totalCard);
 	root->addLayout(cards);
 
 	m_extraLabel = new QLabel(this);
-	m_extraLabel->setStyleSheet(
-		QStringLiteral("color: #8a8f98; background: transparent;"));
+	m_extraLabel->setProperty("infobar", true); // 由全局 QSS 渲染为信息条卡片
+	m_extraLabel->setText(tr("正在加载运营概览..."));
 	root->addWidget(m_extraLabel);
 
 	// ---- 营收趋势折线图 ----
@@ -89,13 +96,20 @@ SalesPage::SalesPage(ops::ApiClient *api, QWidget *parent)
 	m_chart->addSeries(m_series);
 	m_chart->legend()->hide();
 	m_chart->setTitle(tr("营收趋势"));
+	m_series->setColor(QColor(0x34, 0xd3, 0x99)); // 品牌绿趋势线
+	m_chart->setBackgroundVisible(false); // 透出图表视图的卡片底色
+	m_chart->setTitleBrush(QBrush(QColor(0x9a, 0xa3, 0xb2)));
 
 	m_axisX = new QDateTimeAxis(m_chart);
 	m_axisX->setFormat(QStringLiteral("MM-dd"));
-	m_axisX->setLabelsColor(QColor(0xaa, 0xb1, 0xbb));
+	m_axisX->setLabelsColor(QColor(0x9a, 0xa3, 0xb2));
+	m_axisX->setGridLineColor(QColor(0x23, 0x29, 0x36));
+	m_axisX->setLinePenColor(QColor(0x2c, 0x34, 0x40));
 	m_axisY = new QValueAxis(m_chart);
 	m_axisY->setLabelFormat(QStringLiteral("%g"));
-	m_axisY->setLabelsColor(QColor(0xaa, 0xb1, 0xbb));
+	m_axisY->setLabelsColor(QColor(0x9a, 0xa3, 0xb2));
+	m_axisY->setGridLineColor(QColor(0x23, 0x29, 0x36));
+	m_axisY->setLinePenColor(QColor(0x2c, 0x34, 0x40));
 	m_chart->addAxis(m_axisX, Qt::AlignBottom);
 	m_chart->addAxis(m_axisY, Qt::AlignLeft);
 	m_series->attachAxis(m_axisX);
@@ -104,15 +118,15 @@ SalesPage::SalesPage(ops::ApiClient *api, QWidget *parent)
 	auto *chartView = new QChartView(m_chart, this);
 	chartView->setRenderHint(QPainter::Antialiasing);
 	chartView->setStyleSheet(
-		QStringLiteral("background-color: #22262c; border: 1px solid #2d323a;"
-					   " border-radius: 10px;"));
+		QStringLiteral("background-color: #1e232d; border: 1px solid #272e3a;"
+					   " border-radius: 12px;"));
 	root->addWidget(chartView, 1);
 #else
 	m_chartFallback = new QLabel(tr("营收趋势\n当前 Qt 安装未包含 Charts 组件"), this);
 	m_chartFallback->setAlignment(Qt::AlignCenter);
 	m_chartFallback->setStyleSheet(
-		QStringLiteral("background-color: #22262c; border: 1px solid #2d323a;"
-					   " border-radius: 10px; color: #aab1bb;"));
+		QStringLiteral("background-color: #1e232d; border: 1px solid #272e3a;"
+					   " border-radius: 12px; color: #9aa3b2;"));
 	root->addWidget(m_chartFallback, 1);
 #endif
 
@@ -129,9 +143,15 @@ SalesPage::SalesPage(ops::ApiClient *api, QWidget *parent)
 					m_extraLabel->setText(tr("指标加载失败(%1),请切换时间范围重试").arg(errorCode));
 					return;
 				}
-				m_todayCard->setText(ops::fenCents(s.todayRevenueFen));
-				m_monthCard->setText(ops::fenCents(s.monthRevenueFen));
-				m_totalCard->setText(ops::fenCents(s.totalRevenueFen));
+				m_todayCard->setText(cardMarkup(
+					m_todayCard->property("cardTitle").toString(),
+					ops::fenCents(s.todayRevenueFen)));
+				m_monthCard->setText(cardMarkup(
+					m_monthCard->property("cardTitle").toString(),
+					ops::fenCents(s.monthRevenueFen)));
+				m_totalCard->setText(cardMarkup(
+					m_totalCard->property("cardTitle").toString(),
+					ops::fenCents(s.totalRevenueFen)));
 				m_extraLabel->setText(
 					tr("用户 %1 · 电站 %2 · 电桩 %3 · 在线率 %4%")
 						.arg(s.userCount)
@@ -197,16 +217,15 @@ SalesPage::SalesPage(ops::ApiClient *api, QWidget *parent)
 			});
 }
 
-QLabel *SalesPage::makeCard(const QString &title) {
+QLabel *SalesPage::makeCard(const QString &title, const QString &accent) {
 	auto *card = new QLabel(this);
 	card->setProperty("card", true);
-	card->setAlignment(Qt::AlignCenter);
-	card->setText(QStringLiteral("%1\n—").arg(title));
+	card->setProperty("cardTitle", title); // 数据回调按标题重组富文本
 	card->setTextFormat(Qt::RichText);
-	card->setText(QStringLiteral(
-					  "<div style='color:#8a8f98;font-size:13px;font-weight:normal;'>%1</div>"
-					  "<div style='font-size:26px;font-weight:bold;'>—</div>")
-					  .arg(title));
+	card->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+	// 彩色顶边:仅覆盖全局 QSS 的 border-top,其余外观仍走全局样式
+	card->setStyleSheet(QStringLiteral("border-top: 3px solid %1;").arg(accent));
+	card->setText(cardMarkup(title, QStringLiteral("—")));
 	return card;
 }
 

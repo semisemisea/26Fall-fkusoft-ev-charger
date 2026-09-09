@@ -31,6 +31,7 @@ LoginDialog::LoginDialog(ops::ApiClient *api, QWidget *parent)
 		delete logoLabel;
 	}
 	ui->passwordEdit->setEchoMode(QLineEdit::EchoMode::Password);
+	ui->loginButton->setObjectName(QStringLiteral("primary")); // 品牌绿主按钮
 	setWindowTitle(tr("充电桩管理平台 - 管理员登录"));
 
 	connect(ui->loginButton, &QPushButton::clicked, this, &LoginDialog::accept);

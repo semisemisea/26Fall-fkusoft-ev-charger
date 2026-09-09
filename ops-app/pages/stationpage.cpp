@@ -7,6 +7,7 @@
 #include "chargerdialog.h"
 #include "evcharger/mappickerdialog.h"
 
+#include <QColor>
 #include <QDialogButtonBox>
 #include <QFormLayout>
 #include <QHBoxLayout>
@@ -42,6 +43,20 @@ namespace {
 		CColChargeCount,
 		CColChargeMinutes,
 	};
+
+	/** @brief 依电桩占用/运维状态返回语义色。
+	 * @param charger 电桩值对象。
+	 * @return 故障红、离线灰、在用蓝，其余（闲置/预约）绿。
+	 */
+	QColor chargerStatusColor(const ops::Charger &charger) {
+		if (charger.operationalStatus == QLatin1String("fault"))
+			return QColor(0xf8, 0x71, 0x71); // 红：故障
+		if (charger.operationalStatus == QLatin1String("offline"))
+			return QColor(0x8b, 0x93, 0xa3); // 灰：离线
+		if (charger.occupancyStatus == QLatin1String("charging"))
+			return QColor(0x60, 0xa5, 0xfa); // 蓝：在用
+		return QColor(0x34, 0xd3, 0x99); // 绿：闲置/预约
+	}
 
 } // namespace
 
@@ -86,7 +101,7 @@ StationPage::StationPage(ops::ApiClient *api, QWidget *parent)
 	root->addWidget(m_table, 2);
 
 	m_stationHintLabel = new QLabel(this);
-	m_stationHintLabel->setStyleSheet(QStringLiteral("color: #8a8f98;"));
+	m_stationHintLabel->setStyleSheet(QStringLiteral("color: #9aa3b2;"));
 	root->addWidget(m_stationHintLabel);
 
 	// 分页条:上一页/下一页/页码;服务端未返回分页 meta 时整行隐藏
@@ -94,7 +109,7 @@ StationPage::StationPage(ops::ApiClient *api, QWidget *parent)
 	pagerRow->addStretch();
 	m_prevButton = new QPushButton(tr("上一页"), this);
 	m_pageLabel = new QLabel(this);
-	m_pageLabel->setStyleSheet(QStringLiteral("color: #8a8f98;"));
+	m_pageLabel->setStyleSheet(QStringLiteral("color: #9aa3b2;"));
 	m_nextButton = new QPushButton(tr("下一页"), this);
 	pagerRow->addWidget(m_prevButton);
 	pagerRow->addWidget(m_pageLabel);
@@ -156,7 +171,7 @@ StationPage::StationPage(ops::ApiClient *api, QWidget *parent)
 
 	m_chargerHintLabel = new QLabel(tr("选择电站后可查看和管理站内电桩。"), this);
 	m_chargerHintLabel->setObjectName(QStringLiteral("stationChargerHint"));
-	m_chargerHintLabel->setStyleSheet(QStringLiteral("color: #8a8f98;"));
+	m_chargerHintLabel->setStyleSheet(QStringLiteral("color: #9aa3b2;"));
 	root->addWidget(m_chargerHintLabel);
 
 	connect(m_searchEdit, &QLineEdit::returnPressed, this, [this] {
@@ -199,8 +214,14 @@ StationPage::StationPage(ops::ApiClient *api, QWidget *parent)
 						i, ColOnlineRate,
 						new QTableWidgetItem(
 							QStringLiteral("%1%").arg(s.onlineRate * 100, 0, 'f', 1)));
-					m_table->setItem(i, ColStatus,
-									 new QTableWidgetItem(ops::statusText(s.status)));
+					auto *statusItem =
+						new QTableWidgetItem(ops::statusText(s.status));
+					// 状态徽标色:正常绿、已下线灰
+					statusItem->setForeground(
+						s.status == QLatin1String("active")
+							? QColor(0x34, 0xd3, 0x99)
+							: QColor(0x8b, 0x93, 0xa3));
+					m_table->setItem(i, ColStatus, statusItem);
 				}
 				m_stationHintLabel->setText(tr("共 %1 座电站。点击行管理站内电桩。")
 												.arg(stations.size()));
@@ -391,8 +412,10 @@ void StationPage::applyChargerRows(const QList<ops::Charger> &chargers) {
 			i, CColType, new QTableWidgetItem(ops::chargerTypeText(charger.type)));
 		m_chargerTable->setItem(
 			i, CColPower, new QTableWidgetItem(QString::number(charger.powerKw, 'f', 1)));
-		m_chargerTable->setItem(
-			i, CColStatus, new QTableWidgetItem(ops::chargerStatusText(charger)));
+		auto *statusItem =
+			new QTableWidgetItem(ops::chargerStatusText(charger));
+		statusItem->setForeground(chargerStatusColor(charger)); // 状态语义色
+		m_chargerTable->setItem(i, CColStatus, statusItem);
 		m_chargerTable->setItem(
 			i, CColChargeCount, new QTableWidgetItem(QString::number(charger.totalChargeCount)));
 		m_chargerTable->setItem(

@@ -4,6 +4,7 @@
 #include "chargerstatuspage.h"
 #include <evcharger/logging.h>
 
+#include <QColor>
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QLabel>
@@ -20,6 +21,24 @@ namespace {
 			   ColCount,
 			   ColPercent,
 			   ColBar };
+
+	/** @brief 将电桩状态映射为语义色，未知状态回退中性色。
+	 * @param status 服务端原始状态枚举文本。
+	 * @return 闲置/在线为品牌绿，预约为琥珀，在用为蓝，故障为红，离线为灰。
+	 */
+	QColor statusColor(const QString &status) {
+		if (status == QLatin1String("available") || status == QLatin1String("online"))
+			return QColor(0x34, 0xd3, 0x99); // 绿：闲置/在线
+		if (status == QLatin1String("reserved"))
+			return QColor(0xfb, 0xbf, 0x24); // 琥珀：预约
+		if (status == QLatin1String("charging"))
+			return QColor(0x60, 0xa5, 0xfa); // 蓝：在用
+		if (status == QLatin1String("fault"))
+			return QColor(0xf8, 0x71, 0x71); // 红：故障
+		if (status == QLatin1String("offline"))
+			return QColor(0x8b, 0x93, 0xa3); // 灰：离线
+		return QColor(0xe6, 0xea, 0xf0);
+	}
 
 	/** @brief 创建不可编辑、不可选择的四列状态统计表。
 	 * @param objectName 用于界面对象查询与测试定位的名称。
@@ -61,7 +80,7 @@ ChargerStatusPage::ChargerStatusPage(ops::ApiClient *api, QWidget *parent)
 	topBar->addStretch();
 	m_totalLabel = new QLabel(this);
 	m_totalLabel->setObjectName(QStringLiteral("chargerTotalLabel"));
-	m_totalLabel->setStyleSheet(QStringLiteral("color: #8a8f98;"));
+	m_totalLabel->setStyleSheet(QStringLiteral("color: #9aa3b2;"));
 	topBar->addWidget(m_totalLabel);
 	root->addLayout(topBar);
 
@@ -104,15 +123,23 @@ void ChargerStatusPage::populateTable(QTableWidget *table,
 		const auto &row = rows.at(i);
 		auto *statusItem = new QTableWidgetItem(ops::statusText(row.status));
 		statusItem->setData(Qt::UserRole, row.status);
+		statusItem->setForeground(statusColor(row.status)); // 状态语义色
 		table->setItem(i, ColStatus, statusItem);
-		table->setItem(i, ColCount, new QTableWidgetItem(QString::number(row.count)));
-		table->setItem(
-			i, ColPercent,
-			new QTableWidgetItem(QStringLiteral("%1%").arg(row.percent * 100, 0, 'f', 1)));
+		auto *countItem = new QTableWidgetItem(QString::number(row.count));
+		countItem->setTextAlignment(Qt::AlignCenter);
+		table->setItem(i, ColCount, countItem);
+		auto *percentItem = new QTableWidgetItem(
+			QStringLiteral("%1%").arg(row.percent * 100, 0, 'f', 1));
+		percentItem->setTextAlignment(Qt::AlignCenter);
+		table->setItem(i, ColPercent, percentItem);
 		auto *bar = new QProgressBar(table);
 		bar->setRange(0, 1000);
 		bar->setValue(qRound(qBound(0.0, row.percent, 1.0) * 1000));
 		bar->setTextVisible(false);
+		// 分布条颜色随状态语义切换,其余外观仍走全局 QSS
+		bar->setStyleSheet(QStringLiteral(
+			"QProgressBar::chunk { background-color: %1; }")
+			.arg(statusColor(row.status).name()));
 		table->setCellWidget(i, ColBar, bar);
 	}
 }
