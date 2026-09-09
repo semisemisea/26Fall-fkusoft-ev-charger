@@ -39,6 +39,17 @@ private slots:
 		QVERIFY(!QUrlQuery(Backend::tencentMapRequest(url, query, {}).url()).hasQueryItem(QStringLiteral("sig")));
 	}
 
+	void normalizesRouteForPlayback() {
+		const QJsonObject route{{"distance", 4300}, {"duration", 13.5}, {"polyline", QJsonArray{38.889, 121.537, 12000, 13000}}, {"steps", QJsonArray{QJsonObject{{"instruction", "沿道路直行"}, {"distance", 4300}}}}};
+		const auto result = Backend::tencentRouteResult(route, QStringLiteral("https://map.qq.com/route"));
+		QCOMPARE(result.status, Backend::MapStatus::Success);
+		QCOMPARE(result.durationSec, qint64(810));
+		QCOMPARE(result.polyline.size(), 2);
+		QCOMPARE(result.steps.first().toObject().value("instruction").toString(), QStringLiteral("沿道路直行"));
+		QCOMPARE(result.steps.first().toObject().value("distanceM").toDouble(), 4300);
+		QCOMPARE(Backend::tencentRouteResult({}, {}).status, Backend::MapStatus::ProviderError);
+	}
+
 	void routeLinksIncludeEndpoints_data() {
 		QTest::addColumn<QString>("mode");
 		QTest::addColumn<QString>("type");
@@ -213,6 +224,7 @@ void MapTests::servesGeocodeRoutesAndAddressNearby() {
 	const QJsonObject routeData = object(route).value(QStringLiteral("data")).toObject();
 	QCOMPARE(routeData.value(QStringLiteral("distanceM")).toInteger(), qint64(4300));
 	QCOMPARE(routeData.value(QStringLiteral("polyline")).toArray().size(), 2);
+	QVERIFY(routeData.value(QStringLiteral("steps")).isArray());
 	QCOMPARE(fixture.mapClient->receivedMode, QStringLiteral("driving"));
 
 	const Backend::HttpResponse nearby = fixture.send(QStringLiteral("GET"), QStringLiteral("/api/v1/stations/nearby?address=%E8%BD%AF%E4%BB%B6%E5%9B%AD&region=%E5%A4%A7%E8%BF%9E&radiusKm=1"));

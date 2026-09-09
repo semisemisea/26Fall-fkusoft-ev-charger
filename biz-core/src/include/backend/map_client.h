@@ -35,6 +35,7 @@ namespace Backend {
 		qint64 durationSec = 0;					   ///< 预计路线耗时，单位秒。
 		QJsonArray polyline;					   ///< 解码后的路线坐标数组。
 		QString mapUrl;							   ///< 可供客户端打开的腾讯地图路线链接。
+		QJsonArray steps;						   ///< 分段指引，每项包含 instruction 和 distanceM。
 	};
 
 	/** @brief 可替换地图服务边界，测试可注入无网络假实现。 */

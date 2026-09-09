@@ -20,6 +20,7 @@
 #include <QUrlQuery>
 
 #include <cmath>
+#include <limits>
 #include <optional>
 #include <utility>
 
@@ -188,6 +189,23 @@ namespace Backend {
 		return url.toString(QUrl::FullyEncoded);
 	}
 
+	RouteResult tencentRouteResult(const QJsonObject &route, const QString &mapUrl) {
+		const qint64 distance = route.value(QStringLiteral("distance")).toInteger(-1);
+		const double durationMinutes = route.value(QStringLiteral("duration")).toDouble(-1);
+		const auto polyline = decodePolyline(route.value(QStringLiteral("polyline")).toArray());
+		if (distance < 0 || !std::isfinite(durationMinutes) || durationMinutes < 0 || durationMinutes >= double(std::numeric_limits<qint64>::max()) / 60 || !polyline.has_value()) {
+			EV_LOG_WARNING(backendMap, nullptr) << "Route response failed validation";
+			return RouteResult{MapStatus::ProviderError};
+		}
+		QJsonArray steps;
+		for (const auto &value : route.value(QStringLiteral("steps")).toArray()) {
+			const auto step = value.toObject();
+			steps.append(QJsonObject{{QStringLiteral("instruction"), step.value(QStringLiteral("instruction")).toString()},
+									 {QStringLiteral("distanceM"), step.value(QStringLiteral("distance")).toDouble()}});
+		}
+		return RouteResult{MapStatus::Success, distance, qRound64(durationMinutes * 60), *polyline, mapUrl, steps};
+	}
+
 	/**
 	 * @brief 保存地图密钥、超时与重试配置。
 	 * @param key 地图服务密钥。
@@ -272,14 +290,7 @@ namespace Backend {
 			return RouteResult{MapStatus::NotFound};
 		}
 		const QJsonObject route = routes.first().toObject();
-		const qint64 distance = route.value(QStringLiteral("distance")).toInteger(-1);
-		const qint64 duration = route.value(QStringLiteral("duration")).toInteger(-1);
-		const auto polyline = decodePolyline(route.value(QStringLiteral("polyline")).toArray());
-		if (distance < 0 || duration < 0 || !polyline.has_value()) {
-			EV_LOG_WARNING(backendMap, nullptr) << "Route response failed validation";
-			return RouteResult{MapStatus::ProviderError};
-		}
-		return RouteResult{MapStatus::Success, distance, duration, *polyline, tencentRouteMapUrl(fromLatitude, fromLongitude, toLatitude, toLongitude, mode)};
+		return tencentRouteResult(route, tencentRouteMapUrl(fromLatitude, fromLongitude, toLatitude, toLongitude, mode));
 	}
 
 } // namespace Backend
