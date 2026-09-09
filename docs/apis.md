@@ -490,7 +490,7 @@ JSON 成功响应统一为：
 | GET | `/me/wallet` | 返回当前余额 |
 | GET | `/me/wallet/transactions` | 返回当前用户钱包流水 |
 
-钱包流水默认按创建时间降序、ID 降序分页。
+钱包流水默认按创建时间降序、ID 降序分页。`amountFen` 表示非负金额大小（分），收支方向由 `type` 表达：`top_up` 为充值收入，`charge_debit` 为充电扣款支出；零元扣款也记录流水。
 
 #### POST /me/wallet/topups
 
