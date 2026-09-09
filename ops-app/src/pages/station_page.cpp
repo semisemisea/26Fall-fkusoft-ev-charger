@@ -8,6 +8,7 @@
 #include "charger_dialog.h"
 #include "evcharger/map_picker_dialog.h"
 
+#include <QComboBox>
 #include <QDialogButtonBox>
 #include <QFormLayout>
 #include <QHBoxLayout>
@@ -71,6 +72,12 @@ StationPage::StationPage(ops::ApiClient *api, QWidget *parent)
 	m_addButton = new QPushButton(tr("新增电站"), this);
 	m_addButton->setObjectName(QStringLiteral("primary"));
 	topBar->addWidget(m_addButton);
+	m_editButton = new QPushButton(tr("编辑电站"), this);
+	m_editButton->setObjectName(QStringLiteral("editStationButton"));
+	topBar->addWidget(m_editButton);
+	m_deleteButton = new QPushButton(tr("删除电站"), this);
+	m_deleteButton->setObjectName(QStringLiteral("deleteStationButton"));
+	topBar->addWidget(m_deleteButton);
 	root->addLayout(topBar);
 
 	m_table = new QTableWidget(this);
@@ -177,6 +184,8 @@ StationPage::StationPage(ops::ApiClient *api, QWidget *parent)
 					return;
 				}
 				const qint64 selectedStationId = m_currentStationId;
+				const QSignalBlocker blocker(m_table);
+				m_table->clearSelection();
 				m_rows = stations;
 				m_table->setRowCount(stations.size());
 				int selectedStationRow = -1;
@@ -202,8 +211,12 @@ StationPage::StationPage(ops::ApiClient *api, QWidget *parent)
 						i, ColOnlineRate,
 						new QTableWidgetItem(
 							QStringLiteral("%1%").arg(s.onlineRate * 100, 0, 'f', 1)));
-					m_table->setItem(i, ColStatus,
-									 new QTableWidgetItem(ops::statusText(s.status)));
+					QString status = ops::statusText(s.status);
+					if (s.status == QStringLiteral("active"))
+						status = tr("启用");
+					else if (s.status == QStringLiteral("inactive"))
+						status = tr("停用");
+					m_table->setItem(i, ColStatus, new QTableWidgetItem(status));
 				}
 				m_stationHintLabel->setText(tr("共 %1 座电站。点击行管理站内电桩。")
 												.arg(stations.size()));
@@ -222,13 +235,24 @@ StationPage::StationPage(ops::ApiClient *api, QWidget *parent)
 					m_chargerHintLabel->setText(tr("选择电站后可查看和管理站内电桩。"));
 					updateChargerActions();
 				}
+				updateStationActions();
 			});
 
-	connect(m_table, &QTableWidget::cellClicked, this, [this](int row, int) {
-		if (row < 0 || row >= m_rows.size())
-			return;
-		const auto &s = m_rows.at(row);
-		showStationChargers(s.id, s.name);
+	connect(m_table, &QTableWidget::itemSelectionChanged, this, [this] {
+		const auto selected = m_table->selectionModel()->selectedRows();
+		if (selected.isEmpty()) {
+			m_currentStationId = -1;
+			m_currentStationName.clear();
+			m_chargerRows.clear();
+			m_chargerTable->setRowCount(0);
+			m_chargerHeading->setText(tr("请先选择电站"));
+			m_chargerHintLabel->setText(tr("选择电站后可查看和管理站内电桩。"));
+			updateChargerActions();
+		} else {
+			const auto &station = m_rows.at(selected.first().row());
+			showStationChargers(station.id, station.name);
+		}
+		updateStationActions();
 	});
 
 	connect(m_api, &ops::ApiClient::stationChargersFetched, this,
@@ -366,8 +390,64 @@ StationPage::StationPage(ops::ApiClient *api, QWidget *parent)
 				}
 			});
 
+	connect(m_editButton, &QPushButton::clicked, this, [this] {
+		if (!m_api->canWrite() || m_stationMutationPending)
+			return;
+		const auto selected = m_table->selectionModel()->selectedRows();
+		if (selected.isEmpty())
+			return;
+		const auto station = m_rows.at(selected.first().row());
+		AddStationDialog dialog(this);
+		dialog.setStation(station);
+		if (dialog.exec() != QDialog::Accepted)
+			return;
+		m_stationMutationPending = true;
+		updateStationActions();
+		m_api->updateStation(station.id, dialog.form());
+	});
+	connect(m_deleteButton, &QPushButton::clicked, this, [this] {
+		if (!m_api->canWrite() || m_stationMutationPending)
+			return;
+		const auto selected = m_table->selectionModel()->selectedRows();
+		if (selected.isEmpty())
+			return;
+		const auto station = m_rows.at(selected.first().row());
+		if (QMessageBox::question(this, tr("删除电站"),
+								  tr("确认删除电站“%1”及其站内电桩？存在有效预约或正在充电订单时无法删除。")
+									  .arg(station.name),
+								  QMessageBox::Yes | QMessageBox::No, QMessageBox::No) != QMessageBox::Yes)
+			return;
+		m_stationMutationPending = true;
+		updateStationActions();
+		m_api->deleteStation(station.id);
+	});
+	connect(m_api, &ops::ApiClient::stationMutationFinished, this,
+			[this](const QString &operation, qint64 stationId, bool ok, const QString &error) {
+				m_stationMutationPending = false;
+				updateStationActions();
+				if (!ok) {
+					QMessageBox::warning(this, tr("电站操作失败"), error);
+					return;
+				}
+				if (operation == QStringLiteral("delete")) {
+					if (stationId == m_currentStationId)
+						m_table->clearSelection();
+					if (m_rows.size() == 1 && m_page > 1)
+						--m_page;
+				}
+				reloadSelectedStation();
+			});
+	updateStationActions();
+
 	m_addButton->setEnabled(m_api->canWrite());
 	updateChargerActions();
+}
+
+void StationPage::updateStationActions() {
+	const bool enabled = m_api->canWrite() && !m_stationMutationPending &&
+						 !m_table->selectionModel()->selectedRows().isEmpty();
+	m_editButton->setEnabled(enabled);
+	m_deleteButton->setEnabled(enabled);
 }
 
 /// @brief 请求电桩；仅切换电站时清空旧明细，同站刷新保留当前选择。
@@ -556,5 +636,25 @@ ops::StationForm AddStationDialog::form() const {
 	f.latitude = m_latEdit->text().toDouble();
 	f.longitude = m_lonEdit->text().toDouble();
 	f.pricePerKwhFen = qRound64(m_priceEdit->text().toDouble() * 100);
+	if (m_statusCombo)
+		f.status = m_statusCombo->currentData().toString();
 	return f;
+}
+
+void AddStationDialog::setStation(const ops::StationSummary &station) {
+	if (!m_statusCombo) {
+		m_statusCombo = new QComboBox(this);
+		m_statusCombo->setObjectName(QStringLiteral("stationStatusCombo"));
+		m_statusCombo->addItem(tr("启用"), QStringLiteral("active"));
+		m_statusCombo->addItem(tr("停用"), QStringLiteral("inactive"));
+		m_statusCombo->setToolTip(tr("停用电站会使该站的有效预约过期，并释放相应电桩。"));
+		auto *formLayout = qobject_cast<QFormLayout *>(layout());
+		formLayout->insertRow(formLayout->rowCount() - 1, tr("状态"), m_statusCombo);
+	}
+	m_statusCombo->setCurrentIndex(m_statusCombo->findData(station.status));
+	setWindowTitle(tr("编辑电站"));
+	m_nameEdit->setText(station.name);
+	m_latEdit->setText(QString::number(station.latitude, 'g', 17));
+	m_lonEdit->setText(QString::number(station.longitude, 'g', 17));
+	m_priceEdit->setText(ops::fenCents(station.pricePerKwhFen));
 }
