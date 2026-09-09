@@ -135,27 +135,6 @@ namespace Backend {
 		}
 
 		/**
-		 * @brief 生成腾讯地图路线规划 URI，供前端打开外部地图。
-		 * @param fromLatitude 纬度，单位度。
-		 * @param fromLongitude 经度，单位度。
-		 * @param toLatitude 纬度，单位度。
-		 * @param toLongitude 经度，单位度。
-		 * @param mode 地图出行模式。
-		 * @return 按上述规则生成的文本或字节结果。
-		 */
-		QString routeMapUrl(double fromLatitude, double fromLongitude, double toLatitude, double toLongitude, const QString &mode) {
-			QUrl url(QStringLiteral("https://apis.map.qq.com/uri/v1/routeplan"));
-			QUrlQuery query;
-			query.addQueryItem(QStringLiteral("type"), mode == QStringLiteral("driving") ? QStringLiteral("drive") : QStringLiteral("walk"));
-			query.addQueryItem(QStringLiteral("fromcoord"), coordinate(fromLatitude, fromLongitude));
-			query.addQueryItem(QStringLiteral("tocoord"), coordinate(toLatitude, toLongitude));
-			query.addQueryItem(QStringLiteral("policy"), QStringLiteral("0"));
-			query.addQueryItem(QStringLiteral("referer"), QStringLiteral("ev-charger"));
-			url.setQuery(query);
-			return url.toString(QUrl::FullyEncoded);
-		}
-
-		/**
 		 * @brief 解码腾讯地图差分压缩坐标数组，检查成对坐标及数值有效性。
 		 * @param encoded 腾讯地图返回的压缩折线坐标数组。
 		 * @return 成对经纬度数组；输入为空、长度为奇数或包含非有限数字时返回 std::nullopt。
@@ -184,6 +163,30 @@ namespace Backend {
 		}
 
 	} // namespace
+
+	/**
+	 * @brief 生成腾讯地图路线规划 URI，供前端打开外部地图。
+	 * @param fromLatitude 纬度，单位度。
+	 * @param fromLongitude 经度，单位度。
+	 * @param toLatitude 纬度，单位度。
+	 * @param toLongitude 经度，单位度。
+	 * @param mode 地图出行模式。
+	 * @return 按上述规则生成的文本或字节结果。
+	 */
+	QString tencentRouteMapUrl(double fromLatitude, double fromLongitude, double toLatitude, double toLongitude, const QString &mode) {
+		QUrl url(QStringLiteral("https://apis.map.qq.com/uri/v1/routeplan"));
+		QUrlQuery query;
+		query.addQueryItem(QStringLiteral("type"), mode == QStringLiteral("driving") ? QStringLiteral("drive") : QStringLiteral("walk"));
+		// 腾讯导航页同时需要名称和坐标；缺少名称会显示起终点信息错误。
+		query.addQueryItem(QStringLiteral("from"), QStringLiteral("出发位置"));
+		query.addQueryItem(QStringLiteral("to"), QStringLiteral("目标充电站"));
+		query.addQueryItem(QStringLiteral("fromcoord"), coordinate(fromLatitude, fromLongitude));
+		query.addQueryItem(QStringLiteral("tocoord"), coordinate(toLatitude, toLongitude));
+		query.addQueryItem(QStringLiteral("policy"), QStringLiteral("0"));
+		query.addQueryItem(QStringLiteral("referer"), QStringLiteral("ev-charger"));
+		url.setQuery(query);
+		return url.toString(QUrl::FullyEncoded);
+	}
 
 	/**
 	 * @brief 保存地图密钥、超时与重试配置。
@@ -276,7 +279,7 @@ namespace Backend {
 			EV_LOG_WARNING(backendMap, nullptr) << "Route response failed validation";
 			return RouteResult{MapStatus::ProviderError};
 		}
-		return RouteResult{MapStatus::Success, distance, duration, *polyline, routeMapUrl(fromLatitude, fromLongitude, toLatitude, toLongitude, mode)};
+		return RouteResult{MapStatus::Success, distance, duration, *polyline, tencentRouteMapUrl(fromLatitude, fromLongitude, toLatitude, toLongitude, mode)};
 	}
 
 } // namespace Backend

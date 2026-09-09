@@ -39,6 +39,29 @@ private slots:
 		QVERIFY(!QUrlQuery(Backend::tencentMapRequest(url, query, {}).url()).hasQueryItem(QStringLiteral("sig")));
 	}
 
+	void routeLinksIncludeEndpoints_data() {
+		QTest::addColumn<QString>("mode");
+		QTest::addColumn<QString>("type");
+		QTest::newRow("driving") << QStringLiteral("driving") << QStringLiteral("drive");
+		QTest::newRow("walking") << QStringLiteral("walking") << QStringLiteral("walk");
+	}
+
+	void routeLinksIncludeEndpoints() {
+		QFETCH(QString, mode);
+		QFETCH(QString, type);
+		const QUrl url(Backend::tencentRouteMapUrl(38.914123, 121.614456, 38.901234, 121.550567, mode));
+		QCOMPARE(url.scheme(), QStringLiteral("https"));
+		QCOMPARE(url.host(), QStringLiteral("apis.map.qq.com"));
+		QCOMPARE(url.path(), QStringLiteral("/uri/v1/routeplan"));
+		const QUrlQuery query(url);
+		QCOMPARE(query.queryItemValue(QStringLiteral("type")), type);
+		QCOMPARE(query.queryItemValue(QStringLiteral("fromcoord")), QStringLiteral("38.914123,121.614456"));
+		QCOMPARE(query.queryItemValue(QStringLiteral("tocoord")), QStringLiteral("38.901234,121.550567"));
+		// 腾讯导航页仅有坐标时会提示“请检查起终点信息是否有误”。
+		QVERIFY2(!query.queryItemValue(QStringLiteral("from"), QUrl::FullyDecoded).trimmed().isEmpty(), "Navigation link is missing its origin name");
+		QVERIFY2(!query.queryItemValue(QStringLiteral("to"), QUrl::FullyDecoded).trimmed().isEmpty(), "Navigation link is missing its destination name");
+	}
+
 	/**
 	 * @brief 注入假地图客户端，验证地址解析、路线及地址附近站点搜索。
 	 */

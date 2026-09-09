@@ -10,9 +10,7 @@
 
 #include <QWidget>
 
-class QComboBox;
 class QLabel;
-class QPushButton;
 class QVBoxLayout;
 class QWebEngineView;
 
@@ -33,7 +31,7 @@ public:
 	explicit NavigationView(Session &session, ApiClient &api, QWidget *parent = nullptr);
 
 	/**
-	 * @brief 以目标充电站打开本页，重置状态等待用户发起路线规划
+	 * @brief 以目标充电站打开本页，重置状态并立即发起路线规划
 	 * @param station 目标电站的界面模型。
 	 */
 	void open(const Station &station);
@@ -50,15 +48,11 @@ private:
 	 */
 	void requestRoute();
 
-	Session &m_session;						 ///< 共享会话；页面保存非拥有引用，主窗口保存由自身拥有的对象指针。
-	ApiClient &m_api;						 ///< 共享网络出口；页面不拥有客户端，主窗口通过 Qt 父子关系拥有它。
-	Station m_station;						 ///< 当前展示或导航的电站快照。
-	QComboBox *m_modeCombo = nullptr;		 ///< 驾车或步行模式选择框。
-	QPushButton *m_navigateButton = nullptr; ///< 开始导航或重新规划路线的按钮。
-	QLabel *m_summaryLabel = nullptr;		 ///< 服务端路线距离和时长摘要标签。
-	QLabel *m_statusLabel = nullptr;		 ///< 列表加载、空数据或错误状态标签。
-	QLabel *m_hintLabel = nullptr;			 ///< 操作指引或当前状态提示标签。
-	QVBoxLayout *m_layout = nullptr;		 ///< 承载路线摘要与惰性创建地图视图的布局。
-	QWebEngineView *m_webView = nullptr;	 ///< 首次成功规划后创建的地图视图，由本页拥有；无 WebEngine 时保持空。
-	bool m_loaded = false;					 ///< 是否已加载过地图，用于切换模式时自动重新规划。
+	Session &m_session;					 ///< 共享会话；页面保存非拥有引用，主窗口保存由自身拥有的对象指针。
+	ApiClient &m_api;					 ///< 共享网络出口；页面不拥有客户端，主窗口通过 Qt 父子关系拥有它。
+	quint64 m_requestId = 0;			 ///< 忽略再次进入页面之前发出的旧路线响应。
+	Station m_station;					 ///< 当前展示或导航的电站快照。
+	QLabel *m_statusLabel = nullptr;	 ///< 列表加载、空数据或错误状态标签。
+	QVBoxLayout *m_layout = nullptr;	 ///< 承载状态提示与惰性创建地图视图的布局。
+	QWebEngineView *m_webView = nullptr; ///< 首次成功规划后创建的地图视图，由本页拥有；无 WebEngine 时保持空。
 };

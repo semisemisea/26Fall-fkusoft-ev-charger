@@ -6,8 +6,6 @@
 
 #include "navigation_view.h"
 
-#include "widgets/combo_box.h"
-#include <QComboBox>
 #include <QFile>
 #include <QJsonObject>
 #include <QLabel>
@@ -26,20 +24,6 @@
 Q_LOGGING_CATEGORY(userNavigationViewLog, "evcharger.user.ui", QtInfoMsg)
 
 namespace {
-	/**
-	 * @brief 将导航方式的中文标签映射到接口参数。
-	 */
-	struct ModeOption {
-		const char *label; ///< 供用户选择的 UTF-8 中文标签。
-		const char *value; ///< routes 接口接受的 driving 或 walking 值。
-	};
-
-	/// @brief 界面提供的驾车和步行模式，标签和接口值保持配对。
-	const ModeOption kModeOptions[] = {
-		{"驾车", "driving"},
-		{"步行", "walking"},
-	};
-
 	// 检测 QtWebEngineProcess 是否存在，用于判断当前环境能否加载地图
 	/**
 	 * @brief 检查是否编入 WebEngine 且辅助进程文件存在。
@@ -112,7 +96,7 @@ namespace {
 } // namespace
 
 /**
- * @details 构造：搭建标题栏、出行方式选择与提示区；切换出行方式时若已加载过则自动重新规划
+ * @details 构造：搭建标题栏与状态提示区；出行方式由地图页面提供切换
  */
 NavigationView::NavigationView(Session &session, ApiClient &api, QWidget *parent)
 	: QWidget(parent), m_session(session), m_api(api) {
@@ -124,25 +108,9 @@ NavigationView::NavigationView(Session &session, ApiClient &api, QWidget *parent
 	titleLabel->setObjectName(QStringLiteral("pageTitle"));
 	titleLabel->setObjectName(QStringLiteral("stationTitle"));
 
-	m_modeCombo = new ComboBox(this);
-	for (const ModeOption &option : kModeOptions) {
-		m_modeCombo->addItem(QString::fromUtf8(option.label), QLatin1String(option.value));
-	}
-
-	m_navigateButton = new QPushButton(QStringLiteral("开始导航"), this);
-	m_navigateButton->setObjectName(QStringLiteral("compactButton"));
-
-	m_summaryLabel = new QLabel(this);
-	m_summaryLabel->setObjectName(QStringLiteral("routeInfo"));
-	m_summaryLabel->hide();
-
 	m_statusLabel = new QLabel(this);
 	m_statusLabel->setObjectName(QStringLiteral("error"));
 	m_statusLabel->hide();
-
-	m_hintLabel = new QLabel(QStringLiteral("点击「开始导航」加载路线地图"), this);
-	m_hintLabel->setAlignment(Qt::AlignCenter);
-	m_hintLabel->setObjectName(QStringLiteral("muted"));
 
 	m_layout = new QVBoxLayout(this);
 	m_layout->setContentsMargins(12, 12, 12, 12);
@@ -154,72 +122,51 @@ NavigationView::NavigationView(Session &session, ApiClient &api, QWidget *parent
 	headerRow->addStretch();
 	m_layout->addLayout(headerRow);
 
-	auto *modeRow = new QHBoxLayout;
-	modeRow->addWidget(new QLabel(QStringLiteral("出行方式："), this));
-	modeRow->addWidget(m_modeCombo);
-	modeRow->addWidget(m_navigateButton);
-	modeRow->addStretch();
-	m_layout->addLayout(modeRow);
-	m_layout->addWidget(m_summaryLabel);
 	m_layout->addWidget(m_statusLabel);
-	m_layout->addWidget(m_hintLabel, 1);
+	m_layout->addStretch();
 
 	connect(backButton, &QPushButton::clicked, this, &NavigationView::backRequested);
-	connect(m_navigateButton, &QPushButton::clicked, this, &NavigationView::requestRoute);
-	connect(m_modeCombo, &QComboBox::activated, this, [this] {
-		if (m_loaded) {
-			requestRoute();
-		}
-	});
 }
 
 /**
- * @details 以目标站点打开本页：重置路线信息与地图，等待用户点击“开始导航”
+ * @details 以目标站点打开本页：重置地图并立即规划路线
  */
 void NavigationView::open(const Station &station) {
 	EV_LOG_INFO(userNavigationViewLog, this) << "Opening navigation";
 	m_station = station;
 	findChild<QLabel *>(QStringLiteral("stationTitle"))->setText(station.name);
-	m_summaryLabel->hide();
 	m_statusLabel->hide();
-	m_loaded = false;
-	m_navigateButton->setText(QStringLiteral("开始导航"));
 #ifdef USER_APP_HAS_WEBENGINE
 	if (m_webView) {
+		m_webView->stop();
 		m_webView->hide();
 	}
 #endif
-	m_hintLabel->show();
+	requestRoute();
 }
 
 /**
- * @details 请求路线规划：显示距离 / 时长摘要，首次成功时创建 WebEngine 视图并加载地图链接
+ * @details 请求路线规划：首次成功时创建 WebEngine 视图并加载地图链接
  */
 void NavigationView::requestRoute() {
 	EV_LOG_INFO(userNavigationViewLog, this) << "Requesting route";
-	m_navigateButton->setEnabled(false);
 	m_statusLabel->setText(QStringLiteral("正在规划路线..."));
 	m_statusLabel->show();
 
+	const auto requestId = ++m_requestId;
 	QUrlQuery query;
 	query.addQueryItem(QLatin1String("fromLatitude"), QString::number(m_session.latitude()));
 	query.addQueryItem(QLatin1String("fromLongitude"), QString::number(m_session.longitude()));
 	query.addQueryItem(QLatin1String("toLatitude"), QString::number(m_station.latitude));
 	query.addQueryItem(QLatin1String("toLongitude"), QString::number(m_station.longitude));
-	query.addQueryItem(QLatin1String("mode"), m_modeCombo->currentData().toString());
+	query.addQueryItem(QLatin1String("mode"), QStringLiteral("driving"));
 	query.addQueryItem(QLatin1String("fromName"), QStringLiteral("我的位置"));
 	query.addQueryItem(QLatin1String("toName"), m_station.name);
 
-	m_api.get(QStringLiteral("/locations/routes?%1").arg(query.toString(QUrl::FullyEncoded)), [this](const QJsonValue &data, const QJsonObject &) {
-		m_navigateButton->setEnabled(true);
+	m_api.get(QStringLiteral("/locations/routes?%1").arg(query.toString(QUrl::FullyEncoded)), [this, requestId](const QJsonValue &data, const QJsonObject &) {
+		if (requestId != m_requestId)
+			return;
 		const QJsonObject object = data.toObject();
-		const double distanceKm = object.value(QLatin1String("distanceM")).toInt() / 1000.0;
-		const int minutes = qRound(object.value(QLatin1String("durationSec")).toInt() / 60.0);
-		m_summaryLabel->setText(QStringLiteral("全程约 %1 公里 · 约 %2 分钟（%3）")
-									.arg(distanceKm, 0, 'f', 1)
-									.arg(minutes)
-									.arg(m_modeCombo->currentText()));
-		m_summaryLabel->show();
 		m_statusLabel->hide();
 
 		const QUrl mapUrl(object.value(QLatin1String("mapUrl")).toString());
@@ -231,7 +178,6 @@ void NavigationView::requestRoute() {
 			EV_LOG_WARNING(userNavigationViewLog, this) << "Map unavailable: WebEngine runtime missing";
 			m_statusLabel->setText(QStringLiteral("当前环境缺少 Qt WebEngine 运行时，无法加载地图"));
 			m_statusLabel->show();
-			m_navigateButton->setEnabled(true);
 			return;
 		}
 #ifdef USER_APP_HAS_WEBENGINE
@@ -251,18 +197,17 @@ void NavigationView::requestRoute() {
 					m_webView->page()->runJavaScript(QString::fromUtf8(kTouchBridgeScript));
 				}
 			});
+			delete m_layout->takeAt(m_layout->count() - 1);
 			m_layout->addWidget(m_webView, 1);
 		}
-		m_hintLabel->hide();
 		m_webView->show();
 		m_webView->load(mapUrl);
-		m_loaded = true;
-		m_navigateButton->setText(QStringLiteral("重新规划"));
 #endif
 	},
-			  [this](const ApiError &error) {
+			  [this, requestId](const ApiError &error) {
+                  if (requestId != m_requestId)
+                      return;
  EV_LOG_WARNING(userNavigationViewLog, this) << "API operation failed in view";
-                  m_navigateButton->setEnabled(true);
                   m_statusLabel->setText(error.message.isEmpty() ? error.code : error.message);
                   m_statusLabel->show(); });
 }
