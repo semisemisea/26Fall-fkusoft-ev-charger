@@ -45,13 +45,14 @@ STATUS_PAIRS = [
     ("charging", "fault"),
     ("available", "fault"),
     ("available", "offline"),
+    ("available", "online"),
 ]
 CHARGERS = {}
 _cid = 1
 for st in STATIONS:
-    for _ in range(8):
-        fast = random.random() < 0.5
-        occupancy_status, operational_status = random.choice(STATUS_PAIRS)
+    # 每站固定覆盖快慢充和各类状态，避免随机生成时缺少演示场景。
+    for index, (occupancy_status, operational_status) in enumerate(STATUS_PAIRS):
+        fast = index % 2 == 0
         CHARGERS[_cid] = {
             "id": _cid, "stationId": st["id"], "code": f"S{st['id']:02d}-{_cid:03d}",
             "type": "fast" if fast else "slow",
@@ -73,6 +74,40 @@ for phone in ["13800138000", "13900139000", "15012345678", "18600001111", "17755
         "createdAt": "2026-08-01T08:00:00Z",
     }
     _uid += 1
+
+
+# 启动时生成近 60 天的模拟已结算订单；重复查询使用同一批数据，金额单位为分。
+_revenue_now = datetime.now(timezone.utc).replace(microsecond=0)
+SETTLED_ORDERS = [
+    {"stationId": station["id"],
+     "settledAt": _revenue_now - timedelta(hours=hour, seconds=1),
+     "amountFen": random.randint(1_000, 8_000)}
+    for hour in range(60 * 24)
+    for station in STATIONS
+]
+
+
+def revenue_total(q):
+    start, end = q.get("from"), q.get("to")
+    if (start is None) != (end is None):
+        raise ValueError("from 和 to 必须同时提供")
+    if start is not None:
+        start = datetime.fromisoformat(start.replace("Z", "+00:00"))
+        end = datetime.fromisoformat(end.replace("Z", "+00:00"))
+        if start.tzinfo is None or end.tzinfo is None or start >= end:
+            raise ValueError("时间范围必须包含时区且 from < to")
+    station_id = int(q["stationId"]) if "stationId" in q else None
+    if station_id is not None and station_id <= 0:
+        raise ValueError("stationId 必须为正整数")
+    orders = [order for order in SETTLED_ORDERS
+              if (station_id is None or order["stationId"] == station_id)
+              and (start is None or start <= order["settledAt"] < end)]
+    return {"from": start.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+            if start is not None else None,
+            "to": end.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+            if end is not None else None,
+            "revenueFen": sum(order["amountFen"] for order in orders),
+            "orderCount": len(orders)}
 
 
 def revenue_series(range_str):
@@ -133,11 +168,15 @@ class Handler(BaseHTTPRequestHandler):
             page = max(1, int(q.get("page", "1")))
         except (TypeError, ValueError):
             page = 1
+        try:
+            page_size = max(1, min(100, int(q.get("pageSize", PAGE_SIZE))))
+        except (TypeError, ValueError):
+            page_size = PAGE_SIZE
         total = len(items)
-        start = (page - 1) * PAGE_SIZE
-        chunk = items[start:start + PAGE_SIZE]
-        meta = {"page": page, "pageSize": PAGE_SIZE, "total": total,
-                "hasNext": start + PAGE_SIZE < total}
+        start = (page - 1) * page_size
+        chunk = items[start:start + page_size]
+        meta = {"page": page, "pageSize": page_size, "total": total,
+                "hasNext": start + page_size < total}
         return {"items": chunk}, meta
 
     # ---- HTTP ----
@@ -146,7 +185,14 @@ class Handler(BaseHTTPRequestHandler):
         q = {k: v[0] for k, v in parse_qs(url.query).items()}
         p = url.path
         with LOCK:
-            if p == "/api/v1/admin/dashboard/summary":
+            if p == "/api/v1/admin/dashboard/revenue":
+                try:
+                    data = revenue_total(q)
+                except ValueError as error:
+                    self.err(400, "VALIDATION_ERROR", str(error))
+                    return
+                self.ok(data)
+            elif p == "/api/v1/admin/dashboard/summary":
                 total = sum(c["totalChargeCount"] for c in CHARGERS.values())
                 self.ok({
                     "asOf": NOW(),
@@ -172,9 +218,17 @@ class Handler(BaseHTTPRequestHandler):
                     operational[charger["operationalStatus"]] += 1
                 self.ok({"total": len(chargers), "occupancy": occupancy,
                          "operational": operational})
-            elif p == "/api/v1/admin/chargers":
+            elif (p == "/api/v1/admin/chargers"
+                  or (p.startswith("/api/v1/admin/stations/")
+                      and p.endswith("/chargers"))):
                 items = list(CHARGERS.values())
-                if q.get("stationId"):
+                if p.startswith("/api/v1/admin/stations/"):
+                    station_id = int(p.split("/")[5])
+                    if not any(st["id"] == station_id for st in STATIONS):
+                        self.err(404, "NOT_FOUND", "电站不存在")
+                        return
+                    items = [c for c in items if c["stationId"] == station_id]
+                elif q.get("stationId"):
                     station_id = int(q["stationId"])
                     items = [c for c in items if c["stationId"] == station_id]
                 for field in ("type", "occupancyStatus", "operationalStatus"):
