@@ -142,15 +142,10 @@ ChargingView::ChargingView(ApiClient &api, QWidget *parent)
 }
 
 /**
- * @details 打开订单：立即刷新一次显示，并配置、启动可配置间隔的轮询线程
+ * @details 打开订单：立即刷新一次显示，并配置、启动 5 秒轮询线程
  */
 void ChargingView::open(const Order &order) {
 	EV_LOG_INFO(userChargingViewLog, this) << "Opening charging monitor; order_id=" << order.id;
-	if (m_order.id == order.id && m_pollThread->isRunning()) {
-		m_order = order;
-		updateDisplay(order);
-		return;
-	}
 	m_order = order;
 	m_chargerType.clear();
 	updateDisplay(order);
@@ -161,8 +156,6 @@ void ChargingView::open(const Order &order) {
                   }
                   m_chargerType = Charger::fromJson(data.toObject()).type;
                   updateDisplay(m_order); }, [](const ApiError &) { EV_LOG_WARNING(userChargingViewLog, nullptr) << "Background view refresh failed"; });
-	if (m_pollThread->isRunning())
-		m_pollThread->requestStop();
 	m_pollThread->configure(order.id, m_api.baseUrl(), m_api.accessToken());
 	m_pollThread->start();
 }

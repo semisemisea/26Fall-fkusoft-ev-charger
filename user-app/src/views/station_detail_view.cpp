@@ -2,7 +2,6 @@
  * @file station_detail_view.cpp
  * @brief 展示站内电桩并将预约、充电和导航意图交给主窗口。
  */
-#include "../../../common/refresh/page_refresh.h"
 #include <evcharger/logging.h>
 
 #include "station_detail_view.h"
@@ -47,7 +46,6 @@ namespace {
  */
 StationDetailView::StationDetailView(ApiClient &api, QWidget *parent)
 	: QWidget(parent), m_api(api) {
-	new evcharger::PageRefresh(this, [this] { if (m_station.id > 0) loadChargers(); }, false);
 	if (objectName().isEmpty())
 		setObjectName(QStringLiteral("StationDetailView"));
 	EV_LOG_DEBUG(userStationDetailViewLog, this) << "View initialized";
@@ -197,8 +195,7 @@ void StationDetailView::open(const Station &station) {
 									 "<span style='font-size:16px;font-weight:600;'>%1/%2</span>")
 									 .arg(station.availableChargerCount)
 									 .arg(station.chargerCount));
-	if (isVisible())
-		loadChargers();
+	loadChargers();
 }
 
 /**

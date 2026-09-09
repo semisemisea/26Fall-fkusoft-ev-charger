@@ -2,7 +2,6 @@
  * @file info_pages.cpp
  * @brief 实现历史订单、钱包流水、预约记录与关于系统页面。
  */
-#include "../../../common/refresh/page_refresh.h"
 #include <evcharger/logging.h>
 
 #include "info_pages.h"
@@ -111,7 +110,6 @@ namespace {
  */
 OrderHistoryView::OrderHistoryView(ApiClient &api, QWidget *parent)
 	: QWidget(parent), m_api(api) {
-	new evcharger::PageRefresh(this, [this] { load(); }, true);
 	if (objectName().isEmpty())
 		setObjectName(QStringLiteral("OrderHistoryView"));
 	EV_LOG_DEBUG(userInfoPagesLog, this) << "View initialized";
@@ -125,6 +123,7 @@ OrderHistoryView::OrderHistoryView(ApiClient &api, QWidget *parent)
  */
 void OrderHistoryView::showEvent(QShowEvent *event) {
 	QWidget::showEvent(event);
+	load();
 }
 
 /**
@@ -196,7 +195,6 @@ void OrderHistoryView::load() {
  */
 TransactionsView::TransactionsView(ApiClient &api, QWidget *parent)
 	: QWidget(parent), m_api(api) {
-	new evcharger::PageRefresh(this, [this] { load(); }, true);
 	if (objectName().isEmpty())
 		setObjectName(QStringLiteral("TransactionsView"));
 	EV_LOG_DEBUG(userInfoPagesLog, this) << "View initialized";
@@ -210,6 +208,7 @@ TransactionsView::TransactionsView(ApiClient &api, QWidget *parent)
  */
 void TransactionsView::showEvent(QShowEvent *event) {
 	QWidget::showEvent(event);
+	load();
 }
 
 /**
@@ -289,7 +288,6 @@ void TransactionsView::load() {
  */
 ReservationHistoryView::ReservationHistoryView(ApiClient &api, QWidget *parent)
 	: QWidget(parent), m_api(api) {
-	new evcharger::PageRefresh(this, [this] { load(); }, true);
 	if (objectName().isEmpty())
 		setObjectName(QStringLiteral("ReservationHistoryView"));
 	EV_LOG_DEBUG(userInfoPagesLog, this) << "View initialized";
@@ -303,6 +301,7 @@ ReservationHistoryView::ReservationHistoryView(ApiClient &api, QWidget *parent)
  */
 void ReservationHistoryView::showEvent(QShowEvent *event) {
 	QWidget::showEvent(event);
+	load();
 }
 
 /**

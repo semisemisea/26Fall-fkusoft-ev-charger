@@ -9,7 +9,7 @@
 #include <limits>
 
 namespace evcharger {
-	// 两个前端均读取可执行文件旁的配置；无效配置回退到三秒。
+	// 管理端读取可执行文件旁的配置；无效配置回退到三秒。
 	inline int refreshIntervalMs() {
 		QSettings settings(QCoreApplication::applicationDirPath() + QStringLiteral("/refresh.ini"), QSettings::IniFormat);
 		bool ok = false;
