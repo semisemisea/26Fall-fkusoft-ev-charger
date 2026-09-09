@@ -35,7 +35,7 @@ protected:
 	void showEvent(QShowEvent *event) override;
 
 private:
-	/** @brief 切换当前电站，清空旧明细并异步请求新站电桩。
+	/** @brief 请求站内电桩；同站刷新保留明细，切换电站时清空。
 	 * @param stationId 所属或目标电站 ID。
 	 * @param stationName 当前电站的展示名称。
 	 */
