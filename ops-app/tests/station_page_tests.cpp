@@ -61,6 +61,7 @@ private slots:
 
 	/// @brief 直接注入列表信号，验证非当前电站的迟到响应不会覆盖当前明细。
 	void selectedStationOwnsDisplayedChargers();
+	void refreshPreservesChargerSelection();
 	/// @brief 验证从电站管理打开新增电桩时，所属电站填入且只读。
 	void chargerDialogLocksSelectedStation();
 	/// @brief 验证新增电站对话框具备选点入口及经纬度输入。
@@ -117,6 +118,44 @@ void StationPageTests::selectedStationOwnsDisplayedChargers() {
 	QCOMPARE(chargerTable->rowCount(), 1);
 	QCOMPARE(chargerTable->item(0, 0)->text(), QStringLiteral("23"));
 	QCOMPARE(chargerTable->item(0, 1)->text(), QStringLiteral("快充"));
+}
+
+void StationPageTests::refreshPreservesChargerSelection() {
+	ops::ApiClient client;
+	client.setBaseUrl(QStringLiteral("http://127.0.0.1:1/api/v1"));
+	StationPage page(&client);
+	auto *stations = page.findChild<QTableWidget *>(QStringLiteral("stationTable"));
+	auto *table = page.findChild<QTableWidget *>(QStringLiteral("stationChargerTable"));
+	QVERIFY(stations);
+	QVERIFY(table);
+	ops::StationSummary station;
+	station.id = 7;
+	ops::Charger first;
+	first.id = 23;
+	first.code = QStringLiteral("23");
+	ops::Charger second = first;
+	second.id = 24;
+	second.code = QStringLiteral("24");
+	client.stationsFetched({station}, {}, {});
+	stations->cellClicked(0, 0);
+	client.stationChargersFetched(station.id, {first, second}, {});
+	table->selectRow(0);
+	QSignalSpy selectionChanges(table, &QTableWidget::itemSelectionChanged);
+	// 定时刷新响应走同一回调；请求明细期间也不能清空选择。
+	client.stationsFetched({station}, {}, {});
+	QCOMPARE(table->selectionModel()->selectedRows().size(), 1);
+	QCOMPARE(table->item(table->selectionModel()->selectedRows().first().row(), 0)->text(), first.code);
+	client.stationChargersFetched(station.id, {second, first}, {});
+	QCOMPARE(table->selectionModel()->selectedRows().size(), 1);
+	QCOMPARE(table->selectionModel()->selectedRows().first().row(), 1);
+	QCOMPARE(selectionChanges.count(), 0);
+	client.stationChargersFetched(station.id, {second}, {});
+	QVERIFY(table->selectionModel()->selectedRows().isEmpty());
+	table->selectRow(0);
+	station.id = 8;
+	client.stationsFetched({station}, {}, {});
+	QVERIFY(table->selectionModel()->selectedRows().isEmpty());
+	QCOMPARE(table->rowCount(), 0);
 }
 
 /// @brief 验证从电站管理打开新增电桩时，所属电站填入且只读。

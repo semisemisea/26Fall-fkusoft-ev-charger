@@ -24,7 +24,7 @@ public:
 	 */
 	explicit StationPage(ops::ApiClient *api, QWidget *parent = nullptr);
 
-	/** @brief 仅在 m_loaded 为 false 时发起首次加载；标记在发送请求前置为 true。
+	/** @brief 按当前筛选条件和页码重新请求数据。
 	 */
 	void refresh();
 
@@ -35,7 +35,7 @@ protected:
 	void showEvent(QShowEvent *event) override;
 
 private:
-	/** @brief 切换当前电站，清空旧明细并异步请求新站电桩。
+	/** @brief 请求站内电桩；同站刷新保留明细，切换电站时清空。
 	 * @param stationId 所属或目标电站 ID。
 	 * @param stationName 当前电站的展示名称。
 	 */
@@ -79,8 +79,8 @@ private:
 	QString m_currentStationName;				   ///< 当前选中电站的展示名称。
 	int m_page = 1;								   ///< 当前请求页码，从 1 开始。
 	bool m_hasNext = false;						   ///< 最近响应元数据允许继续翻页的标记。
-	bool m_loaded = false;						   ///< 已触发首次加载的标记；并不表示请求一定成功。
-	bool m_chargerMutationPending = false;		   ///< 电桩写操作或重启尚未完成时为 true，防止按钮重复提交。
+
+	bool m_chargerMutationPending = false; ///< 电桩写操作或重启尚未完成时为 true，防止按钮重复提交。
 };
 
 // 新增电站对话框；创建后可在当前页面逐个添加电桩。

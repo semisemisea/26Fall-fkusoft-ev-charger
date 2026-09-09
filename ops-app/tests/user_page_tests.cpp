@@ -5,7 +5,6 @@
 #include "pages/user_page.h"
 
 #include <QLineEdit>
-#include <QPushButton>
 #include <QSignalSpy>
 #include <QTableWidget>
 #include <QTcpServer>
@@ -51,13 +50,7 @@ void UserPageTests::refreshFetchesNewUsers() {
 	QCOMPARE(table->rowCount(), 0);
 	registered = true;
 	search->setText(QStringLiteral(" 138 "));
-	QPushButton *refresh = nullptr;
-	for (auto *button : page.findChildren<QPushButton *>()) {
-		if (button->text() == QStringLiteral("刷新"))
-			refresh = button;
-	}
-	QVERIFY2(refresh, "User list has no refresh button to fetch newly registered users");
-	QTest::mouseClick(refresh, Qt::LeftButton);
+	QTest::keyClick(search, Qt::Key_Return);
 	QTRY_COMPARE(fetched.count(), 2);
 	QCOMPARE(requests.size(), 2);
 	QVERIFY(requests.last().contains("/admin/users?"));
@@ -65,8 +58,11 @@ void UserPageTests::refreshFetchesNewUsers() {
 	QVERIFY(requests.last().contains("page=1"));
 	QCOMPARE(table->rowCount(), 1);
 	QCOMPARE(table->item(0, 2)->text(), QStringLiteral("new-user"));
-	QTest::mouseClick(refresh, Qt::LeftButton);
+	page.hide();
+	page.show();
 	QTRY_COMPARE(fetched.count(), 3);
+	QVERIFY(requests.last().contains("phone=138"));
+	QCOMPARE(table->rowCount(), 1);
 }
 
 QTEST_MAIN(UserPageTests)

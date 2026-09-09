@@ -1,6 +1,7 @@
 /** @file
  * @brief 双维度电桩统计页面，分别绘制占用与运维分布并在每次显示时刷新。
  */
+#include "../../../common/refresh/page_refresh.h"
 #include "charger_status_page.h"
 #include <evcharger/logging.h>
 
@@ -48,6 +49,7 @@ namespace {
 /// @brief 建立两个独立状态表并连接快照结果，加载由显示事件触发。
 ChargerStatusPage::ChargerStatusPage(ops::ApiClient *api, QWidget *parent)
 	: QWidget(parent), m_api(api) {
+	new evcharger::PageRefresh(this, [this] { refresh(); }, true);
 	setObjectName(QStringLiteral("opsChargerStatusPage"));
 	EV_LOG_DEBUG(opsChargerstatuspageLog, this) << "ChargerStatusPage initialized";
 	auto *root = new QVBoxLayout(this);
@@ -121,7 +123,6 @@ void ChargerStatusPage::populateTable(QTableWidget *table,
 void ChargerStatusPage::showEvent(QShowEvent *event) {
 	/// @brief 先交给 QWidget 处理显示事件，再触发本页刷新。
 	QWidget::showEvent(event);
-	refresh();
 }
 
 /// @brief 按页面加载策略发起数据请求，结果由已连接的信号更新控件。

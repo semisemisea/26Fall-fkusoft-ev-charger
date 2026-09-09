@@ -25,7 +25,7 @@ public:
 	 */
 	explicit UserPage(ops::ApiClient *api, QWidget *parent = nullptr);
 
-	/** @brief 仅在 m_loaded 为 false 时发起首次加载；标记在发送请求前置为 true。
+	/** @brief 按当前筛选条件和页码重新请求数据。
 	 */
 	void refresh();
 
@@ -58,5 +58,4 @@ private:
 	QList<ops::AdminUserRow> m_rows;	   ///< 与主表行序对应的值对象缓存。
 	int m_page = 1;						   ///< 当前请求页码，从 1 开始。
 	bool m_hasNext = false;				   ///< 最近响应元数据允许继续翻页的标记。
-	bool m_loaded = false;				   ///< 已触发首次加载的标记；并不表示请求一定成功。
 };

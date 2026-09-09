@@ -2,6 +2,7 @@
  * @brief 用户手机号查询、分页列表及权限控制下的冻结和解冻操作。
  */
 #include "user_page.h"
+#include "../../../common/refresh/page_refresh.h"
 #include <evcharger/logging.h>
 
 #include <QHBoxLayout>
@@ -30,6 +31,7 @@ namespace {
 /// @brief 建立手机号查询、用户列表和分页控件，连接冻结操作及结果回调。
 UserPage::UserPage(ops::ApiClient *api, QWidget *parent)
 	: QWidget(parent), m_api(api) {
+	new evcharger::PageRefresh(this, [this] { refresh(); }, true);
 	setObjectName(QStringLiteral("opsUserPage"));
 	EV_LOG_DEBUG(opsUserpageLog, this) << "UserPage initialized";
 	auto *root = new QVBoxLayout(this);
@@ -47,11 +49,6 @@ UserPage::UserPage(ops::ApiClient *api, QWidget *parent)
 	m_searchEdit->setClearButtonEnabled(true);
 	m_searchEdit->setFixedWidth(220);
 	topBar->addWidget(m_searchEdit);
-	auto *refreshButton = new QPushButton(tr("刷新"), this);
-	topBar->addWidget(refreshButton);
-	connect(refreshButton, &QPushButton::clicked, this, [this] {
-		m_api->fetchUsers(m_searchEdit->text().trimmed(), m_page);
-	});
 	m_freezeButton = new QPushButton(tr("冻结/解冻"), this);
 	m_freezeButton->setObjectName(QStringLiteral("danger"));
 	topBar->addWidget(m_freezeButton);
@@ -212,14 +209,10 @@ int UserPage::selectedUserRow() const {
 void UserPage::showEvent(QShowEvent *event) {
 	/// @brief 先交给 QWidget 处理显示事件，再触发本页刷新。
 	QWidget::showEvent(event);
-	refresh();
 }
 
 /// @brief 按页面加载策略发起数据请求，结果由已连接的信号更新控件。
 void UserPage::refresh() {
 	EV_LOG_DEBUG(opsUserpageLog, this) << "Page refresh requested";
-	if (m_loaded)
-		return;
-	m_loaded = true;
-	m_api->fetchUsers({}, m_page);
+	m_api->fetchUsers(m_searchEdit->text().trimmed(), m_page);
 }

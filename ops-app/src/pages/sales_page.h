@@ -31,7 +31,7 @@ public:
 	explicit SalesPage(ops::ApiClient *api, QWidget *parent = nullptr);
 
 	// 切到本页时刷新
-	/** @brief 仅在 m_loaded 为 false 时发起首次加载；标记在发送请求前置为 true。
+	/** @brief 按当前筛选条件和页码重新请求数据。
 	 */
 	void refresh();
 
@@ -62,5 +62,4 @@ private:
 	QLabel *m_chartFallback = nullptr; ///< 无 Charts 时的文本汇总标签；由 Qt 对象树管理。
 #endif
 	QString m_range = QStringLiteral("7d"); ///< 当前趋势时间范围 7d 或 30d。
-	bool m_loaded = false;					///< 已触发首次加载的标记；并不表示请求一定成功。
 };

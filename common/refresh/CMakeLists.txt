@@ -1,0 +1,7 @@
+if(BUILD_TESTING)
+    find_package(Qt6 6.2.4 EXACT REQUIRED COMPONENTS Test Widgets)
+    add_executable(page-refresh-tests tests/refresh_tests.cpp)
+    target_link_libraries(page-refresh-tests PRIVATE Qt6::Test Qt6::Widgets)
+    add_test(NAME page-refresh-tests COMMAND page-refresh-tests)
+    set_tests_properties(page-refresh-tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+endif()
