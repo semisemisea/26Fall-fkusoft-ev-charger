@@ -43,3 +43,11 @@ EV_CHARGER_DATABASE_PATH="$PWD/build/biz-core/data/demo.sqlite3" \
 不预置充电中订单，避免数据库放置一段时间后累积不真实的费用。
 后端启动时会取消未到期的活动预约，所以活动预约和实时充电应在前端现场创建。
 历史订单可以属于当前故障、离线或停用的设备，表示设备状态后来发生了变化。
+
+回归检查（流水金额为正、扣款匹配订单、逐笔余额及最终余额一致）：
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s biz-core/scripts -p 'test_*.py'
+```
+
+修复脚本不会修改之前生成的数据库；请使用新文件名重新生成并切换后端数据库路径。

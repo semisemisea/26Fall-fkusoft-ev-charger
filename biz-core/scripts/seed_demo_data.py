@@ -73,7 +73,8 @@ def populate(db, now, days, seed):
         balances[user] = 0
 
     def wallet(user, amount, at, order=None):
-        balances[user] += amount
+        # 流水金额始终为正，收支方向由 type 表达，与后端结算保持一致。
+        balances[user] += amount if order is None else -amount
         insert(db, "wallet_transactions", user_id=user, order_id=order,
                type="top_up" if order is None else "charge_debit", amount_fen=amount,
                balance_after_fen=balances[user], created_at=at)
@@ -106,7 +107,7 @@ def populate(db, now, days, seed):
         if status == "settled":
             if balances[user] < amount + 10000:
                 wallet(user, 50000, at)
-            wallet(user, -amount, at, oid)
+            wallet(user, amount, at, oid)
 
     # 每天多笔，覆盖今日、近 7/30 天、跨月营收；时间槽避免同桩/用户重叠。
     for day in range(days - 1, -1, -1):
