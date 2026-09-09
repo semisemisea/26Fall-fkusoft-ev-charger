@@ -2,17 +2,21 @@
  * @file contract_tests.cpp
  * @brief 验证用户端模型与主接口契约，以及充电界面的类型和大电量显示。
  */
-#include "api/ApiClient.h"
-#include "models/Charger.h"
-#include "models/Order.h"
-#include "models/Reservation.h"
-#include "models/Station.h"
-#include "models/User.h"
-#include "views/ChargingView.h"
+#include "api/api_client.h"
+#include "models/charger.h"
+#include "models/order.h"
+#include "models/reservation.h"
+#include "models/station.h"
+#include "models/user.h"
+#include "views/charging_view.h"
 
+#include "widgets/toast.h"
+
+#include <QGraphicsOpacityEffect>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QLabel>
+#include <QPointer>
 #include <QTcpServer>
 #include <QTcpSocket>
 #include <QTest>
@@ -24,6 +28,23 @@
 class ContractTests : public QObject {
 	Q_OBJECT
 private slots:
+	void toastRemainsReadableForThreeSeconds() {
+		qunsetenv("EV_DEMO_SLOW");
+		QWidget host;
+		host.resize(640, 480);
+		host.show();
+		Toast::error(&host, QStringLiteral("电桩暂不可用"));
+		QPointer<QWidget> toast = host.findChild<QWidget *>(QStringLiteral("toastWrapper"));
+		QVERIFY(toast);
+		QTest::qWait(2800);
+		QVERIFY(toast);
+		QVERIFY(toast->isVisible());
+		auto *opacity = qobject_cast<QGraphicsOpacityEffect *>(toast->graphicsEffect());
+		QVERIFY(opacity);
+		QCOMPARE(opacity->opacity(), 1.0);
+		QTRY_VERIFY_WITH_TIMEOUT(toast.isNull(), 1500);
+	}
+
 	/**
 	 * @brief 覆盖主接口字段名与用户前端模型之间的映射。
 	 * @details 验证离线/故障优先于占用状态、编号由 id 派生、stoppedAt 映射、分单位金额、ISO 预约到期时间和 hasAvatar 标志。

@@ -1,10 +1,10 @@
 // Exercise the production entry point, including QApplication::exec() and teardown.
 #define main opsApplicationMain
-#include "../main.cpp"
+#include "../src/main.cpp"
 #undef main
 
-#include "logindialog.h"
-#include "mainwindow.h"
+#include "login-dialog/login_dialog.h"
+#include "main-window/main_window.h"
 #include <QPointer>
 #include <QTimer>
 #include <cstdlib>

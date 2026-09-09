@@ -2,7 +2,7 @@
     <qresource prefix="/">
         <file>style.qss</file>
         <file>backgrounds/bg.png</file>
-        <file>backgrounds/StationDetailView.png</file>
+        <file>backgrounds/station_detail_view.png</file>
         <file>backgrounds/logo.png</file>
     </qresource>
 </RCC>

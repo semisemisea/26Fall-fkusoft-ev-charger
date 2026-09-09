@@ -1,8 +1,8 @@
 /** @file
  * @brief 用户管理页通过 HTTP 重新获取新增用户的回归测试。
  */
-#include "api/apiclient.h"
-#include "pages/userpage.h"
+#include "api/api_client.h"
+#include "pages/user_page.h"
 
 #include <QLineEdit>
 #include <QPushButton>

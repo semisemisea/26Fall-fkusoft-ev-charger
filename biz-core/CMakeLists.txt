@@ -5,7 +5,7 @@ add_library(biz-core-domain STATIC
 	src/validation.cpp
 )
 
-target_include_directories(biz-core-domain PUBLIC include)
+target_include_directories(biz-core-domain PUBLIC src/include)
 target_link_libraries(biz-core-domain PUBLIC Qt6::Core)
 
 add_library(biz-core-runtime STATIC
@@ -30,7 +30,7 @@ add_library(biz-core-runtime STATIC
 	src/user_api.cpp
 )
 
-target_include_directories(biz-core-runtime PUBLIC include)
+target_include_directories(biz-core-runtime PUBLIC src/include)
 target_link_libraries(biz-core-runtime PUBLIC biz-core-domain Qt6::Core Qt6::Network Qt6::Sql)
 
 add_executable(biz-core src/main.cpp)

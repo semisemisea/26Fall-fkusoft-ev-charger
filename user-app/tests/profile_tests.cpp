@@ -1,4 +1,4 @@
-#include "views/ProfileView.h"
+#include "views/profile_view.h"
 
 #include <QInputDialog>
 #include <QJsonDocument>
