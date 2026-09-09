@@ -551,6 +551,29 @@ namespace ops {
 			 });
 	}
 
+	void ApiClient::updateStation(qint64 stationId, const StationForm &form) {
+		QJsonObject body;
+		body.insert(QStringLiteral("name"), form.name);
+		body.insert(QStringLiteral("latitude"), form.latitude);
+		body.insert(QStringLiteral("longitude"), form.longitude);
+		body.insert(QStringLiteral("priceFenPerKwh"), static_cast<double>(form.pricePerKwhFen));
+		if (!form.status.isEmpty())
+			body.insert(QStringLiteral("status"), form.status);
+		send(QStringLiteral("PATCH"), QStringLiteral("/admin/stations/%1").arg(stationId), {}, body,
+			 [this, stationId](const ApiResult &r) {
+				 emit stationMutationFinished(QStringLiteral("update"), stationId, r.ok,
+											  r.errorMessage.isEmpty() ? r.errorCode : r.errorMessage);
+			 });
+	}
+
+	void ApiClient::deleteStation(qint64 stationId) {
+		send(QStringLiteral("DELETE"), QStringLiteral("/admin/stations/%1").arg(stationId), {}, {},
+			 [this, stationId](const ApiResult &r) {
+				 emit stationMutationFinished(QStringLiteral("delete"), stationId, r.ok,
+											  r.errorMessage.isEmpty() ? r.errorCode : r.errorMessage);
+			 });
+	}
+
 	// ---- 用户 ----
 
 	/// @brief 按手机号查询用户列表并返回分页信息。

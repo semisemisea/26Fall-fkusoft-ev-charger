@@ -2,11 +2,13 @@
  * @brief 电站分页查询、选中站点的电桩管理，以及电站新增和地图选点表单。
  */
 #include "station_page.h"
+#include "../../../common/refresh/page_refresh.h"
 #include <evcharger/logging.h>
 
 #include "charger_dialog.h"
 #include "evcharger/map_picker_dialog.h"
 
+#include <QComboBox>
 #include <QDialogButtonBox>
 #include <QFormLayout>
 #include <QHBoxLayout>
@@ -15,6 +17,7 @@
 #include <QLineEdit>
 #include <QMessageBox>
 #include <QPushButton>
+#include <QSignalBlocker>
 #include <QTableWidget>
 #include <QVBoxLayout>
 
@@ -50,6 +53,7 @@ namespace {
 /// @brief 建立电站与电桩两级表格，连接分页、选择、写操作和结果回调。
 StationPage::StationPage(ops::ApiClient *api, QWidget *parent)
 	: QWidget(parent), m_api(api) {
+	new evcharger::PageRefresh(this, [this] { refresh(); }, true);
 	setObjectName(QStringLiteral("opsStationPage"));
 	EV_LOG_DEBUG(opsStationpageLog, this) << "StationPage initialized";
 	auto *root = new QVBoxLayout(this);
@@ -68,6 +72,12 @@ StationPage::StationPage(ops::ApiClient *api, QWidget *parent)
 	m_addButton = new QPushButton(tr("新增电站"), this);
 	m_addButton->setObjectName(QStringLiteral("primary"));
 	topBar->addWidget(m_addButton);
+	m_editButton = new QPushButton(tr("编辑电站"), this);
+	m_editButton->setObjectName(QStringLiteral("editStationButton"));
+	topBar->addWidget(m_editButton);
+	m_deleteButton = new QPushButton(tr("删除电站"), this);
+	m_deleteButton->setObjectName(QStringLiteral("deleteStationButton"));
+	topBar->addWidget(m_deleteButton);
 	root->addLayout(topBar);
 
 	m_table = new QTableWidget(this);
@@ -174,6 +184,8 @@ StationPage::StationPage(ops::ApiClient *api, QWidget *parent)
 					return;
 				}
 				const qint64 selectedStationId = m_currentStationId;
+				const QSignalBlocker blocker(m_table);
+				m_table->clearSelection();
 				m_rows = stations;
 				m_table->setRowCount(stations.size());
 				int selectedStationRow = -1;
@@ -199,8 +211,12 @@ StationPage::StationPage(ops::ApiClient *api, QWidget *parent)
 						i, ColOnlineRate,
 						new QTableWidgetItem(
 							QStringLiteral("%1%").arg(s.onlineRate * 100, 0, 'f', 1)));
-					m_table->setItem(i, ColStatus,
-									 new QTableWidgetItem(ops::statusText(s.status)));
+					QString status = ops::statusText(s.status);
+					if (s.status == QStringLiteral("active"))
+						status = tr("启用");
+					else if (s.status == QStringLiteral("inactive"))
+						status = tr("停用");
+					m_table->setItem(i, ColStatus, new QTableWidgetItem(status));
 				}
 				m_stationHintLabel->setText(tr("共 %1 座电站。点击行管理站内电桩。")
 												.arg(stations.size()));
@@ -219,13 +235,24 @@ StationPage::StationPage(ops::ApiClient *api, QWidget *parent)
 					m_chargerHintLabel->setText(tr("选择电站后可查看和管理站内电桩。"));
 					updateChargerActions();
 				}
+				updateStationActions();
 			});
 
-	connect(m_table, &QTableWidget::cellClicked, this, [this](int row, int) {
-		if (row < 0 || row >= m_rows.size())
-			return;
-		const auto &s = m_rows.at(row);
-		showStationChargers(s.id, s.name);
+	connect(m_table, &QTableWidget::itemSelectionChanged, this, [this] {
+		const auto selected = m_table->selectionModel()->selectedRows();
+		if (selected.isEmpty()) {
+			m_currentStationId = -1;
+			m_currentStationName.clear();
+			m_chargerRows.clear();
+			m_chargerTable->setRowCount(0);
+			m_chargerHeading->setText(tr("请先选择电站"));
+			m_chargerHintLabel->setText(tr("选择电站后可查看和管理站内电桩。"));
+			updateChargerActions();
+		} else {
+			const auto &station = m_rows.at(selected.first().row());
+			showStationChargers(station.id, station.name);
+		}
+		updateStationActions();
 	});
 
 	connect(m_api, &ops::ApiClient::stationChargersFetched, this,
@@ -239,7 +266,6 @@ StationPage::StationPage(ops::ApiClient *api, QWidget *parent)
 						tr("站内电桩加载失败(%1)，请稍后重试。").arg(errorCode));
 					return;
 				}
-				m_chargerRows = chargers;
 				applyChargerRows(chargers);
 				updateChargerActions();
 			});
@@ -289,7 +315,7 @@ StationPage::StationPage(ops::ApiClient *api, QWidget *parent)
 		const int row = selectedChargerRow();
 		if (row < 0 || row >= m_chargerRows.size())
 			return;
-		const ops::Charger &charger = m_chargerRows.at(row);
+		const ops::Charger charger = m_chargerRows.at(row);
 		if (!ops::isRestartable(charger))
 			return;
 		if (QMessageBox::question(this, tr("远程重启"),
@@ -364,17 +390,75 @@ StationPage::StationPage(ops::ApiClient *api, QWidget *parent)
 				}
 			});
 
+	connect(m_editButton, &QPushButton::clicked, this, [this] {
+		if (!m_api->canWrite() || m_stationMutationPending)
+			return;
+		const auto selected = m_table->selectionModel()->selectedRows();
+		if (selected.isEmpty())
+			return;
+		const auto station = m_rows.at(selected.first().row());
+		AddStationDialog dialog(this);
+		dialog.setStation(station);
+		if (dialog.exec() != QDialog::Accepted)
+			return;
+		m_stationMutationPending = true;
+		updateStationActions();
+		m_api->updateStation(station.id, dialog.form());
+	});
+	connect(m_deleteButton, &QPushButton::clicked, this, [this] {
+		if (!m_api->canWrite() || m_stationMutationPending)
+			return;
+		const auto selected = m_table->selectionModel()->selectedRows();
+		if (selected.isEmpty())
+			return;
+		const auto station = m_rows.at(selected.first().row());
+		if (QMessageBox::question(this, tr("删除电站"),
+								  tr("确认删除电站“%1”及其站内电桩？存在有效预约或正在充电订单时无法删除。")
+									  .arg(station.name),
+								  QMessageBox::Yes | QMessageBox::No, QMessageBox::No) != QMessageBox::Yes)
+			return;
+		m_stationMutationPending = true;
+		updateStationActions();
+		m_api->deleteStation(station.id);
+	});
+	connect(m_api, &ops::ApiClient::stationMutationFinished, this,
+			[this](const QString &operation, qint64 stationId, bool ok, const QString &error) {
+				m_stationMutationPending = false;
+				updateStationActions();
+				if (!ok) {
+					QMessageBox::warning(this, tr("电站操作失败"), error);
+					return;
+				}
+				if (operation == QStringLiteral("delete")) {
+					if (stationId == m_currentStationId)
+						m_table->clearSelection();
+					if (m_rows.size() == 1 && m_page > 1)
+						--m_page;
+				}
+				reloadSelectedStation();
+			});
+	updateStationActions();
+
 	m_addButton->setEnabled(m_api->canWrite());
 	updateChargerActions();
 }
 
-/// @brief 切换当前电站，清空旧明细并异步请求新站电桩。
+void StationPage::updateStationActions() {
+	const bool enabled = m_api->canWrite() && !m_stationMutationPending &&
+						 !m_table->selectionModel()->selectedRows().isEmpty();
+	m_editButton->setEnabled(enabled);
+	m_deleteButton->setEnabled(enabled);
+}
+
+/// @brief 请求电桩；仅切换电站时清空旧明细，同站刷新保留当前选择。
 void StationPage::showStationChargers(qint64 stationId, const QString &stationName) {
 	EV_LOG_DEBUG(opsStationpageLog, this) << "Station selected; station_id=" << stationId;
+	if (m_currentStationId != stationId) {
+		m_chargerRows.clear();
+		m_chargerTable->setRowCount(0);
+	}
 	m_currentStationId = stationId;
 	m_currentStationName = stationName;
-	m_chargerRows.clear();
-	m_chargerTable->setRowCount(0);
 	m_chargerHeading->setText(tr("%1 · 站内电桩").arg(stationName));
 	m_chargerHintLabel->setText(tr("正在加载站内电桩..."));
 	updateChargerActions();
@@ -383,9 +467,20 @@ void StationPage::showStationChargers(qint64 stationId, const QString &stationNa
 
 /// @brief 按电桩值对象重绘明细，累计分钟转换为一位小数小时。
 void StationPage::applyChargerRows(const QList<ops::Charger> &chargers) {
+	const int selectedRow = selectedChargerRow();
+	const qint64 selectedId = selectedRow >= 0 && selectedRow < m_chargerRows.size()
+								  ? m_chargerRows.at(selectedRow).id
+								  : -1;
+	// 行位置可能变化，重建后按 ID 恢复；只在完整数据就绪后更新操作按钮。
+	const QSignalBlocker blocker(m_chargerTable);
+	m_chargerTable->clearSelection();
+	m_chargerRows = chargers;
+	int restoredRow = -1;
 	m_chargerTable->setRowCount(chargers.size());
 	for (int i = 0; i < chargers.size(); ++i) {
 		const auto &charger = chargers.at(i);
+		if (charger.id == selectedId)
+			restoredRow = i;
 		m_chargerTable->setItem(i, CColCode, new QTableWidgetItem(charger.code));
 		m_chargerTable->setItem(
 			i, CColType, new QTableWidgetItem(ops::chargerTypeText(charger.type)));
@@ -400,6 +495,9 @@ void StationPage::applyChargerRows(const QList<ops::Charger> &chargers) {
 			new QTableWidgetItem(
 				QStringLiteral("%1 h").arg(charger.totalChargeMinutes / 60.0, 0, 'f', 1)));
 	}
+	m_chargerTable->clearSelection();
+	if (restoredRow >= 0)
+		m_chargerTable->selectRow(restoredRow);
 	m_chargerHintLabel->setText(tr("共 %1 台电桩。选择电桩后可编辑、删除或远程重启。")
 									.arg(chargers.size()));
 }
@@ -443,16 +541,12 @@ void StationPage::updatePager() {
 void StationPage::showEvent(QShowEvent *event) {
 	/// @brief 先交给 QWidget 处理显示事件，再触发本页刷新。
 	QWidget::showEvent(event);
-	refresh();
 }
 
 /// @brief 按页面加载策略发起数据请求，结果由已连接的信号更新控件。
 void StationPage::refresh() {
 	EV_LOG_DEBUG(opsStationpageLog, this) << "Page refresh requested";
-	if (m_loaded)
-		return;
-	m_loaded = true;
-	m_api->fetchStations({}, m_page);
+	m_api->fetchStations(m_searchEdit->text().trimmed(), m_page);
 }
 
 // ---- AddStationDialog ----
@@ -542,5 +636,25 @@ ops::StationForm AddStationDialog::form() const {
 	f.latitude = m_latEdit->text().toDouble();
 	f.longitude = m_lonEdit->text().toDouble();
 	f.pricePerKwhFen = qRound64(m_priceEdit->text().toDouble() * 100);
+	if (m_statusCombo)
+		f.status = m_statusCombo->currentData().toString();
 	return f;
+}
+
+void AddStationDialog::setStation(const ops::StationSummary &station) {
+	if (!m_statusCombo) {
+		m_statusCombo = new QComboBox(this);
+		m_statusCombo->setObjectName(QStringLiteral("stationStatusCombo"));
+		m_statusCombo->addItem(tr("启用"), QStringLiteral("active"));
+		m_statusCombo->addItem(tr("停用"), QStringLiteral("inactive"));
+		m_statusCombo->setToolTip(tr("停用电站会使该站的有效预约过期，并释放相应电桩。"));
+		auto *formLayout = qobject_cast<QFormLayout *>(layout());
+		formLayout->insertRow(formLayout->rowCount() - 1, tr("状态"), m_statusCombo);
+	}
+	m_statusCombo->setCurrentIndex(m_statusCombo->findData(station.status));
+	setWindowTitle(tr("编辑电站"));
+	m_nameEdit->setText(station.name);
+	m_latEdit->setText(QString::number(station.latitude, 'g', 17));
+	m_lonEdit->setText(QString::number(station.longitude, 'g', 17));
+	m_priceEdit->setText(ops::fenCents(station.pricePerKwhFen));
 }

@@ -133,6 +133,10 @@ namespace ops {
 		 * @param form 调用者提供的提交字段。
 		 */
 		void createStation(const StationForm &form);
+		/// @brief 修改指定电站的基本信息及表单中提供的状态。
+		void updateStation(qint64 stationId, const StationForm &form);
+		/// @brief 删除指定电站及站内电桩。
+		void deleteStation(qint64 stationId);
 
 		// ---- 用户 ----
 		/** @brief 按手机号查询用户列表并返回分页信息。
@@ -225,6 +229,9 @@ namespace ops {
 		 * @param errorCode 错误码；空值表示未报告业务错误。
 		 */
 		void stationCreated(bool succeeded, const QString &errorCode);
+		/// @brief 电站编辑或删除结果，失败时返回服务端消息。
+		void stationMutationFinished(const QString &operation, qint64 stationId,
+									 bool succeeded, const QString &error);
 
 		// 用户
 		/** @brief 分页用户列表结果通知。

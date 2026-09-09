@@ -1,6 +1,7 @@
 /** @file
  * @brief 营收指标卡片与 7/30 日趋势，包含 Qt Charts 绘图和无图表组件时的文本汇总。
  */
+#include "../../../common/refresh/page_refresh.h"
 #include "sales_page.h"
 #include <evcharger/logging.h>
 
@@ -53,6 +54,7 @@ namespace {
 /// @brief 建立营收卡片和可选图表，并连接范围切换和异步指标结果。
 SalesPage::SalesPage(ops::ApiClient *api, QWidget *parent)
 	: QWidget(parent), m_api(api) {
+	new evcharger::PageRefresh(this, [this] { refresh(); }, true);
 	setObjectName(QStringLiteral("opsSalesPage"));
 	EV_LOG_DEBUG(opsSalespageLog, this) << "SalesPage initialized";
 	auto *root = new QVBoxLayout(this);
@@ -125,7 +127,6 @@ SalesPage::SalesPage(ops::ApiClient *api, QWidget *parent)
 
 	connect(rangeBox, &QComboBox::currentIndexChanged, this, [this, rangeBox](int) {
 		m_range = rangeBox->currentData().toString();
-		m_loaded = false; // 强制刷新
 		refresh();
 	});
 
@@ -217,15 +218,11 @@ QLabel *SalesPage::makeCard(const QString &title) {
 void SalesPage::showEvent(QShowEvent *event) {
 	/// @brief 先交给 QWidget 处理显示事件，再触发本页刷新。
 	QWidget::showEvent(event);
-	refresh();
 }
 
 /// @brief 按页面加载策略发起数据请求，结果由已连接的信号更新控件。
 void SalesPage::refresh() {
 	EV_LOG_DEBUG(opsSalespageLog, this) << "Page refresh requested";
-	if (m_loaded)
-		return;
-	m_loaded = true;
 	m_api->fetchDashboardSummary();
 	m_api->fetchRevenueSeries(m_range);
 }

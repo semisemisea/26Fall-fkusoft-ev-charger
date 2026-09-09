@@ -212,7 +212,7 @@ void TransactionsView::showEvent(QShowEvent *event) {
 }
 
 /**
- * @details 拉取钱包流水并渲染卡片，金额正负用绿 / 红区分
+ * @details 拉取钱包流水并渲染卡片，按交易类型确定金额符号及绿 / 红样式
  */
 void TransactionsView::load() {
 	EV_LOG_INFO(userInfoPagesLog, this) << "Loading account history";
@@ -241,8 +241,10 @@ void TransactionsView::load() {
                           type = QStringLiteral("调整");
                       }
                       const qlonglong amount = object.value(QLatin1String("amountFen")).toInteger();
+					  // 流水金额为非负大小，收支方向仅由 type 表达
+					  const bool expense = typeCode == QLatin1String("charge_debit");
 
-                      auto *card = new QFrame(this);
+					  auto *card = new QFrame(this);
                       card->setObjectName(QStringLiteral("infoCard"));
                       auto *typeLabel = new QLabel(type, card);
                       typeLabel->setObjectName(QStringLiteral("strong"));
@@ -252,15 +254,15 @@ void TransactionsView::load() {
                               .left(16),
                           card);
                       timeLabel->setObjectName(QStringLiteral("meta"));
-                      auto *amountLabel = new QLabel(
-                          QStringLiteral("%1￥%2")
-                              .arg(amount >= 0 ? QStringLiteral("+") : QStringLiteral("-"),
-                                   fenToYuan(qAbs(amount))),
-                          card);
-                      amountLabel->setObjectName(amount >= 0 ? QStringLiteral("txIncome")
-                                                             : QStringLiteral("txExpense"));
-                      amountLabel->setAlignment(Qt::AlignRight);
-                      auto *balanceLabel = new QLabel(
+					  auto *amountLabel = new QLabel(
+						  QStringLiteral("%1￥%2")
+							  .arg(expense ? QStringLiteral("-") : QStringLiteral("+"),
+								   fenToYuan(amount)),
+						  card);
+					  amountLabel->setObjectName(expense ? QStringLiteral("txExpense")
+														 : QStringLiteral("txIncome"));
+					  amountLabel->setAlignment(Qt::AlignRight);
+					  auto *balanceLabel = new QLabel(
                           QStringLiteral("余额 ￥%1")
                               .arg(fenToYuan(object.value(QLatin1String("balanceAfterFen")).toInteger())),
                           card);

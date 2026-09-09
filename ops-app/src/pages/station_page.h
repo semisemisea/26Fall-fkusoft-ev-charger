@@ -9,6 +9,7 @@
 #include <QWidget>
 
 #include "api/api_client.h"
+class QComboBox;
 class QLabel;
 class QLineEdit;
 class QPushButton;
@@ -24,7 +25,7 @@ public:
 	 */
 	explicit StationPage(ops::ApiClient *api, QWidget *parent = nullptr);
 
-	/** @brief 仅在 m_loaded 为 false 时发起首次加载；标记在发送请求前置为 true。
+	/** @brief 按当前筛选条件和页码重新请求数据。
 	 */
 	void refresh();
 
@@ -35,7 +36,7 @@ protected:
 	void showEvent(QShowEvent *event) override;
 
 private:
-	/** @brief 切换当前电站，清空旧明细并异步请求新站电桩。
+	/** @brief 请求站内电桩；同站刷新保留明细，切换电站时清空。
 	 * @param stationId 所属或目标电站 ID。
 	 * @param stationName 当前电站的展示名称。
 	 */
@@ -57,7 +58,12 @@ private:
 	/** @brief 依页码和下一页标志设置翻页条可见性及按钮状态。
 	 */
 	void updatePager();
+	/// @brief 根据电站选择、权限和写操作状态更新按钮。
+	void updateStationActions();
 
+	QPushButton *m_editButton = nullptr;
+	QPushButton *m_deleteButton = nullptr;
+	bool m_stationMutationPending = false;
 	ops::ApiClient *m_api;						   ///< 非拥有的共享客户端，须比界面对象存活更久。
 	QLineEdit *m_searchEdit = nullptr;			   ///< 搜索输入框；由 Qt 对象树管理。
 	QTableWidget *m_table = nullptr;			   ///< 主列表表格；由 Qt 对象树管理。
@@ -79,8 +85,8 @@ private:
 	QString m_currentStationName;				   ///< 当前选中电站的展示名称。
 	int m_page = 1;								   ///< 当前请求页码，从 1 开始。
 	bool m_hasNext = false;						   ///< 最近响应元数据允许继续翻页的标记。
-	bool m_loaded = false;						   ///< 已触发首次加载的标记；并不表示请求一定成功。
-	bool m_chargerMutationPending = false;		   ///< 电桩写操作或重启尚未完成时为 true，防止按钮重复提交。
+
+	bool m_chargerMutationPending = false; ///< 电桩写操作或重启尚未完成时为 true，防止按钮重复提交。
 };
 
 // 新增电站对话框；创建后可在当前页面逐个添加电桩。
@@ -97,8 +103,11 @@ public:
 	 * @return 当前表单值副本。
 	 */
 	ops::StationForm form() const;
+	/// @brief 切换为编辑模式，并预填电站信息。
+	void setStation(const ops::StationSummary &station);
 
 private:
+	QComboBox *m_statusCombo = nullptr;			 ///< 仅编辑模式显示的电站状态选项。
 	QLineEdit *m_nameEdit = nullptr;			 ///< 站名输入框；由 Qt 对象树管理。
 	QPushButton *m_pickLocationButton = nullptr; ///< 地图选点入口按钮；由 Qt 对象树管理。
 	QLineEdit *m_latEdit = nullptr;				 ///< 纬度输入框；由 Qt 对象树管理。
