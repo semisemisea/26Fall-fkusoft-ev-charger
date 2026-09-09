@@ -64,6 +64,18 @@ qt_finalize_executable(ops-app)
 
 if(BUILD_TESTING)
     find_package(Qt6 6.2.4 EXACT REQUIRED COMPONENTS Test)
+    qt_add_executable(ops-app-sales-page-tests
+        tests/sales_page_tests.cpp
+        src/pages/sales_page.cpp
+        src/pages/sales_page.h
+        src/api/api_client.cpp
+        src/api/api_client.h
+    )
+    target_include_directories(ops-app-sales-page-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+    target_link_libraries(ops-app-sales-page-tests PRIVATE Qt6::Network Qt6::Test Qt6::Widgets)
+    add_test(NAME ops-app-sales-page-tests COMMAND ops-app-sales-page-tests)
+    set_tests_properties(ops-app-sales-page-tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
     qt_add_executable(ops-app-charger-state-tests
         tests/charger_state_tests.cpp
         src/api/types.h

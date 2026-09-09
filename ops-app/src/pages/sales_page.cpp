@@ -25,6 +25,13 @@ Q_LOGGING_CATEGORY(opsSalespageLog, "evcharger.ops.sales", QtInfoMsg)
 
 namespace {
 
+	/// @brief 初始加载和数据更新共用卡片排版，始终保留指标名称与单位。
+	QString cardText(const QString &title, const QString &value) {
+		return QStringLiteral("<div style='color:#8a8f98;font-size:13px;font-weight:normal;'>%1</div>"
+							  "<div style='font-size:26px;font-weight:bold;'>%2</div>")
+			.arg(title.toHtmlEscaped(), value.toHtmlEscaped());
+	}
+
 	// 卡片样式在全局 QSS 之外单独控制大数字排版
 	/// @brief 预留的大数字排版样式；当前卡片实际使用内联富文本样式。
 	const char *kValueStyle = "font-size: 24px; font-weight: bold; background: transparent;";
@@ -129,9 +136,9 @@ SalesPage::SalesPage(ops::ApiClient *api, QWidget *parent)
 					m_extraLabel->setText(tr("指标加载失败(%1),请切换时间范围重试").arg(errorCode));
 					return;
 				}
-				m_todayCard->setText(ops::fenCents(s.todayRevenueFen));
-				m_monthCard->setText(ops::fenCents(s.monthRevenueFen));
-				m_totalCard->setText(ops::fenCents(s.totalRevenueFen));
+				m_todayCard->setText(cardText(tr("今日营收 (元)"), ops::fenCents(s.todayRevenueFen)));
+				m_monthCard->setText(cardText(tr("本月营收 (元)"), ops::fenCents(s.monthRevenueFen)));
+				m_totalCard->setText(cardText(tr("累计营收 (元)"), ops::fenCents(s.totalRevenueFen)));
 				m_extraLabel->setText(
 					tr("用户 %1 · 电站 %2 · 电桩 %3 · 在线率 %4%")
 						.arg(s.userCount)
@@ -201,12 +208,8 @@ QLabel *SalesPage::makeCard(const QString &title) {
 	auto *card = new QLabel(this);
 	card->setProperty("card", true);
 	card->setAlignment(Qt::AlignCenter);
-	card->setText(QStringLiteral("%1\n—").arg(title));
 	card->setTextFormat(Qt::RichText);
-	card->setText(QStringLiteral(
-					  "<div style='color:#8a8f98;font-size:13px;font-weight:normal;'>%1</div>"
-					  "<div style='font-size:26px;font-weight:bold;'>—</div>")
-					  .arg(title));
+	card->setText(cardText(title, QStringLiteral("—")));
 	return card;
 }
 
