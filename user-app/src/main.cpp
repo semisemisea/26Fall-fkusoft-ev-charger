@@ -11,7 +11,7 @@
 
 Q_LOGGING_CATEGORY(userApplication, "evcharger.user.application", QtInfoMsg)
 
-// 程序入口：配置 WebEngine 兼容参数，加载全局样式表后显示主窗口
+// 程序入口：加载全局样式表后显示主窗口
 /**
  * @brief 配置应用运行环境、加载全局样式并进入 Qt 事件循环。
  * @param argc 命令行参数数量，由 QApplication 解析。
@@ -22,10 +22,7 @@ int main(int argc, char *argv[]) {
 	evcharger::logging::installMessageHandler();
 	QThread::currentThread()->setObjectName(QStringLiteral("userMainThread"));
 	EV_LOG_INFO(userApplication, nullptr) << "User application starting";
-	// 无 GPU 环境下的 WebEngine 兼容参数（软件渲染）
-	if (qEnvironmentVariableIsEmpty("QTWEBENGINE_CHROMIUM_FLAGS")) {
-		qputenv("QTWEBENGINE_CHROMIUM_FLAGS", "--disable-gpu --ignore-gpu-blocklist --enable-unsafe-swiftshader");
-	}
+	// 保留 Qt 默认图形能力；腾讯 GL 底图需要 WebGL，不强制禁用 GPU。
 
 	QApplication a(argc, argv);
 	a.setObjectName(QStringLiteral("userApplication"));

@@ -425,6 +425,7 @@ JSON 成功响应统一为：
       [38.889, 121.537],
       [38.901, 121.55]
     ],
+    "steps": [{"instruction": "沿道路直行", "distanceM": 4300}],
     "provider": "tencent",
     "mapUrl": "https://map.qq.com/..."
   },
@@ -433,6 +434,8 @@ JSON 成功响应统一为：
   }
 }
 ```
+
+`durationSec` 是秒（由腾讯返回的分钟换算）；`steps` 为分段指引，未提供时为空数组。`mapUrl` 保留兼容，用户端使用 `polyline` 和 `steps` 自行绘制路线及模拟导航。
 
 腾讯地图密钥缺失时返回 `503 SERVICE_UNAVAILABLE`。连接失败、超时和 HTTP 5xx 按配置次数重试；参数错误、鉴权失败和无结果不重试。错误结果使用 1.5 节定义的地图错误码。
 

@@ -9,6 +9,8 @@ set(PROJECT_SOURCES
     src/app/charge_poll_thread.cpp
     src/api/api_client.h
     src/api/api_client.cpp
+    src/models/route_playback.h
+    src/models/route_playback.cpp
     src/models/user.h
     src/models/user.cpp
     src/models/station.h
@@ -161,6 +163,25 @@ if(BUILD_TESTING)
     target_link_libraries(user-app-profile-tests PRIVATE Qt6::Test Qt6::Network Qt6::Widgets Qt6::Svg)
     add_test(NAME user-app-profile-tests COMMAND user-app-profile-tests)
     set_tests_properties(user-app-profile-tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+endif()
+
+if(BUILD_TESTING)
+    add_executable(user-app-route-playback-tests tests/route_playback_tests.cpp src/models/route_playback.cpp)
+    target_include_directories(user-app-route-playback-tests PRIVATE src)
+    target_link_libraries(user-app-route-playback-tests PRIVATE Qt6::Test)
+    add_test(NAME user-app-route-playback-tests COMMAND user-app-route-playback-tests)
+
+    add_executable(user-app-navigation-tests
+        tests/navigation_tests.cpp src/views/navigation_view.cpp src/models/route_playback.cpp
+        src/api/api_client.cpp src/app/session.cpp src/models/user.cpp src/widgets/back_button.cpp
+        resources/resources.qrc)
+    target_include_directories(user-app-navigation-tests PRIVATE src)
+    target_link_libraries(user-app-navigation-tests PRIVATE Qt6::Test Qt6::Widgets Qt6::Network)
+    if(TARGET Qt6::WebEngineWidgets)
+        target_link_libraries(user-app-navigation-tests PRIVATE Qt6::WebEngineWidgets)
+        target_compile_definitions(user-app-navigation-tests PRIVATE USER_APP_HAS_WEBENGINE)
+    endif()
+    add_test(NAME user-app-navigation-tests COMMAND user-app-navigation-tests)
 endif()
 
 if(BUILD_TESTING)

@@ -137,6 +137,7 @@ namespace Backend {
 								{QStringLiteral("distanceM"), result.distanceM},
 								{QStringLiteral("durationSec"), result.durationSec},
 								{QStringLiteral("polyline"), result.polyline},
+								{QStringLiteral("steps"), result.steps},
 								{QStringLiteral("provider"), QStringLiteral("tencent")},
 								{QStringLiteral("mapUrl"), result.mapUrl},
 							},

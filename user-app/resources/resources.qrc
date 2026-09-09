@@ -1,6 +1,8 @@
 ﻿<RCC>
     <qresource prefix="/">
         <file>style.qss</file>
+        <file>navigation/map.html</file>
+        <file>navigation/map.js</file>
         <file>backgrounds/bg.png</file>
         <file>backgrounds/station_detail_view.png</file>
         <file>backgrounds/logo.png</file>
