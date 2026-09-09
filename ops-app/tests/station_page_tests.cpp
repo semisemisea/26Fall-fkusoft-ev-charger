@@ -5,6 +5,8 @@
 #include "pages/charger_dialog.h"
 #include "pages/station_page.h"
 
+#include <QComboBox>
+#include <QFormLayout>
 #include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
@@ -23,6 +25,40 @@ class StationPageTests : public QObject {
 	Q_OBJECT
 
 private slots:
+	void chargerStatusOnlyAppearsInEditLayout() {
+		ChargerDialog createDialog(42, nullptr);
+		createDialog.show();
+		QTest::qWait(20);
+		for (auto *box : createDialog.findChildren<QComboBox *>()) {
+			if (box->findData(QStringLiteral("online")) >= 0)
+				QVERIFY(!box->isVisible());
+		}
+		QCOMPARE(createDialog.form().operationalStatus, QStringLiteral("online"));
+
+		ops::Charger charger;
+		charger.stationId = 42;
+		charger.type = QStringLiteral("fast");
+		charger.powerKw = 120.0;
+		charger.operationalStatus = QStringLiteral("fault");
+		ChargerDialog editDialog(&charger);
+		editDialog.show();
+		QTest::qWait(20);
+		auto *layout = qobject_cast<QFormLayout *>(editDialog.layout());
+		QVERIFY(layout);
+		QComboBox *status = nullptr;
+		for (auto *box : editDialog.findChildren<QComboBox *>()) {
+			if (box->findData(QStringLiteral("online")) >= 0)
+				status = box;
+		}
+		QVERIFY(status);
+		QVERIFY(status->isVisible());
+		QVERIFY(layout->labelForField(status));
+		QVERIFY(layout->labelForField(status)->geometry().right() < status->geometry().left());
+		QCOMPARE(editDialog.form().operationalStatus, QStringLiteral("fault"));
+		status->setCurrentIndex(status->findData(QStringLiteral("offline")));
+		QCOMPARE(editDialog.form().operationalStatus, QStringLiteral("offline"));
+	}
+
 	/// @brief 直接注入列表信号，验证非当前电站的迟到响应不会覆盖当前明细。
 	void selectedStationOwnsDisplayedChargers();
 	/// @brief 验证从电站管理打开新增电桩时，所属电站填入且只读。

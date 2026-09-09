@@ -50,8 +50,12 @@ ChargerDialog::ChargerDialog(const ops::Charger *charger, QWidget *parent)
 	m_operationalBox->addItem(tr("在线"), QStringLiteral("online"));
 	m_operationalBox->addItem(tr("故障"), QStringLiteral("fault"));
 	m_operationalBox->addItem(tr("离线"), QStringLiteral("offline"));
-	if (editing)
+	if (editing) {
 		layout->addRow(tr("运维状态"), m_operationalBox);
+	} else {
+		// 新增接口固定为在线；未加入布局的子控件必须显式隐藏，避免覆盖表单。
+		m_operationalBox->hide();
+	}
 
 	if (editing) {
 		m_stationIdEdit->setText(QString::number(charger->stationId));
