@@ -71,11 +71,14 @@ namespace {
 		scrollArea->setWidgetResizable(true);
 		scrollArea->setWidget(container);
 
-		auto *headerRow = new QHBoxLayout;
-		headerRow->addWidget(backButton);
-		headerRow->addStretch();
-		headerRow->addWidget(titleLabel);
-		headerRow->addStretch();
+		// 两侧预留等宽空间，让标题相对页面居中，不受返回按钮挤压。
+		auto *headerRow = new QGridLayout;
+		headerRow->setHorizontalSpacing(0);
+		headerRow->setColumnMinimumWidth(0, backButton->width());
+		headerRow->setColumnMinimumWidth(2, backButton->width());
+		headerRow->setColumnStretch(1, 1);
+		headerRow->addWidget(backButton, 0, 0);
+		headerRow->addWidget(titleLabel, 0, 1, Qt::AlignCenter);
 
 		auto *layout = new QVBoxLayout(parent);
 		layout->setContentsMargins(12, 12, 12, 12);

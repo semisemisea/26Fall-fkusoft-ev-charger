@@ -143,3 +143,22 @@ if(BUILD_TESTING)
     add_test(NAME user-app-station-search-tests COMMAND user-app-station-search-tests)
     set_tests_properties(user-app-station-search-tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 endif()
+
+if(BUILD_TESTING)
+    add_executable(user-app-profile-tests
+        tests/profile_tests.cpp
+        src/api/api_client.cpp
+        src/app/session.cpp
+        src/models/user.cpp
+        src/views/profile_view.cpp
+        src/widgets/recharge_dialog.cpp
+        src/widgets/scale_button.cpp
+        src/widgets/app_icons.cpp
+        src/widgets/toast.cpp
+        resources/resources.qrc
+    )
+    target_include_directories(user-app-profile-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+    target_link_libraries(user-app-profile-tests PRIVATE Qt6::Test Qt6::Network Qt6::Widgets Qt6::Svg)
+    add_test(NAME user-app-profile-tests COMMAND user-app-profile-tests)
+    set_tests_properties(user-app-profile-tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+endif()
