@@ -1,0 +1,135 @@
+/** @file
+ * @brief 主窗口的左侧品牌导航与右侧页面栈，创建并管理四个运营页面。
+ */
+#include "main-window/main_window.h"
+#include <evcharger/logging.h>
+
+#include "pages/charger_status_page.h"
+#include "pages/sales_page.h"
+#include "pages/station_page.h"
+#include "pages/user_page.h"
+
+#include <QHBoxLayout>
+#include <QLabel>
+#include <QListWidget>
+#include <QStackedWidget>
+#include <QStatusBar>
+#include <QVBoxLayout>
+#include <QWidget>
+
+Q_LOGGING_CATEGORY(opsMainwindowLog, "evcharger.ops.ui", QtInfoMsg)
+
+namespace {
+
+	// 页面索引;每页一个独立 QWidget,由 pages_*.cpp 实现
+	/// @brief 导航项与页面堆栈对应的索引。
+	enum PageIndex {
+		PageSales = 0,
+		PageChargerStatus,
+		PageStationManage,
+		PageUserManage,
+		PageCount
+	};
+
+} // namespace
+
+/// @brief 建立中央水平布局、导航与四个页面，并连接导航索引切换。
+MainWindow::MainWindow(ops::ApiClient *api, QWidget *parent)
+	: QMainWindow(parent), m_api(api) {
+	setObjectName(QStringLiteral("opsMainWindow"));
+	EV_LOG_DEBUG(opsMainwindowLog, this) << "MainWindow initialized";
+	setWindowTitle(tr("充电桩运营管理平台 - 管理后台"));
+	resize(1180, 760);
+
+	auto *central = new QWidget(this);
+	auto *layout = new QHBoxLayout(central);
+	layout->setContentsMargins(0, 0, 0, 0);
+	layout->setSpacing(0);
+	setCentralWidget(central);
+
+	buildSidebar(layout); // 侧边栏加入 central 的布局(QMainWindow 自身布局不接受裸 widget)
+
+	m_stack = new QStackedWidget(central);
+	layout->addWidget(m_stack, 1);
+	for (int i = 0; i < PageCount; ++i)
+		m_stack->addWidget(createPage(i));
+
+	connect(m_navList, &QListWidget::currentRowChanged, m_stack, &QStackedWidget::setCurrentIndex);
+	connect(m_navList, &QListWidget::currentRowChanged, this, [this](int index) { EV_LOG_DEBUG(opsMainwindowLog, this) << "Navigation changed; page_index=" << index; });
+	m_navList->setCurrentRow(PageSales);
+
+	statusBar()->showMessage(tr("就绪"));
+}
+
+MainWindow::~MainWindow() = default;
+
+/// @brief 构造左侧品牌、导航和管理员信息，并加入中央布局。
+void MainWindow::buildSidebar(QHBoxLayout *layout) {
+	auto *side = new QWidget(this);
+	side->setObjectName(QStringLiteral("sidebar"));
+	side->setFixedWidth(210);
+	auto *sideLayout = new QVBoxLayout(side);
+	sideLayout->setContentsMargins(12, 24, 12, 16);
+	sideLayout->setSpacing(8);
+
+	// 品牌图标:与下方文字品牌上下排列,透明底 PNG 由 resources.qrc 打包
+	auto *logoLabel = new QLabel(side);
+	logoLabel->setObjectName(QStringLiteral("brandLogo"));
+	logoLabel->setAlignment(Qt::AlignCenter);
+	logoLabel->setStyleSheet(QStringLiteral("background: transparent;"));
+	const QPixmap logoPixmap(QStringLiteral(":/logo.png"));
+	if (!logoPixmap.isNull())
+		logoLabel->setPixmap(logoPixmap.scaled(72, 72, Qt::KeepAspectRatio,
+											   Qt::SmoothTransformation));
+	sideLayout->addWidget(logoLabel);
+
+	auto *brand = new QLabel(tr("充电桩管理平台"), side);
+	brand->setObjectName(QStringLiteral("brand"));
+	sideLayout->addWidget(brand);
+	sideLayout->addSpacing(16);
+
+	m_navList = new QListWidget(side);
+	m_navList->setObjectName(QStringLiteral("navList"));
+	m_navList->setFrameShape(QFrame::NoFrame);
+	m_navList->addItem(tr("销售业绩"));
+	m_navList->addItem(tr("电桩状态"));
+	m_navList->addItem(tr("充电站管理"));
+	m_navList->addItem(tr("用户管理"));
+	sideLayout->addWidget(m_navList, 1);
+
+	m_userLabel = new QLabel(side);
+	m_userLabel->setObjectName(QStringLiteral("userLabel"));
+	sideLayout->addWidget(m_userLabel);
+
+	// 权限提示:ADMIN_READONLY 无写权限
+	connect(m_api, &ops::ApiClient::loginSucceeded, this, [this](const ops::AdminUser &admin) {
+		m_userLabel->setText(QStringLiteral("%1\n%2").arg(
+			admin.displayName,
+			admin.role == QLatin1String("ADMIN_READONLY") ? tr("(只读)") : tr("(管理员)")));
+	});
+
+	layout->addWidget(side);
+}
+
+/// @brief 更新状态栏为已登录提示。
+void MainWindow::resumeAfterLogin() {
+	statusBar()->showMessage(tr("已登录"));
+}
+
+QWidget *MainWindow::createPage(int index) {
+	switch (index) {
+	case PageSales:
+		m_salesPage = new SalesPage(m_api, this);
+		return m_salesPage;
+	case PageChargerStatus:
+		m_chargerStatusPage = new ChargerStatusPage(m_api, this);
+		return m_chargerStatusPage;
+	case PageStationManage:
+		m_stationPage = new StationPage(m_api, this);
+		return m_stationPage;
+	case PageUserManage:
+		m_userPage = new UserPage(m_api, this);
+		return m_userPage;
+	}
+	return new QWidget(this);
+}

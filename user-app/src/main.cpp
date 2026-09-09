@@ -7,7 +7,7 @@
 #include <QThread>
 #include <evcharger/logging.h>
 
-#include "views/mainwindow.h"
+#include "views/main_window.h"
 
 Q_LOGGING_CATEGORY(userApplication, "evcharger.user.application", QtInfoMsg)
 

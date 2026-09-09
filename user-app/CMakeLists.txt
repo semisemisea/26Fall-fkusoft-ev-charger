@@ -1,67 +1,67 @@
 set(PROJECT_SOURCES
     src/main.cpp
-    src/common/Format.h
-    src/common/Demo.h
-    src/common/Theme.h
-    src/app/Session.h
-    src/app/Session.cpp
-    src/app/ChargePollThread.h
-    src/app/ChargePollThread.cpp
-    src/api/ApiClient.h
-    src/api/ApiClient.cpp
-    src/models/User.h
-    src/models/User.cpp
-    src/models/Station.h
-    src/models/Station.cpp
-    src/models/Charger.h
-    src/models/Charger.cpp
-    src/models/Order.h
-    src/models/Order.cpp
-    src/models/Reservation.h
-    src/models/Reservation.cpp
-    src/widgets/StationCard.h
-    src/widgets/StationCard.cpp
-    src/widgets/BackButton.h
-    src/widgets/BackButton.cpp
-    src/widgets/ComboBox.h
-    src/widgets/ComboBox.cpp
-    src/widgets/AppIcons.h
-    src/widgets/AppIcons.cpp
-    src/widgets/BatteryWaveWidget.h
-    src/widgets/BatteryWaveWidget.cpp
-    src/widgets/ChargingSpinnerWidget.h
-    src/widgets/ChargingSpinnerWidget.cpp
-    src/widgets/ScaleButton.h
-    src/widgets/ScaleButton.cpp
-    src/widgets/Spinner.h
-    src/widgets/Spinner.cpp
-    src/widgets/ChargeRingWidget.h
-    src/widgets/ChargeRingWidget.cpp
-    src/widgets/RechargeDialog.h
-    src/widgets/RechargeDialog.cpp
-    src/widgets/Toast.h
-    src/widgets/Toast.cpp
-    src/views/mainwindow.cpp
-    src/views/mainwindow.h
-    src/views/mainwindow.ui
-    src/views/LoginView.cpp
-    src/views/LoginView.h
-    src/views/StationListView.cpp
-    src/views/StationListView.h
-    src/views/StationDetailView.cpp
-    src/views/StationDetailView.h
-    src/views/ChargingView.cpp
-    src/views/ChargingView.h
-    src/views/ChargingTab.cpp
-    src/views/ChargingTab.h
-    src/views/SettleView.cpp
-    src/views/SettleView.h
-    src/views/ProfileView.cpp
-    src/views/ProfileView.h
-    src/views/NavigationView.cpp
-    src/views/NavigationView.h
-    src/views/InfoPages.cpp
-    src/views/InfoPages.h
+    src/common/format.h
+    src/common/demo.h
+    src/common/theme.h
+    src/app/session.h
+    src/app/session.cpp
+    src/app/charge_poll_thread.h
+    src/app/charge_poll_thread.cpp
+    src/api/api_client.h
+    src/api/api_client.cpp
+    src/models/user.h
+    src/models/user.cpp
+    src/models/station.h
+    src/models/station.cpp
+    src/models/charger.h
+    src/models/charger.cpp
+    src/models/order.h
+    src/models/order.cpp
+    src/models/reservation.h
+    src/models/reservation.cpp
+    src/widgets/station_card.h
+    src/widgets/station_card.cpp
+    src/widgets/back_button.h
+    src/widgets/back_button.cpp
+    src/widgets/combo_box.h
+    src/widgets/combo_box.cpp
+    src/widgets/app_icons.h
+    src/widgets/app_icons.cpp
+    src/widgets/battery_wave_widget.h
+    src/widgets/battery_wave_widget.cpp
+    src/widgets/charging_spinner_widget.h
+    src/widgets/charging_spinner_widget.cpp
+    src/widgets/scale_button.h
+    src/widgets/scale_button.cpp
+    src/widgets/spinner.h
+    src/widgets/spinner.cpp
+    src/widgets/charge_ring_widget.h
+    src/widgets/charge_ring_widget.cpp
+    src/widgets/recharge_dialog.h
+    src/widgets/recharge_dialog.cpp
+    src/widgets/toast.h
+    src/widgets/toast.cpp
+    src/views/main_window.cpp
+    src/views/main_window.h
+    src/views/main_window.ui
+    src/views/login_view.cpp
+    src/views/login_view.h
+    src/views/station_list_view.cpp
+    src/views/station_list_view.h
+    src/views/station_detail_view.cpp
+    src/views/station_detail_view.h
+    src/views/charging_view.cpp
+    src/views/charging_view.h
+    src/views/charging_tab.cpp
+    src/views/charging_tab.h
+    src/views/settle_view.cpp
+    src/views/settle_view.h
+    src/views/profile_view.cpp
+    src/views/profile_view.h
+    src/views/navigation_view.cpp
+    src/views/navigation_view.h
+    src/views/info_pages.cpp
+    src/views/info_pages.h
     resources/resources.qrc
 )
 
@@ -103,17 +103,17 @@ if(BUILD_TESTING)
     find_package(Qt6 6.2.4 EXACT REQUIRED COMPONENTS Test)
     add_executable(user-app-contract-tests
         tests/contract_tests.cpp
-        src/api/ApiClient.cpp
-        src/app/ChargePollThread.cpp
-        src/models/Charger.cpp
-        src/models/Order.cpp
-        src/models/Reservation.cpp
-        src/models/Station.cpp
-        src/models/User.cpp
-        src/views/ChargingView.cpp
-        src/widgets/ChargingSpinnerWidget.cpp
-        src/widgets/AppIcons.cpp
-        src/widgets/Toast.cpp
+        src/api/api_client.cpp
+        src/app/charge_poll_thread.cpp
+        src/models/charger.cpp
+        src/models/order.cpp
+        src/models/reservation.cpp
+        src/models/station.cpp
+        src/models/user.cpp
+        src/views/charging_view.cpp
+        src/widgets/charging_spinner_widget.cpp
+        src/widgets/app_icons.cpp
+        src/widgets/toast.cpp
         resources/resources.qrc
     )
     target_include_directories(user-app-contract-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
@@ -125,14 +125,14 @@ endif()
 if(BUILD_TESTING)
     add_executable(user-app-station-search-tests
         tests/station_search_tests.cpp
-        src/api/ApiClient.cpp
-        src/app/Session.cpp
-        src/models/User.cpp
-        src/models/Station.cpp
-        src/views/StationListView.cpp
-        src/widgets/StationCard.cpp
-        src/widgets/Spinner.cpp
-        src/widgets/AppIcons.cpp
+        src/api/api_client.cpp
+        src/app/session.cpp
+        src/models/user.cpp
+        src/models/station.cpp
+        src/views/station_list_view.cpp
+        src/widgets/station_card.cpp
+        src/widgets/spinner.cpp
+        src/widgets/app_icons.cpp
     )
     target_include_directories(user-app-station-search-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
     target_link_libraries(user-app-station-search-tests PRIVATE evcharger-map-picker Qt6::Test Qt6::Network Qt6::Widgets Qt6::Svg)

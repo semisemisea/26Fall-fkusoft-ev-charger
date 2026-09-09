@@ -269,7 +269,7 @@ components:
 ## Components
 
 - **按钮**：primary（靛蓝底白字，hover 提亮 primary-soft、按压 primary-press）、default（白底冷灰描边，hover 边框文字变靛）、danger（玫红深底）、warning（琥珀底深棕字）、outline-danger（白底玫红字）、CTA 大圆钮（翠绿渐变，仅"启动充电"）。所有按钮 hover/pressed 必须有反馈。
-- **Toast**：顶部 44px 居中白卡 + 8px 状态圆点，2.4s 自动消失，不阻塞操作；确认类交互仍用对话框，通知类一律 Toast。
+- **Toast**：顶部 44px 居中白卡 + 8px 状态圆点，3s 后淡出消失，不阻塞操作；确认类交互仍用对话框，通知类一律 Toast。
 - **卡片**：白底 + 1px hairline 描边 + lg 圆角；电站卡 hover 边框变 primary。
 - **状态标签（电桩）**：浅底深字——success-bg/warning-bg/primary-bg/error-bg 配对应 ink 色，禁止白字压浅底。
 - **下拉框**：自绘控件，弹层圆角裁剪 + 自绘 chevron，选中项 primary-bg 浅底 primary-deep 字。
@@ -279,7 +279,7 @@ components:
 
 - Do 保持一个页面只有一个 primary 主操作。
 - Do 金额一律 error-strong 加粗，余额/倒计时用 primary。
-- Do 状态色通过 Theme.h 引用，禁止硬编码。
+- Do 状态色通过 theme.h 引用，禁止硬编码。
 - Do 文字用 slate 系（#1e293b/#64748d），永远不用纯黑。
 - Don't 在 warning 底上用白字，在浅底上用 text-disabled。
 - Don't 新增第三种渐变或第三级阴影。

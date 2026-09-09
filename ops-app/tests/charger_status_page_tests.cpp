@@ -1,8 +1,8 @@
 /** @file
  * @brief 管理员前端回归测试；用本地响应或直接发送信号隔离真实服务。
  */
-#include "api/apiclient.h"
-#include "pages/chargerstatuspage.h"
+#include "api/api_client.h"
+#include "pages/charger_status_page.h"
 
 #include <QLabel>
 #include <QTableWidget>
