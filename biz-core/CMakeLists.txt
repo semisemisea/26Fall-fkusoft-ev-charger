@@ -9,6 +9,7 @@ target_include_directories(biz-core-domain PUBLIC src/include)
 target_link_libraries(biz-core-domain PUBLIC Qt6::Core)
 
 add_library(biz-core-runtime STATIC
+	resources/database.qrc
 	src/admin_api.cpp
 	src/admin_user_api.cpp
 	src/api.cpp
