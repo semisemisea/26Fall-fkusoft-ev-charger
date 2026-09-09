@@ -17,6 +17,9 @@ class DatabaseTests : public QObject {
 	Q_OBJECT
 
 private slots:
+	void rejectsUnsupportedVersion();
+	void rollsBackFailedMigration();
+	void preservesExistingVersionOne();
 	/**
 	 * @brief 验证数据库模式、默认管理员加盐摘要及服务凭据初始化。
 	 */
@@ -222,6 +225,57 @@ void DatabaseTests::startupRejectsCrossTableOccupancyConflict() {
 
 	QVERIFY(!database.initialize(now.addSecs(1), QString(), &error));
 	QCOMPARE(error, QStringLiteral("Database business consistency check failed"));
+}
+
+void DatabaseTests::rejectsUnsupportedVersion() {
+	QTemporaryDir directory;
+	Backend::Database database(directory.filePath(QStringLiteral("test.sqlite3")), 5000);
+	QString error;
+	QVERIFY(database.withConnection([](QSqlDatabase &connection, QString *operationError) {
+		return execute(connection, QStringLiteral("CREATE TABLE schema_version(version INTEGER NOT NULL)"), operationError) && execute(connection, QStringLiteral("INSERT INTO schema_version VALUES (2)"), operationError);
+	},
+									&error));
+	QVERIFY(!database.initialize(QDateTime::currentDateTimeUtc(), QString(), &error));
+	QCOMPARE(error, QStringLiteral("Unsupported database schema version"));
+	QVERIFY(database.withConnection([](QSqlDatabase &connection, QString *) {
+		return !connection.tables().contains(QStringLiteral("users"));
+	},
+									&error));
+}
+
+void DatabaseTests::rollsBackFailedMigration() {
+	QTemporaryDir directory;
+	Backend::Database database(directory.filePath(QStringLiteral("test.sqlite3")), 5000);
+	QString error;
+	// 故意制造索引建表冲突，在部分 DDL 已执行后触发失败。
+	QVERIFY(database.withConnection([](QSqlDatabase &connection, QString *operationError) {
+		return execute(connection, QStringLiteral("CREATE TABLE chargers_station(id INTEGER)"), operationError);
+	},
+									&error));
+	QVERIFY(!database.initialize(QDateTime::currentDateTimeUtc(), QString(), &error));
+	QVERIFY2(error.contains(QStringLiteral("001_initial.sql statement")), qPrintable(error));
+	QVERIFY(database.withConnection([](QSqlDatabase &connection, QString *) {
+		return connection.tables() == QStringList{QStringLiteral("chargers_station")};
+	},
+									&error));
+}
+
+void DatabaseTests::preservesExistingVersionOne() {
+	QTemporaryDir directory;
+	Backend::Database database(directory.filePath(QStringLiteral("test.sqlite3")), 5000);
+	QString error;
+	const auto now = QDateTime::currentDateTimeUtc();
+	QVERIFY2(database.initialize(now, QString(), &error), qPrintable(error));
+	QVERIFY(database.withConnection([](QSqlDatabase &connection, QString *operationError) {
+		return execute(connection, QStringLiteral("UPDATE admins SET display_name = 'Existing administrator'"), operationError) && execute(connection, QStringLiteral("DROP INDEX orders_created"), operationError);
+	},
+									&error));
+	QVERIFY2(database.initialize(now, QString(), &error), qPrintable(error));
+	QVERIFY(database.withConnection([](QSqlDatabase &connection, QString *) {
+		QSqlQuery query(connection);
+		return query.exec(QStringLiteral("SELECT display_name FROM admins")) && query.next() && query.value(0).toString() == QStringLiteral("Existing administrator") && query.exec(QStringLiteral("SELECT name FROM sqlite_master WHERE name = 'orders_created'")) && !query.next();
+	},
+									&error));
 }
 
 QTEST_APPLESS_MAIN(DatabaseTests)

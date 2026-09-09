@@ -25,13 +25,13 @@ def insert(db, table, **values):
 
 
 def create_schema(db):
-    # 复用当前仓库的 v1 DDL，避免维护与后端分叉的第二份表结构。
-    source = Path(__file__).resolve().parents[1] / "src/database.cpp"
-    statements = re.findall(r'QStringLiteral\(("CREATE (?:TABLE|(?:UNIQUE )?INDEX)[^\n]+?")\)', source.read_text())
-    if len(statements) != 21:
-        raise ValueError("后端 DDL 已变化，请更新脚本的 v1 模式读取逻辑")
-    for statement in statements:
-        db.execute(json.loads(statement))
+    # 与后端共享 SQL 文件及语句边界；不再解析 C++ 源码。
+    migrations = Path(__file__).resolve().parents[1] / "resources/migrations"
+    for name in ("000_metadata.sql", "001_initial.sql"):
+        source = (migrations / name).read_text(encoding="utf-8")
+        for statement in re.split(r"(?m)^-- statement-breakpoint\r?$", source):
+            if statement.strip():
+                db.execute(statement)
     insert(db, "schema_version", version=1)
     # 默认管理员和服务凭据由后端首次启动时按真实逻辑创建。
 

@@ -1,0 +1,6 @@
+<RCC>
+    <qresource prefix="/backend/database">
+        <file>migrations/000_metadata.sql</file>
+        <file>migrations/001_initial.sql</file>
+    </qresource>
+</RCC>
