@@ -2,6 +2,7 @@
  * @file profile_view.cpp
  * @brief 展示和编辑个人资料，提供头像上传、充值与历史记录入口。
  */
+#include "../../../common/refresh/page_refresh.h"
 #include <evcharger/logging.h>
 
 #include "profile_view.h"
@@ -26,6 +27,7 @@
 #include <QMessageBox>
 #include <QMimeDatabase>
 #include <QMouseEvent>
+#include <QPointer>
 #include <QPushButton>
 #include <QStyle>
 #include <QUrl>
@@ -70,6 +72,7 @@ namespace {
  */
 ProfileView::ProfileView(Session &session, ApiClient &api, QWidget *parent)
 	: QWidget(parent), m_session(session), m_api(api) {
+	new evcharger::PageRefresh(this, [this] { fetchProfile(); }, true);
 	if (objectName().isEmpty())
 		setObjectName(QStringLiteral("ProfileView"));
 	EV_LOG_DEBUG(userProfileViewLog, this) << "View initialized";
@@ -227,7 +230,6 @@ ProfileView::ProfileView(Session &session, ApiClient &api, QWidget *parent)
  */
 void ProfileView::showEvent(QShowEvent *event) {
 	QWidget::showEvent(event);
-	refreshProfile();
 }
 
 /**
@@ -378,4 +380,16 @@ void ProfileView::signOut() {
                 }
                 Toast::error(this, error.message.isEmpty() ? error.code : error.message); });
 	}
+}
+
+void ProfileView::fetchProfile() {
+	if (!m_session.isLoggedIn() || m_refreshPending)
+		return;
+	m_refreshPending = true;
+	const auto token = m_session.accessToken();
+	const QPointer<ProfileView> guard(this);
+	m_api.get(QStringLiteral("/me"), [this, token, guard](const QJsonValue &data, const QJsonObject &) {
+  if (!guard) return;
+  m_refreshPending = false;
+  if (m_session.accessToken() == token) m_session.updateUser(User::fromJson(data.toObject())); }, [this, guard](const ApiError &) { if (guard) m_refreshPending = false; });
 }

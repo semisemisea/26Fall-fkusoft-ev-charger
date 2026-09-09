@@ -162,3 +162,5 @@ if(BUILD_TESTING)
     add_test(NAME user-app-profile-tests COMMAND user-app-profile-tests)
     set_tests_properties(user-app-profile-tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 endif()
+
+configure_file(${CMAKE_SOURCE_DIR}/common/refresh/refresh.ini ${CMAKE_CURRENT_BINARY_DIR}/refresh.ini COPYONLY)

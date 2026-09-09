@@ -68,6 +68,8 @@ private:
 	 * @brief 用会话中的用户信息刷新昵称、手机号、余额与头像
 	 */
 	void refreshProfile();
+	void fetchProfile();
+	bool m_refreshPending = false;
 	/**
 	 * @brief 按 avatarUrl 下载头像；网络失败回退默认图标，图片解码失败保持现状
 	 */

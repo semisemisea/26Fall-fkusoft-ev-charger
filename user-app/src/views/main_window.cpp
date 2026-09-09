@@ -5,17 +5,17 @@
 #include <evcharger/logging.h>
 
 #include "charging_tab.h"
+#include "common/demo.h"
+#include "common/theme.h"
 #include "info_pages.h"
 #include "login_view.h"
+#include "main_window.h"
+#include "models/order.h"
+#include "models/reservation.h"
 #include "navigation_view.h"
 #include "profile_view.h"
 #include "station_detail_view.h"
 #include "station_list_view.h"
-#include "common/demo.h"
-#include "common/theme.h"
-#include "main_window.h"
-#include "models/order.h"
-#include "models/reservation.h"
 #include "ui_main_window.h"
 
 #include "widgets/app_icons.h"
@@ -250,9 +250,6 @@ void MainWindow::buildTabBar() {
 
 		connect(button, &QToolButton::clicked, this, [this, i] {
 			showTab(i);
-			if (i == 1) {
-				m_chargingTab->checkActiveOrder(); // 每次进"充电"Tab 都查一次
-			}
 		});
 	}
 	updateTabIcons();

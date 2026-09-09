@@ -1,6 +1,7 @@
 /** @file
  * @brief 电站分页查询、选中站点的电桩管理，以及电站新增和地图选点表单。
  */
+#include "../../../common/refresh/page_refresh.h"
 #include "station_page.h"
 #include <evcharger/logging.h>
 
@@ -50,6 +51,7 @@ namespace {
 /// @brief 建立电站与电桩两级表格，连接分页、选择、写操作和结果回调。
 StationPage::StationPage(ops::ApiClient *api, QWidget *parent)
 	: QWidget(parent), m_api(api) {
+	new evcharger::PageRefresh(this, [this] { refresh(); }, true);
 	setObjectName(QStringLiteral("opsStationPage"));
 	EV_LOG_DEBUG(opsStationpageLog, this) << "StationPage initialized";
 	auto *root = new QVBoxLayout(this);
@@ -443,16 +445,12 @@ void StationPage::updatePager() {
 void StationPage::showEvent(QShowEvent *event) {
 	/// @brief 先交给 QWidget 处理显示事件，再触发本页刷新。
 	QWidget::showEvent(event);
-	refresh();
 }
 
 /// @brief 按页面加载策略发起数据请求，结果由已连接的信号更新控件。
 void StationPage::refresh() {
 	EV_LOG_DEBUG(opsStationpageLog, this) << "Page refresh requested";
-	if (m_loaded)
-		return;
-	m_loaded = true;
-	m_api->fetchStations({}, m_page);
+	m_api->fetchStations(m_searchEdit->text().trimmed(), m_page);
 }
 
 // ---- AddStationDialog ----

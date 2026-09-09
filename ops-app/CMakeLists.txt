@@ -198,3 +198,5 @@ if(BUILD_TESTING)
             ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 10)
     endforeach()
 endif()
+
+configure_file(${CMAKE_SOURCE_DIR}/common/refresh/refresh.ini ${CMAKE_CURRENT_BINARY_DIR}/refresh.ini COPYONLY)

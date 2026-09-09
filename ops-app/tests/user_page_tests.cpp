@@ -67,6 +67,11 @@ void UserPageTests::refreshFetchesNewUsers() {
 	QCOMPARE(table->item(0, 2)->text(), QStringLiteral("new-user"));
 	QTest::mouseClick(refresh, Qt::LeftButton);
 	QTRY_COMPARE(fetched.count(), 3);
+	page.hide();
+	page.show();
+	QTRY_COMPARE(fetched.count(), 4);
+	QVERIFY(requests.last().contains("phone=138"));
+	QCOMPARE(table->rowCount(), 1);
 }
 
 QTEST_MAIN(UserPageTests)

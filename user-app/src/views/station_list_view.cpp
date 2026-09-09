@@ -2,6 +2,7 @@
  * @file station_list_view.cpp
  * @brief 查询附近电站，支持地图选址、手动坐标、文本过滤和基于空闲率的本地推荐。
  */
+#include "../../../common/refresh/page_refresh.h"
 #include <evcharger/logging.h>
 
 #include "station_list_view.h"
@@ -34,6 +35,7 @@ Q_LOGGING_CATEGORY(userStationListViewLog, "evcharger.user.ui", QtInfoMsg)
  */
 StationListView::StationListView(Session &session, ApiClient &api, QWidget *parent)
 	: QWidget(parent), m_session(session), m_api(api) {
+	new evcharger::PageRefresh(this, [this] { if (m_locationConfirmed && !m_refreshPending) reload(); }, true);
 	if (objectName().isEmpty())
 		setObjectName(QStringLiteral("StationListView"));
 	EV_LOG_DEBUG(userStationListViewLog, this) << "View initialized";
@@ -152,8 +154,6 @@ StationListView::StationListView(Session &session, ApiClient &api, QWidget *pare
  */
 void StationListView::showEvent(QShowEvent *event) {
 	QWidget::showEvent(event);
-	if (m_locationConfirmed)
-		reload();
 }
 
 /**
@@ -161,6 +161,7 @@ void StationListView::showEvent(QShowEvent *event) {
  */
 void StationListView::reload() {
 	EV_LOG_INFO(userStationListViewLog, this) << "Loading stations";
+	m_refreshPending = true;
 	const quint64 generation = beginSearch();
 	const QPointer<StationListView> guard(this);
 
@@ -174,6 +175,7 @@ void StationListView::reload() {
 	const auto onSuccess = [this, guard, generation](const QJsonValue &data, const QJsonObject &) {
 		if (!guard || generation != m_requestGeneration)
 			return;
+		m_refreshPending = false;
 		m_spinner->hide();
 		const QJsonArray stations = data.toArray();
 		for (const QJsonValue &value : stations) {
@@ -209,6 +211,7 @@ void StationListView::reload() {
 	const auto onFailure = [this, guard, generation](const ApiError &error) {
 		if (!guard || generation != m_requestGeneration)
 			return;
+		m_refreshPending = false;
 		EV_LOG_WARNING(userStationListViewLog, this) << "API operation failed in view";
 		m_spinner->hide();
 		m_statusLabel->setText(error.message.isEmpty() ? error.code : error.message);

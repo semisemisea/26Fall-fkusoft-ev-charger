@@ -2,6 +2,7 @@
  * @file charging_tab.cpp
  * @brief 协调准备、预约、充电和结算页面，并从服务端恢复当前业务状态。
  */
+#include "../../../common/refresh/page_refresh.h"
 #include <evcharger/logging.h>
 
 #include "charging_tab.h"
@@ -30,6 +31,7 @@ Q_LOGGING_CATEGORY(userChargingTabLog, "evcharger.user.charging", QtInfoMsg)
  */
 ChargingTab::ChargingTab(Session &session, ApiClient &api, QWidget *parent)
 	: QWidget(parent), m_session(session), m_api(api) {
+	new evcharger::PageRefresh(this, [this] { checkActiveOrder(); }, false);
 	if (objectName().isEmpty())
 		setObjectName(QStringLiteral("ChargingTab"));
 	EV_LOG_DEBUG(userChargingTabLog, this) << "View initialized";

@@ -59,6 +59,7 @@ private:
 	 * @brief 重新加载附近电站（GET /stations/nearby）并重建卡片列表
 	 */
 	void reload();
+	bool m_refreshPending = false;
 	/// @brief 打开腾讯地图选址，选点只回填输入框，确认后才查询。
 	void pickLocation();
 	/// @brief 校验并使用手动填写的经纬度。

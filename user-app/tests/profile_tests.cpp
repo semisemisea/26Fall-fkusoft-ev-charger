@@ -28,8 +28,20 @@ private slots:
 		QByteArray received;
 		QTcpSocket *pending = nullptr;
 		connect(&server, &QTcpServer::newConnection, this, [&] {
-			pending = server.nextPendingConnection();
-			connect(pending, &QTcpSocket::readyRead, pending, [&] { received += pending->readAll(); });
+			auto *socket = server.nextPendingConnection();
+			connect(socket, &QTcpSocket::readyRead, socket, [&, socket, buffer = QByteArray{}]() mutable {
+				buffer += socket->readAll();
+				if (!buffer.contains("\r\n\r\n"))
+					return;
+				if (buffer.startsWith("GET /api/v1/me ")) {
+					const QByteArray body = R"({"data":{"nickname":"旧昵称","phone":"13800000000"}})";
+					socket->write("HTTP/1.1 200 OK\r\nContent-Length: " + QByteArray::number(body.size()) + "\r\nConnection: close\r\n\r\n" + body);
+					socket->disconnectFromHost();
+				} else {
+					pending = socket;
+					received = buffer;
+				}
+			});
 		});
 		Session session;
 		session.signIn(User{}, QStringLiteral("test-token"));
@@ -38,6 +50,7 @@ private slots:
 		connect(&session, &Session::signedOut, &api, [&] { api.setAccessToken({}); });
 		ProfileView view(session, api);
 		view.show();
+		QTRY_COMPARE(session.user().phone, QStringLiteral("13800000000"));
 		auto *button = view.findChild<QPushButton *>(QStringLiteral("outlineDangerButton"));
 		QVERIFY(button);
 		QTimer::singleShot(0, &view, [&] {
@@ -69,8 +82,17 @@ private slots:
 		QByteArray received;
 		connect(&server, &QTcpServer::newConnection, this, [&] {
 			auto *socket = server.nextPendingConnection();
-			connect(socket, &QTcpSocket::readyRead, socket, [&, socket] {
-				received += socket->readAll();
+			connect(socket, &QTcpSocket::readyRead, socket, [&, socket, buffer = QByteArray{}]() mutable {
+				buffer += socket->readAll();
+				if (!buffer.contains("\r\n\r\n"))
+					return;
+				if (buffer.startsWith("GET /api/v1/me ")) {
+					const QByteArray body = R"({"data":{"nickname":"旧昵称","phone":"13800000000"}})";
+					socket->write("HTTP/1.1 200 OK\r\nContent-Length: " + QByteArray::number(body.size()) + "\r\nConnection: close\r\n\r\n" + body);
+					socket->disconnectFromHost();
+					return;
+				}
+				received = buffer;
 				if (!received.contains("\r\n\r\n") || !received.endsWith('}'))
 					return;
 				const QByteArray body = R"({"data":{"nickname":"新昵称","phone":"13800000000"}})";
@@ -86,6 +108,7 @@ private slots:
 		api.setAccessToken(session.accessToken());
 		ProfileView view(session, api);
 		view.show();
+		QTRY_COMPARE(session.user().phone, QStringLiteral("13800000000"));
 		QPushButton *edit = nullptr;
 		for (auto *button : view.findChildren<QPushButton *>()) {
 			if (button->text() == QStringLiteral("修改昵称"))

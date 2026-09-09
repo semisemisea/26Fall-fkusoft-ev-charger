@@ -2,6 +2,7 @@
  * @file charge_poll_thread.cpp
  * @brief 在独立线程中轮询充电订单，并通过队列信号向界面交付计量快照。
  */
+#include "../../../common/refresh/page_refresh.h"
 #include "charge_poll_thread.h"
 #include <evcharger/logging.h>
 
@@ -18,7 +19,7 @@ Q_LOGGING_CATEGORY(userPoll, "evcharger.user.charging.poll", QtInfoMsg)
 
 namespace {
 	/// @brief 每次请求完成后的轮询休眠间隔，单位毫秒。
-	constexpr int kPollIntervalMs = 5000;
+
 	/// @brief 单次订单请求的传输超时，限制停止等待的网络阶段。
 	constexpr int kRequestTimeoutMs = 10000;
 } // namespace
@@ -59,6 +60,7 @@ void ChargePollThread::requestStop() {
  */
 void ChargePollThread::run() {
 	// 网络对象在线程内部创建，避免跨线程使用主线程的 QNetworkAccessManager
+	const int kPollIntervalMs = evcharger::refreshIntervalMs();
 	QNetworkAccessManager manager;
 	manager.setObjectName(QStringLiteral("chargePollNetworkManager"));
 	EV_LOG_INFO(userPoll, &manager) << "Charge polling started; order_id=" << m_orderId << "interval_ms=" << kPollIntervalMs;
@@ -114,7 +116,7 @@ void ChargePollThread::run() {
 		}
 		reply->deleteLater();
 
-		// 5 秒间隔拆成 250ms 小步，缩短休眠阶段响应停止请求的延迟（网络等待仍受超时限制）
+		// 配置间隔拆成 250ms 小步，缩短休眠阶段响应停止请求的延迟（网络等待仍受超时限制）
 		for (int waited = 0; waited < kPollIntervalMs && !m_stop.load(); waited += 250) {
 			msleep(250);
 		}
